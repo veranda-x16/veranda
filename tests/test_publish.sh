@@ -38,6 +38,8 @@ g() { git -c init.defaultBranch=main -c commit.gpgsign=false -c tag.gpgsign=fals
 S=$W/src
 mkdir -p "$S"
 git ls-files -z -co --exclude-standard | tar --null -T - -cf - | tar -x -C "$S"
+# (the public repository has no decisions log: a made-up one, to be left out)
+[ -f "$S/docs/DECISIONS.md" ] || echo "private: made up" > "$S/docs/DECISIONS.md"
 g -C "$S" init -q
 g -C "$S" add -A
 g -C "$S" commit -q -m "Veranda as it is"

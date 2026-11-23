@@ -21,6 +21,7 @@
 # start page and navigation. Pages the wiki has but docs/manual does not
 # are listed, not deleted.
 set -e
+HERE=$PWD
 cd "$(dirname "$0")/.."
 REPO=veranda-x16/veranda
 TREE=
@@ -33,6 +34,7 @@ while [ $# -gt 1 ]; do
 done
 [ $# -eq 1 ] || { sed -n '6,13p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
 WIKI=$1
+case $WIKI in /*) ;; *) WIKI=$HERE/$WIKI ;; esac   # (relative to where it was run)
 [ -d "$WIKI" ] || { echo "mkwiki: no folder $WIKI (git clone https://github.com/$REPO.wiki.git first)" >&2; exit 1; }
 [ -e "$WIKI/.git" ] || echo "mkwiki: WARNING: $WIKI is not a git clone" >&2
 case $REPO in */*) ;; *) echo "mkwiki: --repo is OWNER/REPO" >&2; exit 2 ;; esac
