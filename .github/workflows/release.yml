@@ -46,7 +46,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
           path: ~/ci-tools
-          key: ci-tools-cc65-547d923-x16emu-r49-modem-1db040b
+          key: ci-tools-cc65-547d923-x16emu-r49-modem-40bd5fe
       - name: Tools (pinned)
         run: |
           sudo apt-get update -qq

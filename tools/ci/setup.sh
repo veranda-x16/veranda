@@ -37,7 +37,7 @@ ROM_URL=https://github.com/X16Community/x16-rom/releases/download/r49/Release.R4
 ROM_SHA=95b4e3566fa44f23dda9c8295b18a5fa9ea297e5db49dc978ae241e6114e39aa
 ROMBIN_SHA=b81654cc8c87ed96e3ffc7c8e7c312c9f3b7b870c7bb34de61e61eac931b819a
 MODEM_URL=https://github.com/veranda-x16/x16-emulator.git
-MODEM_COMMIT=1db040bac517c195e7327c12ffab44b83ddc1714
+MODEM_COMMIT=40bd5febfa982a1bfc596c8b2718a1cc8040aea4
 mkdir -p "$CI_TOOLS"
 env_line() {
 	echo "  $1=$2"
