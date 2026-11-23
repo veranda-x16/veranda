@@ -1,4 +1,15 @@
-/build/
-/dist/
+build/
+*.o
+*.lst
+*.map
 __pycache__/
-*.pyc
+.claude/
+!tests/vbasic/**/*.lst
+# build output (V91): cc65's temporary files, emulator dumps, the apps'
+# binaries and packed programs built in their own folders
+*.c.*.s
+/dump*.bin
+apps/*/*.bin
+apps/*/*.bin.*
+apps/*/*.cvt
+shell/icons3?.bin

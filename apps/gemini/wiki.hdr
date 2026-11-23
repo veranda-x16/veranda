@@ -1,0 +1,14 @@
+# The Wikipedia launcher (tools/vpack.py --doc; DECISIONS V128): a document
+# of Veranda Gemini's (parent class VerandaGemi), so the shell's double
+# click starts Veranda Gemini with it (GetFile, ST_LD_DATA: V87); its data,
+# "wp", is typed into the address line at the start: the address line's
+# Wikipedia shortcut alone, which asks "Look up in Wikipedia:"
+name        = Wikipedia
+class       = GeminiStart
+version     = 1.0
+author      = Veranda
+parent      = VerandaGemi
+description = Wikipedia in Veranda Gemini, through Gemipedia (gemi.dev): asks what to look up.
+icon        = wiki.pbm
+tile        = wikitile.txt
+data        = wp

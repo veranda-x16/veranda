@@ -1,0 +1,12 @@
+# Veranda application header (tools/vpack.py)
+name        = Veranda Update
+class       = VerandaUpd
+version     = 1.0
+author      = Veranda
+description = Veranda brought up to date: from GitHub releases, or from your own builds on a PC.
+mode        = 640x480
+api         = 6
+icon        = icon.pbm
+tile        = tile.txt
+icon3       = icon.txt
+overlays    = banked

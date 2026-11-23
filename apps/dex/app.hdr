@@ -1,0 +1,12 @@
+# Veranda desk accessory header (tools/vpack.py)
+name        = Dex
+class       = Dex
+type        = deskacc
+version     = 1.0
+author      = Veranda
+description = An address book: cards with phones, BBS hosts and mail; search, CSV, connect with Term.
+mode        = keep
+api         = 5
+icon        = icon.pbm
+tile        = tile.txt
+icon3       = icon.txt

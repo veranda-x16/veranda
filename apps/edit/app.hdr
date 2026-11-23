@@ -1,0 +1,13 @@
+# Veranda application header (tools/vpack.py)
+name        = Veranda Edit
+class       = VerandaEdit
+version     = 1.0
+author      = Veranda
+description = A text editor: Latin-1 plain text, LF, CR LF or CR, files of up to 400 KB in RAM banks.
+mode        = 640x480
+api         = 5
+icon        = icon.pbm
+tile        = tile.txt
+icon3       = icon.txt
+documents   = TXT MD INI LOG
+overlays    = banked

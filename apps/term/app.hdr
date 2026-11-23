@@ -1,0 +1,13 @@
+# Veranda application header (tools/vpack.py)
+name        = Veranda Term
+class       = VerandaTerm
+version     = 1.1
+author      = Veranda
+description = A terminal: ANSI, Telnet, TCP and XMODEM through a 16C550 and a Wi-Fi modem.
+mode        = 640x480
+api         = 2
+icon        = icon.pbm
+tile        = tile.txt
+icon3       = icon.txt
+overlays    = banked
+documents   = TEL

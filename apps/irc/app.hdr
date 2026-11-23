@@ -1,0 +1,12 @@
+# Veranda application header (tools/vpack.py)
+name        = Veranda Chat
+class       = VerandaChat
+version     = 1.0
+author      = Veranda
+description = An IRC client: channels and private conversations as tabs, through the Wi-Fi modem.
+mode        = 640x480
+api         = 6
+icon        = icon.pbm
+tile        = tile.txt
+icon3       = icon.txt
+overlays    = banked

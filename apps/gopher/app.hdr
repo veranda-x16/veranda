@@ -1,0 +1,12 @@
+# Veranda application header (tools/vpack.py)
+name        = Veranda Gopher
+class       = VerandaGoph
+version     = 1.0
+author      = Veranda
+description = A Gopher reader: menus, texts and files from Gopher servers, through the Wi-Fi modem.
+mode        = 640x480
+api         = 6
+icon        = icon.pbm
+tile        = tile.txt
+icon3       = icon.txt
+overlays    = banked

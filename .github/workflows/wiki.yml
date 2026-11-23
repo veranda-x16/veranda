@@ -1,0 +1,40 @@
+# The manual (docs/manual) into this repository's wiki on every push to
+# main that changes it (DECISIONS V134, V139): tools/mkwiki.sh, then one
+# commit "The Veranda manual, from <hash>". Uses only GITHUB_TOKEN (a
+# repository's token may push to its own wiki). The wiki must exist:
+# its first page made once on GitHub (docs/PUBLISHING.md, step 3).
+name: wiki
+on:
+  push:
+    branches: [main]
+    paths: ['docs/manual/**', 'tools/mkwiki.sh']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: wiki
+  cancel-in-progress: false
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          path: veranda
+      - name: The wiki
+        env:
+          TOKEN: ${{ github.token }}
+        run: |
+          git clone -q "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git" wiki
+          MKWIKI_QUIET=1 veranda/tools/mkwiki.sh --repo "$GITHUB_REPOSITORY" wiki
+          cd wiki
+          git add -A
+          if git diff --cached --quiet; then
+            echo "the wiki is up to date"
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -q -m "The Veranda manual, from ${GITHUB_SHA::7}"
+          git push -q origin HEAD
+          git log -1 --stat --format='%h %s'

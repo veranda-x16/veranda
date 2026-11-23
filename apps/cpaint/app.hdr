@@ -1,0 +1,11 @@
+# Veranda application header (tools/vpack.py)
+name        = Colour Paint
+class       = ColourPaint
+version     = 1.0
+author      = Veranda
+description = A paint program: 320x240, any of 256 colours a pixel.
+mode        = 320x240
+api         = 7
+icon        = icon.pbm
+icon3       = icon.txt
+overlays    = banked

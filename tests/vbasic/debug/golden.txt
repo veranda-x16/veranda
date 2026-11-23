@@ -1,0 +1,2 @@
+# gate vb_ui: the screens (tests/vbasic/check_ui.py); NAME HASH [masked x0,y0,x1,y1]
+runbox 817b61e065afb1fa8d7c60d2cc2c2a8c

@@ -1,0 +1,35 @@
+# The organisation's repositories (github.com/veranda-x16; DECISIONS V139,
+# docs/PUBLISHING.md), read by tools/publish.sh and the CI templates.
+#
+# One line a repository, fields separated by " | ":
+#   repo      the repository's name in the organisation
+#   tree      its source here: "." (this tree) or a folder under
+#             $VERANDA_PROJECTS (default ~/Projects)
+#   key       its name in a release tag's BUILT FROM (tools/mkdist.sh's
+#             refs.txt: the tree's folder name)
+#   refs      the refs tools/mkdist.sh builds (the first that exists), for
+#             a test publish; a release uses the commit its BUILT FROM names
+#   mode      export: git archive of that commit, minus tools/publish.private,
+#             one commit a publish ("Veranda <version>"); history: the
+#             branch pushed with its history (upstream authors' commits kept)
+#   branch    the organisation's branch it goes to
+#   licence   what its LICENSE / COPYING says (read: docs/PUBLISHING.md)
+#   build     its CI build against Veranda's SDK ($SDK), from its top
+#   output    the build's output (the CI checks it is there)
+#
+# NEVER here: geoWrite (veranda-geowrite) and TopDesk (veranda-topdesk),
+# Berkeley Softworks' and GEOS-USER-CLUB's programs, ported for personal
+# use; CommanderSID (SID Player is its own port, veranda-sidplay).
+# tools/publish.sh refuses them by name even if a line names them.
+#
+# repo             | tree              | key               | refs           | mode    | branch  | licence                         | build                                      | output
+veranda            | .                 | Veranda           | main           | export  | main    | MIT                             | -                                          | -
+veranda-write      | commander-write   | commander-write   | main           | export  | main    | MIT                             | make veranda SDK=$SDK                      | build/veranda/Veranda Write.cvt
+commander-calc     | commander-calc    | commander-calc    | layout veranda | export  | main    | MIT                             | make veranda SDK=$SDK                      | build/veranda/Veranda Calc.cvt
+lighthouse-pinball | veranda-pinball   | veranda-pinball   | master         | export  | main    | MIT                             | make -C veranda SDK=$SDK                   | build/veranda/Lighthouse Pinball.cvt
+harbour-walls      | harbour-walls     | harbour-walls     | master         | export  | main    | MIT                             | make SDK=$SDK                              | build/app/Harbour Walls.cvt
+veranda-sidplay    | veranda-sidplay   | veranda-sidplay   | main           | export  | main    | GPL-3.0-or-later                | make build/app/app.cvt VSDK=$SDK           | build/app/app.cvt
+veranda-solitaire  | veranda-solitaire | veranda-solitaire | main           | export  | main    | GPL-3.0-or-later                | make -C veranda SDK=$SDK                   | build/veranda/Veranda Solitaire.cvt
+mod-player         | x16-mod           | x16-mod           | layout veranda | export  | main    | MIT; vendor/micromod-c BSD-3    | make veranda VSDK=$SDK                     | build/veranda/MOD Player.cvt
+geochess           | veranda-geochess  | veranda-geochess  | veranda        | history | veranda | Scott Hutter's permission       | make -C veranda SDK=$SDK                   | build/veranda/geoChess.cvt
+x16-emulator       | x16-emulator-modem | x16-emulator-modem | modem         | history | modem   | BSD-2-Clause (x16emu's)         | -                                          | -

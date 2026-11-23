@@ -1,0 +1,9 @@
+# gate mouse's menu tracking program (DECISIONS V137; tests/menutrack)
+name        = Menu Track
+class       = MenuTrack
+version     = 1.0
+author      = Veranda
+description = Menus for gate mouse: a long list, a sub menu at the bottom.
+mode        = 640x480
+api         = 4
+icon        = icon.pbm

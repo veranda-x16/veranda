@@ -1,0 +1,18 @@
+# VeraBASIC Run: the runtime alone (DECISIONS V86). It opens the program
+# documents made by vbasic.py build (class VeraBASIC V1.0, parent class
+# VBRun V1.0: the shell starts it with such a document). A .bas file opens
+# in VeraBASIC, the editor (ide/app.hdr: documents = BAS; DECISIONS V93):
+# Run no longer says BAS, so that the shell, which starts the first
+# application of a folder that says it, never depends on the folder's
+# order. (Run still runs a .bas it is given: its test build, gate vb_tok.)
+name        = VeraBASIC Run
+class       = VBRun
+version     = 1.0
+author      = Veranda
+description = VeraBASIC Run: runs VeraBASIC programs, with their console.
+mode        = 640x480
+api         = 6
+icon        = icon.pbm
+tile        = tile.txt
+icon3       = icon.txt
+overlays    = banked

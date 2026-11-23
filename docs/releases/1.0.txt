@@ -1,0 +1,26 @@
+# Veranda 1.0: the first public release; what is new since the last package (build 7b07106).
+# One "- " line a point; the part before the first "; " goes into
+# Veranda Update's short list (UPDATE.LST). Plain words, no testing claims.
+- A new look, Sunroom; a sage desktop, white windows, colour icons for every program and document, tidy menus with their keyboard shortcuts on the right, new scroll bars and alert boxes, and 21 icons drawn again
+- Colour Paint, a new drawing program; pictures of 320 x 240 in 256 colours, with brush, spray, text, cut and paste, a palette editor, and Paint pictures opened in colour
+- New desktop pictures; Still Water, Low Hills and Sunroom Tiles, and a lighter Dusk. The Meadow is gone: a card still set to it shows the plain desktop
+- The dock is your launcher; pin up to ten favourite programs, drag them into the order you like, and a dot shows which programs are running or put aside. Set it up on the Dock page of Preferences, now under Options > Preferences...
+- Colour icons everywhere; they appear much faster, and now in every screen mode and on every desktop picture. Folder windows open as a list by default
+- Get Info, and Delete from Apps; Get Info shows a file's details with its colour icon, and a document in /VERANDA/APPS can be moved to the trash
+- Paint redesigned; a column of tools and colours on the left, twelve tools, a status line, the new menus
+- Alt+Tab puts programs aside on the SD card when memory runs short; then each program gets almost all of the memory (choose how in Preferences). A program brought back is just as you left it, and the clock in the menu bar opens Preferences again
+- The menu bar's titles and clock sit centred in the bar
+- The text cursor blinks at an even pace in every program
+- Faster screen work; memory copies and diagonal lines are quicker
+- Veranda Chat handles big channels; every person is counted, the list says "and N more", and a big network's welcome no longer gets lost
+- Solitaire; a card dragged on the right half of the screen is drawn where it is, and the status bar says "No moves left"
+- Veranda Write no longer freezes when you press Backspace at the end of bold or italic text
+- Polish letters; type them with right Alt (the Polish programmers keyboard, in Preferences), see them in the fonts and keep them in Veranda Edit, Note Pad, Chat, FTP, Claude, Ask, Gemini, Gopher and Veranda Write
+- Commander Write is now Veranda Write, to match Veranda Calc; your .cwr documents open as before, and geoWrite documents open in it and are converted. After copying this package you can delete the old Commander Write from /VERANDA/APPS
+- Veranda Claude and Veranda Ask keep your chats; a file can be attached and saved back, code blocks can be copied or saved as a program, and you can see what each question costs
+- Veranda Gemini: web pages, PNG pictures and Wikipedia; web pages come through a proxy, Wikipedia is under Go > Wikipedia...
+- Veranda Update keeps your card up to date; from the internet or from your PC, changing only the files that changed, with Undo last update
+- Menus stay open while you choose; they no longer close when the pointer slips off a long list, and Up, Down, Return and Esc work in an open menu
+- The Veranda manual; read it on the X16 with Veranda > Help, or online
+- The games are in the package; Lighthouse Pinball, Harbour Walls, Solitaire and geoChess (by Scott Hutter)
+- geoWrite and TopDesk are no longer in the package; Veranda Write opens geoWrite documents. You can delete geoWrite and TopDesk from /VERANDA/APPS

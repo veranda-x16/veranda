@@ -1,0 +1,48 @@
+# Every push and pull request (DECISIONS V139): the kernel, the shell, the
+# SDK and every program of this tree built with the pinned cc65, the
+# allowlist's and the port guard's host tests, and the fast gates under the
+# official x16emu R49 (tools/ci/gates.sh). The sibling repositories are not
+# built here (their own CI builds them against this SDK).
+name: ci
+on:
+  push:
+    branches: [main, next]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ~/ci-tools
+          key: ci-tools-cc65-547d923-x16emu-r49
+      - name: Tools (pinned)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq python3-pil libsdl2-2.0-0 zip >/dev/null
+          tools/ci/setup.sh all
+      - name: The package (this tree only)
+        run: |
+          GEOWRITE=/none CALC=/none GEOCHESS=/none X16MOD=/none SOLITAIRE=/none CWRITE=/none \
+            PINBALL=/none HWALLS=/none SIDPLAY=/none MKDIST_SIBLINGS=1 \
+            tools/mkdist.sh "$RUNNER_TEMP/pkg" | grep -v '^mkdist: WARNING: no '
+      - name: The release tooling's host tests
+        run: |
+          python3 -I -B tests/test_mkrelease.py "$RUNNER_TEMP/host"
+          TMPDIR="$RUNNER_TEMP" tests/test_tocard.sh "$RUNNER_TEMP/tocard"
+          tests/test_publish.sh "$RUNNER_TEMP/publish"
+      - name: The fast gates
+        run: CI_LOGS="$RUNNER_TEMP/gates" tools/ci/gates.sh
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        if: failure()
+        with:
+          name: gates
+          path: |
+            ${{ runner.temp }}/gates
+            !**/rom.bin
+          if-no-files-found: ignore

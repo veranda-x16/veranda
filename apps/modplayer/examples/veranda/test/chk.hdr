@@ -1,9 +1,0 @@
-# the desktop the player quits to in its gate (DESKTOP.cvt): what the quit left
-name        = AudChk
-class       = AudChk
-version     = 1.0
-author      = Veranda
-description = Logs the audio state a quit left.
-mode        = 640x480
-api         = 2
-icon        = ../trace.pbm

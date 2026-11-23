@@ -1,0 +1,11 @@
+# Veranda application header (tools/vpack.py)
+name        = About this X16
+class       = VerandaAbout
+version     = 1.0
+author      = Veranda
+description = This machine: its versions, CPU, VERA, memory, programs aside, SD card, modem and clock.
+mode        = 640x480
+api         = 6
+icon        = icon.pbm
+tile        = tile.txt
+icon3       = icon.txt

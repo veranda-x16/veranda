@@ -1,0 +1,881 @@
+# The shell's library of Veranda Look 3's small colour icons (16 x 16,
+# DECISIONS V151), by class as icons3.txt: the list, the small icons'
+# view and the sidebar; each drawn for 16 pixels (not reduced from its
+# 32 x 32 one); "app" any other program. Packed by tools/mkicons3.py lib
+# into the shell's overlay record 15. Written by tools/mkicons3.py write
+# (the geometry is the source). 16 rows: '.' none, 'K' the ink, 'a'-'o'
+# entries 1-15 of the icons' palette row.
+
+icon Folder
+for folder
+................
+.KKKKKK.........
+KhhhhhhKKKKKKKK.
+KhiiiiihhhhhhhhK
+KhiiiiiiiiiiiijK
+KhjjjjjjjjjjjjjK
+KKKKKKKKKKKKKKKK
+KahhhhhhhhhhhhiK
+KahhhhhhhhhhhhiK
+KahhhhhhhhhhhhiK
+KahhhhhhhhhhhhiK
+KahhhhhhhhhhhhiK
+KahhhhhhhhhhhhiK
+KaiiiiiiiiiiiiiK
+.KKKKKKKKKKKKKKc
+..cccccccccccccc
+
+icon Up
+for up
+................
+.KKKKKK.........
+KhhhhhhKKKKKKKK.
+KhiiiiihhhhhhhhK
+KhiiiiiiiiiiiijK
+KhjjjjjjjjjjjjjK
+KKKKKKKKKKKKKKKK
+KahhhhiffahhhhiK
+KahhhiffffahhhiK
+KahhiffffffahhiK
+KahhhafffaahhhiK
+KahhhifffahhhhiK
+KahhhifffahhhhiK
+KaiiiiaaaiiiiiiK
+.KKKKKKKKKKKKKKc
+..cccccccccccccc
+
+icon Document
+for document
+...KKKKKKK......
+..KaaaaaaaK.....
+..KaaaaaabKK....
+..KaaaaaabKKK...
+..KaaaaaaaaaaK..
+..KaaccccccabKc.
+..KaaaaaaaaabKc.
+..KaaccccccabKc.
+..KaaaaaaaaabKc.
+..KaaccccccabKc.
+..KaaaaaaaaabKc.
+..KaaccccccabKc.
+..KaaaaaaaaabKc.
+..KaaaaaaaaabKc.
+..KabbbbbbbbbKc.
+...KKKKKKKKKKcc.
+
+icon SD card
+for sd card
+...KKKKKKK......
+..KfffffffK.....
+..KfghghghfK....
+..KfghghghgfK...
+..KfggggggggfK..
+..KfgggggggggKc.
+..KfgggggggggKc.
+..KfgaaaaaafgKc.
+..KfgafaffafgKc.
+..KfgfaafaffgKc.
+..KfgafafaffgKc.
+..KfgfaaffafgKc.
+..KfgaaaaaafgKc.
+..KfgffffffggKc.
+..KfgggggggggKc.
+...KKKKKKKKKKcc.
+
+icon Printer
+for printer
+....KKKKKKKK....
+...KaaaaaaaaK...
+...KaaaaaaabKc..
+...KaccccccbKc..
+.KKKabbbbbbbKKK.
+KbbbKKKKKKKKbbbK
+KbccccccccccccdK
+KbcccccccccmmcdK
+KbccccccccccccdK
+KbccccccccccccdK
+KbdddddddddddddK
+.KKKKKKKKKKKKKKc
+.KaaaaaaaaaaaaKc
+.KaaaaaaaaaaabKc
+.KabbbbbbbbbbbKc
+..KKKKKKKKKKKKcc
+
+icon Trash
+for trash
+.....KbbbbK.....
+.....KbdddKc....
+..KKKKbKKbKKKK..
+.KbbbbKbbKbbbbK.
+.KbKKKKKKKKKKdKc
+..KbbbbbbbbbbKcc
+..KbccccccccdKc.
+..KbccdcdcdcdKc.
+..KbccdcdcdcdKc.
+..KbccdcdcdcdKc.
+...KbcdcdcddKcc.
+...KbcdcdcddKc..
+...KbcdcdcddKc..
+...KbccccccdKc..
+...KbdddddddKc..
+....KKKKKKKKcc..
+
+icon Program
+for app
+................
+.KKKKKKKKKKKKKK.
+KffffffffffffffK
+KffafffffffffffK
+KffffffffffffffK
+KKKKKKKKKKKKKKKK
+KaaaaaaaaaaaaabK
+KaaaaaaaaaaaaabK
+KaacccccaaaaaabK
+KaaaaaaaaaaaaabK
+KaaccccccccaaabK
+KaaaaaaaaaaaaabK
+KaaaaaaaaaaaaabK
+KabbbbbbbbbbbbbK
+.KKKKKKKKKKKKKKc
+..cccccccccccccc
+
+icon Paint
+for class Paint
+.............Kii
+............Kikj
+........KKKKKijK
+.....KKKiiiiKjKc
+...KKiiijjdKKKcc
+..KiijjffdKKiiK.
+.KijjjjffKmmidKc
+KijjkkjjdKmmjdKc
+KijjkkjjjiijjdKc
+KijdddjjjjjoodKc
+KidKKKijjjjoodKc
+.KiKKKihhjjjdKcc
+..KiiijhhjddKcc.
+...KKiddddKKcc..
+....cKKKKKccc...
+......ccccc.....
+
+icon Colour Paint
+for class ColourPaint
+.............Kii
+.....KKKKK..Kijd
+...KKkkkkkKKijdK
+..KKikkkkkoKKdKc
+.KKiikkkkkKjKKcc
+.KiiiikkkKjKoKc.
+KiiiiikkKjKoooK.
+KiiiiiikKKooooKc
+KhhhhhhoooooooKc
+KhhhhhhmffffffKc
+KhhhhhmmmfffffKc
+.KhhhhmmmffffKcc
+.KKhhmmmmmffKKc.
+..KKhmmmmmfKKcc.
+...KKmmmmmKKcc..
+....cKKKKKccc...
+
+icon Veranda Write
+for class CmdrWrite
+..KKKKKKKKK..KeK
+.KaaaaaaaaaKKefe
+.KaaaaaaaabKefgK
+.KaagggggabKefgK
+.KaaaaaaaabKfgKc
+.KaaaaaaaabKgKcc
+.KaacccccbKfgKc.
+.KaaaaaabKfgKcc.
+.KaacccccefgKc..
+.KaaaaabhhKKcc..
+.KaaccccchaKc...
+.KaaaaabhabKc...
+.KaacccccabKc...
+.KaaaaaaaabKc...
+.KabbbbbbbbKc...
+..KKKKKKKKKcc...
+
+icon Veranda Calc
+for class VCalc
+................
+.KKKKKKKKKKK....
+KmmmmmmmmmmmK...
+KmmmmmmmmmmmKc..
+KaaabaabaaaaKK..
+KaaabaabaaabKeK.
+KbbbbbbbbbbbKgKc
+KaaabaababbbKgKc
+KaaabaabbKKaKgKc
+KbbbbbbbbbbbKgKc
+KaaabaabbKKaKgKc
+KaaabaabbKKaKgKc
+KabbbbbbbKKaKgKc
+.KKKKKKKKhjKegKc
+..ccccccKhjKegKc
+.........KKcKKcc
+
+icon Calendar
+for class Calendar
+....K......K....
+...KcK....KcK...
+.KKKcKKKKKKcKKK.
+KkkkckkkkkkckkkK
+KkkkkkkkkkkkkkkK
+KkkkkkkkkkkkkkkK
+KKKKKKKKKKKKKKKK
+KaaaaaaaaaaaaabK
+KaaaKKKaaKaaaabK
+KaaaaaKaKKaaaabK
+KaaaKKKaaKaaaabK
+KaaaKaaaaKaaaabK
+KaaaKKKaKKKaaabK
+KaaaaaaaaaaaaabK
+KabbbbbbbbbbbbbK
+.KKKKKKKKKKKKKKc
+
+icon Veranda Edit
+for class VerandaEdit
+................
+.KKKKKKKKKKKKKK.
+KooooooooooooooK
+KooooooooooooooK
+KooooooooooooooK
+KKKKKKKKKKKKKKKK
+KaaaaaaaaaaaaabK
+KaaoooooaaaaaabK
+KaaaaaaaaaaaaabK
+KaaafffffffaaabK
+KaaaaaaaaaaaaabK
+KaaammmmaaaaaabK
+KaaaaaaaaaaaaabK
+KaboooooobbbbbbK
+.KKKKKKKKKKKKKKc
+..cccccccccccccc
+
+icon Veranda Gemini
+for class VerandaGemi
+......KKKK......
+.....KkkkkK.....
+.....KKKKKKc....
+....KaaaaaaK....
+....KaaaabbKc...
+....KaaffbbKc...
+....KaaffbbKc...
+....KaaaabbKc...
+....KaaffbbKc...
+....KaaffbbKc...
+...KkKaaabKkK...
+..KkkKbbbbKkkK..
+..KkkKKKKKKkkKc.
+...KKKiiiiKKKcc.
+....ccKiiKcccc..
+.......KKcc.....
+
+icon Veranda Claude
+for class VerandaClau
+......KkkK......
+......KKKKc.....
+......KccKc.....
+...KKKKccKKKK...
+..KhhhhKKhhhhK..
+.KhjjjjjjjjjjhK.
+KKhjKKKKKKKKhjKc
+bbKjKggaaggKhKbK
+bdKjKggaaggKhKbK
+bdKjKaaaaaaKhKbK
+bdKjKaKKKKaKhKbK
+KKhjKKKKKKKKhjKc
+.KhjhhhhhhhhjjKc
+..KhjjjjjjjjjKcc
+...KKKKKKKKKKcc.
+....cccccccccc..
+
+icon Veranda Ask
+for class VerandaAsk
+......KKKK......
+.....KaaaaK.....
+....KahhhiaK....
+...KahhffhiaK...
+..KahhhhhfhiaK..
+..KahhhhfhhiiKc.
+..KahhhhhhhiiKc.
+..KaihhhfhhiiKc.
+...KaihhhhiiKcc.
+....KahhhiiKcc..
+.....KaiiiKcc...
+.....KaiiiKc....
+.....KKKKKKc....
+.....KbccdKc....
+.....KbdddKc....
+......KKKKcc....
+
+icon Preferences
+for class Preferences
+.KKKKKKKKKKKKKK.
+KbbbbbbbbbbbbbbK
+KbccccccccccccdK
+KbccKcccKcccKcdK
+KbccKcchhhccKcdK
+KbccKcchhhccKcdK
+KbccKcccKcccKcdK
+KbccKcccKcccKcdK
+KbckkkccKcccKcdK
+KbckkkccKcccKcdK
+KbccKcccKccfffdK
+KbccKcccKccfffdK
+KbccKcccKcccKcdK
+KbccccccccccccdK
+KbdddddddddddddK
+.KKKKKKKKKKKKKKc
+
+icon Solitaire
+for class Solitaire
+................
+.KKKKKKKK.......
+KaaaaaaaaK......
+KaaaaabbbKKKKK..
+KaakakKKKaaaaaK.
+KaakkkKaaaaaabKc
+KaaakbKaaaaaabKc
+KaaaabKaaaaaabKc
+KaaaabKaaaKaabKc
+KaaaabKaaKKKabKc
+KaaaabKaaKKKabKc
+KaaaabKaaaKaabKc
+KabbbbKaaaaaabKc
+.KKKKKaaaaaaabKc
+..cccKabbbbbbbKc
+......KKKKKKKKcc
+
+icon MOD Player
+for class VModPlay
+......KKKKKKnK..
+.....KnnnnnnnKc.
+.....KnnnnnnnKc.
+.....KnKKKKKnKc.
+.....KnKccKKnKc.
+....KKnKcKnnnKc.
+...KnnnKKnnnnKc.
+..KnnnnKcKnnKcc.
+...KnnKcc.KKcc..
+.KKKKKKKKKKKKKK.
+KaadaadaaadaadaK
+KaadaadaaadaadbK
+KaadaadaaadaadbK
+KaaaaaaaaaaaaabK
+KabbbbbbbbbbbbbK
+.KKKKKKKKKKKKKKc
+
+icon Disk Tools
+for class VerandaDisk
+..KKKKKK........
+.KeeeeeeK.......
+.KehfhfheK......
+.KehfhfhfeK.KK..
+.KefffffffeKbbK.
+.KefffffffgKcdKK
+.KefgggggfgKccbb
+.KegaaaaaegKbcdK
+.KegaaaaaegKbcdK
+.KegaaaaaegKcdKc
+.KegaaaaaeKcdKcc
+.KegaaaaaeKdKcc.
+.KefeeeeeKdKcc..
+.KeffffgKcKKc...
+.KegggggKKeKc...
+..KKKKKKKKKcc...
+
+icon Veranda Update
+for class VerandaUpd
+....KKKKKKKK.K..
+...KmmmmmmmmKmK.
+..KmmmmmmmmmmmKc
+.KmmmmmmmmmmmmKc
+KmmmmmKffKmmmmKc
+KmmmmKKffKmmmmKc
+KmmmKcKffKKKmmKc
+.KKKccKffKccKKcc
+..KKcKffffK.KKK.
+.KmmKKKffKcKmmmK
+.KmmmmKKKcKmmmmK
+.KmmmmKKKKmmmmmK
+.KmmmmmmmmmmmmKc
+.KmmmmmmmmmmmKcc
+.KmKmmmmmmmmKcc.
+..KcKKKKKKKKcc..
+
+icon About this X16
+for class VerandaAbout
+.KKKKKKKKKKKKKK.
+KbbbbbbbbbbbbbbK
+KbcddddddddddcdK
+KbdKKKKKKKKKKbdK
+KbdKffafffafKbdK
+KbdKfffafaffKbdK
+KbdKffffafffKbdK
+KbdKffffffffKbdK
+KbdKKKKKKKKKKbdK
+KbcbbbbbbbbbbcdK
+KbdddddddddddddK
+.KKKKKKKKKKKKKKc
+..KbbbbbbbbbbKcc
+.KbccccccccccbK.
+.KbdddddddddddKc
+..KKKKKKKKKKKKcc
+
+icon Archive
+for class Archive
+................
+................
+.KKKKKKKKKKKKKK.
+KhhhhhhaahhhhhhK
+KhiiiiiaaiiiiijK
+KhiiiiiaaiiiiijK
+KhKKKKKaaKKKKKjK
+.KiiiiiaaiiiiiKc
+.KijjjjaajjjjdKc
+.KijjjjaajjjjdKc
+.KijjjjaajjjjdKc
+.KijjjjaajjjjdKc
+.KijjjjaajjjjdKc
+.KijjjjaajjjjdKc
+.KiddddaadddddKc
+..KKKKKKKKKKKKcc
+
+icon Calculator
+for class Calculator
+...KKKKKKKKKK...
+..KccccccccccK..
+..KcdggggggdgKc.
+..KcgllllllcgKc.
+..KcgllllllcgKc.
+..KcgllllllcgKc.
+..KcdccccccdgKc.
+..KcddddddddgKc.
+..KcdbdbdbddgKc.
+..KcddddddddgKc.
+..KcdbdbdbidgKc.
+..KcddddddidgKc.
+..KcdbdbdbidgKc.
+..KcddddddddgKc.
+..KcgggggggggKc.
+...KKKKKKKKKKcc.
+
+icon Dex
+for class Dex
+................
+..KKKKKKKKKKKK..
+.KaaaaaaaaaaaaK.
+.KaaaaaaaaaaabKc
+.KaaccccccaaabKc
+.KaaaaaaaaaaabKc
+.KabbbbbbbbbbbKc
+KeKKKKKKKKKKKKeK
+KeffffffffffffgK
+KeffffffffffffgK
+KeffffggggffffgK
+.KefffggggfffgKc
+.KeffffffffffgKc
+.KeffffffffffgKc
+.KegggggggggggKc
+..KKKKKKKKKKKKcc
+
+icon Font Editor
+for class Font Editor
+.KKKKKKKKKKKKKK.
+KaaabaaabaaabaaK
+KaaababgbaaababK
+KaaababgbaaababK
+KbbbbbbbbbbbbbbK
+KaaabbggbgaababK
+KaaabbggbgaababK
+KaaabgggbggababK
+KbbbbbbaabbbbbbK
+KaaabgggbggababK
+KaabbgggbgggbabK
+KaabbgaabaggbabK
+KbbbbbbbbbbbbbbK
+KabgbgaabbggbabK
+KabababbbbaabbbK
+.KKKKKKKKKKKKKKc
+
+icon Note Pad
+for class Note Pad
+..KKKKKKKKKKK...
+.KkkkkkkkkkkkK..
+.KkkkkkkkkkkkKK.
+.KaaaaaaaaaaaKeK
+.KahhhhhhhhhiKgK
+.KahhhhhhhhhiKgK
+.KaiiiiiiiiiKgKc
+.KahhhhhhhiKgKcc
+.KahhhhhhhiKKKc.
+.KaiiiiiiiiiaKc.
+.KahhhhhiKfKaKc.
+.KahhhhhiKKaiKc.
+.KaiiiiiiiiiiKc.
+.KahhhhiKKahiKc.
+.KaiiiiiaaiiiKc.
+..KKKKKKKKKKKcc.
+
+icon Term
+for class VerandaTerm
+.KKKKKKKKKKKKKK.
+KbbbbbbbbbbbbbbK
+KbcddddddddddcdK
+KbdKKKKKKKKKKbdK
+KbdKlgggggggKbdK
+KbdKglggggggKbdK
+KbdKlggglllgKbdK
+KbdKggggggggKbdK
+KbdKKKKKKKKKKbdK
+KbcbbbbbbbbbbcdK
+KbdddddddddddddK
+.KKKKKKKKKKKKKKc
+..KbbbbbbbbbbKcc
+.KbccccccccccbK.
+.KbdddddddddddKc
+..KKKKKKKKKKKKcc
+
+icon View
+for class View
+................
+.KKKKKKKKKKKKKK.
+KiiiiiiiiiiiiiiK
+KijddddddddddjdK
+KidKKKKKKKKKKidK
+KidKeeeeeehhKidK
+KidKeeeeeehhKidK
+KidKeeeeeeeeKidK
+KidKeeeeeeeeKidK
+KidKeeeeeeeeKidK
+KidmmmmmmeeeKidK
+KidmmmmmmmmmmidK
+KijiiiiiiiiiijdK
+KidddddddddddddK
+.KKKKKKKKKKKKKKc
+..cccccccccccccc
+
+icon Veranda FTP
+for class VerandaFTP
+............KK..
+...........KmmK.
+..........KmmmmK
+..KKK......KmmKc
+.KhhhKKKKK.KmmKc
+KhiiihhhhhKKmmKc
+KhiiiiiiiihKmmKc
+KhjjjjjjjjjKKKcc
+KKKKKKKKKKKKKKc.
+KahhhhhhhhiKffK.
+KahhhhhhhhiKffKc
+KahhhhhhhhiKffKc
+KahhhhhhhifffffK
+KahhhhhhhhaffffK
+KaiiiiiiiiiKffKc
+.KKKKKKKKKKcKKcc
+
+icon Veranda Gopher
+for class VerandaGoph
+................
+...KK......KK...
+..KiiKKKKKKiiK..
+.KiiiiiiiiiiiiK.
+..KiiiiiiiiiiKcc
+..KiiiiiiiiiiKc.
+..KiiKiiiiKiiKc.
+..KiiKiiiiKiiKc.
+..KiiiiKKiiiiKc.
+..KiiiiiiiiiiKc.
+...KiiiaaiiiKcc.
+.KKKKKKaaKKKKKK.
+KiiiiiiiiiiiiiiK
+ijjjjjjjjjjjjjji
+KidddjjjjjjddddK
+.KKKKidddddKKKKc
+
+icon Veranda Chat
+for class VerandaChat
+..KKKKKKK.......
+.KaaaaaaaK......
+KalllllllaK.....
+KalllllllmKc....
+KalllllllmKc....
+KallllmmmmKKKK..
+.KammmKKKKaaaaK.
+.KaKKKeeeeeeeeaK
+..KcKaeeeeeeeefK
+...cKaegegegeefK
+....KaeeeeeeeefK
+....KaeeeeeeeefK
+.....KafffffefKc
+......KKKKKKaKcc
+.......cccccKaK.
+.............Kcc
+
+icon VeraBASIC
+for class VBEdit
+.KKKKKKKKKK.....
+KffffffffffK....
+fggggggggggKc...
+fghhgeeeeegKc...
+fggggggggggKc...
+fghhgeeegggKKKK.
+fggggggKKKKkkkkK
+fghhgeeKkkkkkkkK
+fggggggKkaaaakkK
+KfgggggKkakkkakK
+.KKKKKKkkaaaakkK
+..ccccKkkakkkakK
+......KkkaaaakkK
+......KkkkkkkkkK
+......KkkkkkkkkK
+.......KKKKKKKKc
+
+icon VeraBASIC Run
+for class VBRun
+.KKKKKKKKKK.....
+KffffffffffK....
+fggggggggggKc...
+fghhgeeeeegKc...
+fggggggggggKc...
+fghhgeeegggKc...
+fggggggggKKlKK..
+fghhgeeKKmmmllK.
+fggggggKmammggKc
+KfggggKmmaammglK
+.KKKKKlmmaaamggK
+..cccKlmmaammggK
+......KlgammggKc
+......KlggggggKc
+.......KKlggKKcc
+........cKKKccc.
+
+icon Veranda Setup
+for class VSetup
+.....KmmmmK.....
+....KKmmmmKK....
+...KmmmmmmmmK...
+....KmmmmmmKcc..
+.....KmmmmKcc...
+....KKKKKKcc....
+...KffffffK.....
+...KfhghghfK....
+...KfhghghgfK...
+...KfgggggggfK..
+...KfgaaaaafgKc.
+...KfgaaaaafgKc.
+...KfgaaaaafgKc.
+...KfgaaaaafgKc.
+...KfgfffffggKc.
+....KKKKKKKKKcc.
+
+icon Photo Manager
+for class PhotoManager
+.KKKKKKKKK......
+KeeeeeeeeeK.....
+KegfffffggKc....
+KegfffffggKc....
+KegfffggggKc....
+KegffgggggKKKKK.
+KegfggKKKKaaaaaK
+KegfggKeeeeeeeaK
+KegfggKeeeehheaK
+KegfggKeeeehheaK
+KegfggKeeeeeeeaK
+KegfggKemmmmeeaK
+KeggggKmmmmmmmaK
+KeggggKaaaaaaabK
+.KKKKKKKKKKKKKKc
+..cccccccccccccc
+
+icon Text Manager
+for class Text Manager
+.KKKKKKKKK......
+KlllllllllK.....
+KlgmmmmmggKc....
+KlgmmmggggKc....
+KlgmmgggggKKKKK.
+KlgmggKKKKaaaaaK
+KlgmggKaaaaaaabK
+KlgmggKakkkaaabK
+KlgmggKaaaaaaabK
+KlgmggKacccccabK
+KlgmggKaaaaaaabK
+KlgmggKacccccabK
+KlggggKaaaaaaabK
+KlggggKacccccabK
+.KKKKKabbbbbbbbK
+..ccccKKKKKKKKKc
+
+icon Wikipedia
+for class GeminiStart
+................
+....KKKK........
+...KffffKKK.....
+.KKKhhhhKmmK....
+KkkkKfffhhhiK...
+KhhhKfffKKiiKc..
+KkkkKfffKKiiKc..
+KkkkKfffKmKiiK..
+KkkkKfffKmKiiKc.
+KkkkKfffKmKiiKc.
+KkkkKfffKmKiiKc.
+KkkkKfffKmmKiiK.
+KkkkKfffKmmKiKKK
+iKKKKKKKKKKKKiii
+iddddddddddddddd
+KKKKKKKKKKKKKKKK
+
+icon Bird Watch
+for class BirdWatch
+................
+................
+.........KKKK...
+........KeeeeK..
+.....KKKKeffgKc.
+.KKKKeeeeffKgiK.
+KeeeefffffffgiKc
+.KefffffffffgKcc
+.KeffffffffgKcc.
+.KeffffffffgKc..
+..KegffffggKcc..
+KKKKKKKKKKKKKKK.
+iiiiiiiiiiiiiiiK
+iddddddddddddddK
+KKKKKKKKKKKKKKKc
+.ccccccccccccccc
+
+icon Lighthouse Pinball
+for class Lighthouse
+......KKKK......
+.....KiiiiK.....
+.....KikkjKc....
+.....KKKKKKc....
+.....KaaaaKc....
+.....KaaabKc....
+.....KkkkkKc....
+.....KkkkkKc....
+.....KaaabKc....
+....KaaaabKc....
+....KkkkkkkKKKK.
+....KkkkkkkkbbbK
+....KaaaaabKccdK
+....KaaaaabKdddK
+....KabbbbbKKKKc
+.....KKKKKKccccc
+
+icon Harbour Walls
+for class HarbourWalls
+................
+.KKKKKKKKKKKKKK.
+KhhhjhhhjhhhjhhK
+KhiijiiijiiijijK
+KjjjjjjjjjjjjjjK
+KhiiiijiiijiiijK
+KhiiiijiiijiiijK
+KjjjjjjjjjjjjjjK
+KhiiiiiiiiiiiijK
+KhjjjjjjjjjjjjjK
+KKKKKKKKKKKKKKKK
+KeffaffaffafffgK
+KefafaafaafaffgK
+KeffffffffffffgK
+KegggggggggggggK
+.KKKKKKKKKKKKKKc
+
+icon geoWrite
+for class geoWrite
+...KKKKKKK......
+..KaaaaaaaK.....
+..KaaaaaabKK....
+..KaaaaaabKKK.K.
+..KaaaaaaaaaaKaK
+..KaaccccaaabKiK
+..KaaaaaaaabKhiK
+..KaaccccabKhiKc
+..KaaaaaaabKKKcc
+..KaaccccbKKaKc.
+..KaaaaabKhKaKc.
+..KaaaabKhKabKc.
+..KaaaabKKaabKc.
+..KaaaabKaaabKc.
+..KabbbbabbbbKc.
+...KKKKKKKKKKcc.
+
+icon Veranda Write document
+for class Write Image
+...KKKKKKK......
+..KaaaaaaaK.....
+..KaaaaaabKK....
+..KaaaaaabKKK...
+..KaaggggaaaaK..
+..KaaaaaaaaabKKK
+..KaaaaaaaaabKee
+..KaaccccaaabKfg
+..KaaaaaaaaabKgK
+..KaaccccaabKfgK
+..KaaaaaaabKfgKc
+..KaaccccabKgKcc
+..KaaaaaabKfKKc.
+..KaaaaaabKKaKc.
+..KabbbbbbaabKc.
+...KKKKKKKKKKcc.
+
+icon Colour Paint picture
+for class PaintColour
+...KKKKKKK......
+..KaaaaaaaK.....
+..KaaaaaabKK....
+..KaaaaaabKKK...
+..KaaaaaaaaaaK..
+..KaabbbbbbabKc.
+..KabKKKKKKabKc.
+..KabKeehhKabKc.
+..KabKeehhKabKc.
+..KabKeeeeKabKc.
+..KabmmmeeKabKc.
+..KabmmmmeKabKc.
+..KabmmmmmKabKc.
+..KaaaaaaaaabKc.
+..KabbbbbbbbbKc.
+...KKKKKKKKKKcc.
+
+icon geoChess
+for class GeoChess
+................
+................
+...KKKK..KKKK...
+..KaaaaKKccccK..
+..KaaabKKcddgKc.
+..KaaabKKcddgKc.
+...KabKccKcgKcc.
+..KaaaaKKcddcK..
+..KaaabKKcddgKc.
+..KaaabKKcddgKc.
+..KaaabKKcddgKc.
+.KKaaabKKcddgKc.
+KaaaaabKcddddcK.
+KabbbbbKggggggKc
+.KKKKKKKKKKKKKcc
+..ccccccccccccc.
+
+icon SID Player
+for class VSidPlay
+................
+................
+.KKKKKKKKKKKKKK.
+KcbccbccbKKbccbK
+KcddddddgKhKKcgK
+KcddddddgKhhKcgK
+KcddddddgKhKKcgK
+KcdddggggKKccdgK
+KcddgKKKKhKcddgK
+KcddgKhhhKcdddgK
+KcddgKhhhKcdddgK
+KcdddcKKKcddddgK
+KcbggbccbggbggbK
+.KKKKKKKKKKKKKKc
+..cccccccccccccc
+................

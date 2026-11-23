@@ -1,0 +1,997 @@
+= Manual
+The VeraBASIC manual, chapter by chapter:
+
+@{Getting started}
+@{The language}
+@{Events}
+@{Making applications}
+@{Coming from V2 BASIC}
+@{Memory limits}
+@{The ROM maths}
+@Tutorial
+@{The editor}
+@Debugging
+@Errors
+@Contents
+
+The Veranda statements (windows, menus, graphics, files, dialogs ...)
+are in the keywords' pages, by group: @Contents.
+
+
+= Getting started
+VeraBASIC is a BASIC for Veranda on the Commander X16. This chapter gets a
+first program running. VeraBASIC, the editor, writes, checks and runs
+programs on the X16 itself (chapter 5. The editor): start it from
+/VERANDA/APPS or double-click a .bas file, type the program, press Ctrl+R.
+VeraBASIC Run, the runtime alone, runs a program document (and a .bas file
+given to it) as it is, and vbasic.py is the tool on the PC that checks
+programs, runs them and turns them into program documents; any text editor
+writes programs too: on the PC, or Veranda Edit on the X16.
+
+@{What you need}
+@{A first program}
+@{Running it}
+@{Checking and building it on the PC}
+@{Running it on the PC}
+@{Typing into a program}
+@{When something goes wrong}
+@{Making a program faster}
+@{Making it an application}
+@{The parts and where they come from}
+
+= What you need
+Where: What
+the X16 (or the emulator): Veranda, and VeraBASIC.cvt and VeraBASIC Run.cvt
+in /VERANDA/APPS, the help in /VERANDA/HELP
+the PC (optional): Python 3 and the Veranda SDK's tools: vbasic.py, with
+vbtokens.py, vbtokens_gen.py, vbrom.py, vpack.py and vicon.py beside it (the
+tools)
+= A first program
+Write this into a file called hello.bas:
+
+  ' hello.bas: a first program
+  PRINT "Hello from VeraBASIC"
+  FOR i% = 1 TO 5
+    PRINT i%; "squared is"; i% * i%
+  NEXT
+  PRINT "Done."
+
+A program is plain text, one statement or more a line. Keywords may be
+written in any case. A line may start with a number, as in V2 BASIC, but it
+need not. ' starts a comment.
+
+= Running it
+Copy hello.bas to the card (or write it there with VeraBASIC or Veranda
+Edit) and double-click it in the shell: VeraBASIC, the editor, opens it
+(chapter 5); Ctrl+R runs it. The runtime reads the text, tokenizes and
+prepares it (a few kilobytes take a fraction of a second; it manages more
+than 10 KB of source a second), and runs it. Its window is the console: what
+the program prints appears there, line by line, and scrolls when the window
+is full. The status bar says whether it is running; Run > Stop, Ctrl+C or
+the STOP key stops it. When it ends, the window stays until you press a key,
+and the editor comes back.
+
+Names may be long: Bird watch at the feeder.bas opens like hello.bas. The
+shell finds VeraBASIC in the folder shown, in /VERANDA/APPS, in /VERANDA or
+in the top folder.
+
+If the program has an error that Run finds before it starts (a NEXT without
+its FOR, a misspelt number), the status bar and a box show the line and the
+message, Line 12: NEXT without FOR for example, and the program does not
+run.
+
+= Checking and building it on the PC
+On the PC:
+
+python3 vbasic.py check hello.bas python3 vbasic.py build hello.bas -o
+hello.cvt
+
+check reports the errors it finds as file:line: message, so a PC editor can
+jump to them; Run reports the same messages. build makes the program
+document, a GEOS file of class VeraBASIC V1.0 holding the program already
+tokenized and prepared. A double click on it starts VeraBASIC Run, which
+tokenizes nothing and runs it at once; its name may be long too (-o "Bird
+watch at the feeder.cvt"). VeraBASIC Run > Open program... in Run's menu
+opens another document; it lists the program documents of the current folder
+by their 16-character GEOS names (the shell's double click is the way to
+long names and to .bas files).
+
+While a program runs, Veranda goes on working: the menus open, the clock
+ticks, and Alt+Tab puts VeraBASIC Run aside with the program in the middle
+of what it was doing; brought back from the dock, it goes on from there.
+This is because VeraBASIC runs a program in short slices (about 8 ms each)
+from the main loop rather than taking over the machine.
+
+= Running it on the PC
+vbasic.py run is VeraBASIC's reference interpreter. It runs the same program
+and prints the console's lines to the terminal:
+
+python3 vbasic.py run --rom rom.bin hello.bas
+
+Floats in VeraBASIC are the X16 ROM's (the same 5-byte format and maths
+library as V2 BASIC), so --rom names an X16 ROM image: the reference then
+runs the ROM's own maths routines and its results are those of the X16 to
+the last bit. Without a ROM image it uses the PC's floats, which differ in
+the last digits. --input FILE gives the keys a program reads with INPUT, a
+line of the file to a line typed. The gate of this phase runs every program
+of its test corpus both ways and compares the logs.
+
+= Typing into a program
+INPUT waits for a line typed in the console, with a ? prompt:
+
+  INPUT "Your name"; name$
+  INPUT "Your age"; age%
+  PRINT "Hello, "; name$; ". Next year you will be"; age% + 1
+
+  Robin
+  7
+
+Backspace takes back a character; Return ends the line. A number that is not
+one asks again with Redo from start.
+
+= When something goes wrong
+An error that the program does not catch stops it. The console shows the
+error's number, its message and the line:
+
+  PRINT "before"
+  x = 10 / 0
+  PRINT "never printed"
+
+prints Error 11, Division by zero, in line 2. Under VeraBASIC Run a box says
+so as well, and the program ends. The next chapter shows how to catch errors
+with @TRY ... @CATCH ... @{END TRY}.
+
+= Making a program faster
+Two habits make most of the difference:
+
+- Integers. A name ending in % is a 16-bit integer, and arithmetic on
+integers never touches the float routines. OPTION INTEGER at the top of a
+program makes every name without a suffix an integer too; new programs
+should start with it. A FOR loop over an integer counts more than 25,000
+times a second.
+
+- Procedures. SUB and FUNCTION with LOCAL variables keep a program readable
+at no great cost; GOSUB is there for V2 listings.
+
+= Making it an application
+When a program is finished, the editor's File > Make application... turns it
+into an application of its own, with its name and its tile in /VERANDA/APPS:
+a double click starts it, and nobody needs VeraBASIC to run it. Its @APP
+lines give it a name, a tile and the documents it opens; chapter 7, Making
+applications, has it all. File > Save program... writes a program document
+instead, which VeraBASIC Run opens. On the PC, vbasic.py app and vbasic.py
+build do the same.
+
+= The parts and where they come from
+Part: What it is
+VeraBASIC Run.cvt: the runtime: an interpreter in 6502 assembly, about 24 KB
+with its console window, and the tokenizer in 20 KB of overlays
+vbasic.py: check, build, app, list, import, run (the reference interpreter),
+doc: the tools
+docs/vbasic/FORMAT.md: the token format and the program document
+The language: the next chapter
+The reference: every keyword
+The reference card: the same on two pages
+See also: @Contents
+
+= The language
+This chapter describes VeraBASIC's language: its values, names, expressions,
+statements and procedures, without Veranda's extensions (windows, menus,
+graphics, files: chapter 3). Every listing here is a whole program; the gate
+of phase 1 runs each in VeraBASIC Run and in the reference interpreter and
+requires the same output.
+
+@{2.1 Values and names}
+@{2.2 Expressions}
+@{<> < > <= >=: compare: -1 (true) or 0}
+@{2.3 Printing and reading}
+@{2.4 Decisions}
+@{2.5 Loops}
+@{2.6 Jumps and labels}
+@{2.7 Procedures}
+@{2.8 Arrays}
+@{2.9 Strings}
+@{2.10 Data}
+@{2.11 Errors}
+@{The error numbers}
+@{2.12 V2 listings}
+@{2.13 Memory and speed}
+
+= 2.1 Values and names
+There are three types:
+
+Type: Suffix: Range: Example
+integer: %: -32768 to 32767: count%
+float: none: about ±1.7E38, 9 digits: price
+string: $: 0 to 255 Latin-1 characters: name$
+A name is a letter, then letters, digits and _, up to 32 characters, all of
+them significant; case does not matter. total, total% and total$ are three
+different names. A keyword cannot be a name.
+
+OPTION INTEGER anywhere in a program makes every name without a suffix an
+integer; DEFINT A-Z does the same for names starting with the letters given.
+
+  OPTION INTEGER
+  a = 7 / 2
+  b% = a * 10
+  c$ = "seven halves"
+  PRINT a; b%; c$
+
+prints 3 30 seven halves: 7 / 2 is 3.5, and assigning it to an integer keeps
+the largest whole number not above it.
+
+Numbers are written 12, 1.5, .5, 1E3, 2.5E-3, $FF (hexadecimal) and %1010
+(binary). A whole number up to 32767 is an integer; anything else is a
+float. Strings are written in quotes, "" for a quote inside one.
+
+= 2.2 Expressions
+From the highest priority:
+
+Operators
+^: power
+-: negation
+/ \ MOD: multiply, divide (always a float), integer divide, remainder
++ -: add, subtract; + also joins strings
+SHL SHR: shift an integer's bits
+= <> < > <= >=: compare: -1 (true) or 0
+NOT
+AND
+OR XOR
+AND, OR, XOR and NOT work on the bits of integers, so with comparisons (-1
+or 0) they are the logical operators.
+
+Integers stay integers. +, - and of two integers give an integer, computed
+without the float routines; when the result does not fit in 16 bits it
+becomes a float, so 200 200 is 40000 and not an error. \ divides integers
+(rounding towards zero) and MOD gives the remainder (with the sign of the
+dividend). / and ^ give floats.
+
+  PRINT 200 * 200; 7 \ 2; -7 \ 2; 7 MOD 3; -7 MOD 3
+  PRINT 7 / 2; 2 ^ 10; 2 ^ 0.5
+  PRINT 5 AND 3; 5 OR 3; 5 XOR 3; NOT 0
+  PRINT 1 < 2; "apple" < "banana"; 3 = 3.0
+  PRINT 1 SHL 4; 256 SHR 2
+
+Floats are the X16 ROM's: the 5-byte format of V2 BASIC, about nine digits,
+computed by the ROM's maths library, so a float result is what V2 BASIC on
+the same machine gives. They print as V2 prints them: a blank or a minus
+sign first, then up to nine digits, an exponent for large and small numbers.
+
+  PRINT 1 / 3; 2 / 3; 1E10; 1.5E-5
+  PRINT SQR(2); SIN(1); ATN(1) * 4; EXP(1); LOG(10)
+  PRINT INT(2.7); INT(-2.7); ABS(-4.5); SGN(-4.5)
+
+RND(1) gives the next random number from 0 up to 1; a negative argument
+starts a new sequence from it, so RND(-1) at the start makes a program
+repeat its "random" numbers each time.
+
+= 2.3 Printing and reading
+PRINT writes values to the console. ; joins them, , moves to the next zone
+of 10 columns, and a ; or , at the end keeps the line open. A number prints
+with a blank before it (or its minus sign) and one after. TAB(n) moves to
+column n, SPC(n) writes n blanks. The console is 78 columns wide; a longer
+line goes on in the next row.
+
+  PRINT "Name"; TAB(12); "Count"
+  PRINT "Robin"; TAB(12); 3
+  PRINT "Wren", "Jay", "Owl"
+  PRINT "one";
+  PRINT " line"
+  PRINT "["; SPC(3); "]"
+
+INPUT "prompt"; a, b$ shows the prompt and ?, and reads values typed on one
+line separated by commas (text with a comma in it goes in quotes). Too few
+values ask for more with ??; a word where a number belongs asks again with
+Redo from start. LINE INPUT "prompt"; s$ reads a whole line as it is. GET k$
+gives the next key, or "" if none was typed (it does not wait).
+
+  INPUT "Width, height"; w, h
+  PRINT "Area:"; w * h
+  LINE INPUT "A note: "; note$
+  PRINT "["; note$; "]"
+
+  3.5, 2
+  Buy seeds, and nails
+
+= 2.4 Decisions
+IF has a one-line form and a block form:
+
+  x% = 12
+  IF x% > 10 THEN PRINT "big" ELSE PRINT "small"
+  IF x% MOD 2 = 0 THEN PRINT "even": PRINT "and still even"
+  IF x% < 0 THEN
+    PRINT "negative"
+  ELSEIF x% < 10 THEN
+    PRINT "one digit"
+  ELSE
+    PRINT "two digits or more"
+  END IF
+
+THEN followed by a line number jumps there, as in V2 BASIC.
+
+SELECT CASE compares one value with lists of values, ranges and comparisons:
+
+  FOR n% = 1 TO 12 STEP 3
+    SELECT CASE n%
+      CASE 1, 2
+        PRINT n%; "small"
+      CASE 3 TO 9
+        PRINT n%; "middle"
+      CASE IS > 9
+        PRINT n%; "large"
+    END SELECT
+  NEXT
+  SELECT CASE "wren"
+    CASE "robin", "wren": PRINT "a garden bird"
+    CASE ELSE: PRINT "something else"
+  END SELECT
+
+= 2.5 Loops
+  FOR i% = 10 TO 1 STEP -3: PRINT i%;: NEXT: PRINT
+  FOR x = 0 TO 1 STEP 0.25: PRINT x;: NEXT: PRINT
+  n% = 1
+  WHILE n% < 100: n% = n% * 3: WEND
+  PRINT n%
+  REPEAT: n% = n% - 7: UNTIL n% < 0
+  PRINT n%
+  DO
+    n% = n% + 4
+    IF n% > 20 THEN EXIT DO
+  LOOP
+  PRINT n%
+  DO WHILE n% > 10: n% = n% - 5: LOOP
+  PRINT n%
+
+A FOR loop whose start is already past its end does not run at all (V2 BASIC
+runs it once; the exception is a FOR inside a one-line IF, which keeps V2's
+way). EXIT FOR, EXIT WHILE, EXIT DO and EXIT REPEAT leave the innermost loop
+of their kind. NEXT j, i ends two loops.
+
+= 2.6 Jumps and labels
+A line number or a label is a target for GOTO, GOSUB, RESTORE and RESUME. A
+label is a name and a colon at the start of a line.
+
+  GOSUB Header
+  FOR k% = 1 TO 3
+    ON k% GOSUB 100, 200, 300
+  NEXT
+  END
+  Header: PRINT "-- three subroutines --": RETURN
+  100 PRINT "one": RETURN
+  200 PRINT "two": RETURN
+  300 PRINT "three": RETURN
+
+= 2.7 Procedures
+SUB makes a procedure; FUNCTION one that gives a value. Parameters are local
+to the procedure and take their arguments by value; BYREF makes a parameter
+stand for the caller's variable, and an array parameter (a%()) is always the
+caller's array. LOCAL makes more local variables. Procedures may call
+themselves.
+
+  SUB Greet(who$, times%)
+    LOCAL i%
+    FOR i% = 1 TO times%: PRINT "Hello, "; who$: NEXT
+  END SUB
+  SUB Swap(BYREF a%, BYREF b%)
+    LOCAL t%
+    t% = a%: a% = b%: b% = t%
+  END SUB
+  FUNCTION Fact(n)
+    IF n <= 1 THEN RETURN 1
+    RETURN n * Fact(n - 1)
+  END FUNCTION
+  FUNCTION Initials$(first$, last$)
+    Initials$ = LEFT$(first$, 1) + LEFT$(last$, 1)
+  END FUNCTION
+  Greet "Robin", 2
+  x% = 1: y% = 2: Swap x%, y%: PRINT x%; y%
+  PRINT Fact(10); Initials$("Ada", "Lovelace")
+  CALL Greet("Wren", 1)
+
+A SUB is called by its name and its arguments, or with CALL. A FUNCTION's
+value is set by assigning to its name or by RETURN value. EXIT SUB and EXIT
+FUNCTION return at once. A name a procedure does not make local is the
+program's (global) variable; SHARED says so on purpose.
+
+Procedure frames, FOR loops and GOSUBs live on the BASIC stack in a RAM bank
+of its own, about 8 KB: a recursion several hundred calls deep is fine, a
+runaway one ends with error 16, Stack overflow.
+
+= 2.8 Arrays
+DIM a%(100) makes an array of 101 elements, indices 0 to 100; up to three
+dimensions. Arrays live in RAM banks and may be large: OPTION MEMORY n gives
+the variables' arrays and strings up to n banks of 8 KB (4 without it). An
+array used without DIM has 11 elements in each dimension, as in V2 BASIC.
+UBOUND(a, d) gives a dimension's largest index; REDIM makes an array again
+with new sizes.
+
+  DIM squares%(10), grid(2, 3), names$(2)
+  FOR i% = 0 TO 10: squares%(i%) = i% * i%: NEXT
+  FOR r% = 0 TO 2: FOR c% = 0 TO 3: grid(r%, c%) = r% + c% / 10: NEXT c%, r%
+  names$(0) = "Robin": names$(1) = "Wren": names$(2) = "Jay"
+  PRINT squares%(10); grid(2, 3); names$(1); UBOUND(grid, 2)
+  SUB Total(a%())
+    LOCAL i%, s%
+    FOR i% = 0 TO UBOUND(a%): s% = s% + a%(i%): NEXT
+    PRINT "total"; s%
+  END SUB
+  Total squares%()
+
+= 2.9 Strings
+  s$ = "Blackbird"
+  PRINT LEFT$(s$, 5); "|"; RIGHT$(s$, 4); "|"; MID$(s$, 3, 4); "|"; LEN(s$)
+  PRINT ASC("A"); CHR$(66); STR$(42); VAL("3.25") * 2
+  t$ = s$ + " and " + "Thrush"
+  PRINT t$; LEN(t$)
+  PRINT "abc" < "abd"; "Zebra" < "apple"
+
+Strings are values: assigning one copies it. They live in a heap in RAM
+banks; when the heap is full a collector moves the strings still in use
+together in one pass. Each string knows the variable that holds it, so the
+collection never searches: a heap of 64 KB is collected in a fraction of a
+second, and programs do not stall the way V2 BASIC's did.
+
+= 2.10 Data
+DATA lines hold values that READ takes in order; RESTORE starts again, at
+the first DATA or at a line given.
+
+  READ n%
+  FOR i% = 1 TO n%
+    READ bird$, count%
+    PRINT bird$; TAB(12); count%
+  NEXT
+  RESTORE Prices
+  READ p1, p2: PRINT p1 + p2
+  DATA 3
+  DATA Robin, 4, "Blue tit", 7, Wren, 1
+  Prices: DATA 2.5, 1.25
+
+CONST name = value names a value that the program cannot change.
+
+= 2.11 Errors
+TRY runs statements; an error among them goes to CATCH instead of stopping
+the program. ERR is the error's number, ERR$ its message, ERL its line (the
+line's number, or its line in the source). ERROR n, message raises an error
+of your own; 200 to 255 are free for programs.
+
+  FUNCTION Inverse(x)
+    Inverse = 1 / x
+  END FUNCTION
+  TRY
+    PRINT Inverse(4)
+    PRINT Inverse(0)
+  CATCH
+    PRINT "Caught error"; ERR; "("; ERR$; ") in line"; ERL
+  END TRY
+  TRY
+    ERROR 200, "No birds today"
+  CATCH
+    PRINT ERR; ERR$
+  END TRY
+
+An error in a procedure called from inside TRY ends the procedure (and any
+between) and goes to the CATCH. V2's ON ERROR GOTO line, RESUME, RESUME NEXT
+and ON ERROR GOTO 0 work too. STOP, Ctrl+C and the STOP key raise error 1,
+Stopped, which no TRY catches.
+
+= The error numbers
+1: Stopped: 13: Type mismatch
+2: Syntax error: 14: String too long
+3: RETURN without GOSUB: 15: Formula too complex
+4: Out of DATA: 16: Stack overflow
+5: Illegal quantity: 17: RESUME without error
+6: Overflow: 18: NEXT without FOR
+7: Out of memory: 19: Wrong number of arguments
+8: Undefined line: 20: Not available yet (a Veranda statement of a later
+phase)
+9: Subscript out of range: 21: Made by a newer VeraBASIC
+10: Array already dimensioned: 22: Not inside a SUB
+11: Division by zero: 23: BYREF needs a variable
+12: Not an array: 200-255: the program's own
+= 2.12 V2 listings
+A V2 BASIC listing with blanks between its words runs as it is, in the
+console:
+
+  10 REM SQUARES AND A STRING BACKWARDS
+  20 FOR I=1 TO 5
+  30 PRINT I;I*I
+  40 NEXT I
+  50 A$="COMMODORE":B$=""
+  60 FOR I=LEN(A$) TO 1 STEP -1:B$=B$+MID$(A$,I,1):NEXT
+  70 PRINT B$
+  80 IF I<1 GOTO 100
+  90 PRINT "NOT REACHED"
+  100 END
+
+What differs: there is no text screen at $0400 (POKE writes main RAM below
+$A000, which a program may use from $7F00 with care); LOAD, SAVE and LIST
+are the editor's; a FOR whose start is past its end does not run; FRE(0)
+gives the free bytes of the variables' banks.
+
+= 2.13 Memory and speed
+a program's tokens: up to 64 KB, in RAM banks (7.75 KB of them a bank)
+names: a program's names in main RAM, 8 bytes each: about 300
+strings and arrays: OPTION MEMORY n banks (4 by default, 24 at most)
+the BASIC stack: one bank: procedures, loops, GOSUBs, TRY
+floats: the X16 ROM's maths library, called through its jump table
+See also: @Contents
+
+= Events
+A console program runs from its first line to its last. A Veranda program
+does more: it draws its windows and menus, then waits, and the user decides
+what happens next by choosing a menu item, clicking, typing, turning the
+wheel, closing a window or just letting a timer tick. This chapter is how
+VeraBASIC runs such a program; the statements themselves are in Veranda
+extensions, part 1.
+
+@{The two halves of a program}
+@{The queue}
+@{What an event knows}
+@{Errors in handlers}
+@{Put aside and back}
+@{A program's end}
+
+= The two halves of a program
+  ' the main lines set things up; the handlers do the work
+  OPTION INTEGER
+  count = 0
+  WINDOW #1, 20, 10, 40, 12, "Counter", CLOSE, STATUS 2
+  ON CLOSE #1 CALL Done
+  TIMER 1, 2 CALL Tick
+  PRINT "the main lines are done"
+
+  SUB Tick
+    count = count + 1
+    WINDOW STATUS #1, STR$(count), ""
+    IF count = 5 THEN Done
+  END SUB
+
+  SUB Done
+    PRINT "counted"; count
+    END
+  END SUB
+
+- The main lines run first, top to bottom: open the windows, build the
+menus, bind the handlers (@ON ... @CALL, @ITEM, @TIMER), set the variables.
+
+- When they end (or reach WAIT EVENTS), a program that has bound a handler
+does not end: it waits for events. A program with no handler ends there, as
+a console program does.
+
+- The handlers are SUBs without arguments. Each event calls the one bound to
+it. Globals keep their values between handlers; a handler's @LOCAL variables
+last for that call only.
+
+- @END, in the main lines or any handler, ends the program. In an
+application made from it (chapter 7), and in VeraBASIC Run, a program with
+windows that ends quits to the shell; from the editor, the editor comes
+back.
+
+= The queue
+The kernel never runs BASIC. Its callbacks (a menu item's routine, the key
+and press vectors, a process for each @TIMER) only put an event in a queue
+of 16 and return; the interpreter takes them out one at a time between
+statements:
+
+1. A handler runs to its end before the next starts. Events that come
+meanwhile wait in the queue, in their order. 2. A timer has at most one
+event waiting: a handler slower than its timer is not flooded, it is called
+again as soon as it is done. 3. A full queue drops the newest event (a key
+typed into a busy program is lost, as on any machine that is busy). 4. While
+a menu is open, or a dialog box is up, BASIC waits: the kernel has the
+screen.
+
+The interpreter runs in slices of about 8 ms from the kernel's main loop, so
+the pointer, the menus, the clock and the switcher stay alive while BASIC
+computes. A long loop in a handler does not stop that, but it does keep the
+other handlers waiting; @DOEVENTS inside it runs the ones queued so far, and
+@SLEEP takes events while it waits.
+
+  ' a long job that keeps its window's status bar going
+  OPTION INTEGER
+  WINDOW #1, 20, 10, 40, 12, "Working", STATUS 2
+  TIMER 1, 1 CALL ShowTicks
+  FOR i = 1 TO 2000
+    IF i MOD 250 = 0 THEN DOEVENTS
+  NEXT
+  PRINT "done after"; ticks; "ticks shown"
+  END
+
+  SUB ShowTicks
+    ticks = ticks + 1
+    WINDOW STATUS #1, "working" + STR$(ticks), ""
+  END SUB
+
+= What an event knows
+Event: Bound by: In the handler
+a menu item: @ITEM text$, sub: @CHECK to tick it; the item's text is not
+passed
+a click: @ON @CLICK @CALL: @MOUSEX, @MOUSEY (in the window @WINDOW @USE
+chose), @MOUSEB (bit 7: the release), @HIT for the part of a window
+a key: @ON @KEY @CALL: @KEY$, @KEYCODE, @KEYMODS
+the wheel: @ON @WHEEL @CALL: @WHEEL: the turn, -8 to 7
+a close glyph: @ON @CLOSE #w @CALL: the window is still open: the handler
+closes it, or ends
+Quit: @ON @QUIT @CALL: VeraBASIC Run's own Quit (or an application's): the
+handler decides; without one, the program ends
+a timer: @TIMER n, frames @CALL: @TI, @TIME$
+= Errors in handlers
+An error in a handler ends the program as an error anywhere does: the editor
+shows the line (chapter 6), VeraBASIC Run and an application show a box with
+the error and its line, then quit. @TRY ... @CATCH inside the handler keeps
+it going:
+
+  OPTION INTEGER
+  SUB Safe
+    TRY
+      x = 10 / zero
+    CATCH
+      PRINT "caught error"; ERR; "in the handler"
+    END TRY
+  END SUB
+  zero = 0
+  Safe
+  PRINT "still running"
+
+= Put aside and back
+Alt+Tab (or @ASIDE from the program) puts the whole program aside at any
+slice, with its windows, its variables and its timers; the dock shows it,
+and a click there brings it back where it was: a loop goes on, a timer ticks
+again. A program with @APP @STAY is never put aside: the switcher offers to
+quit it. @TASKS says how many programs are aside.
+
+= A program's end
+At its end (@END, an error, Stop, or Quit) the runtime takes away what the
+program set up: its timers' processes, its menus, the key and press vectors,
+its sprites, its open files and its RAM banks. The next program, or the
+editor, starts clean.
+
+See also: @Contents
+
+= Making applications
+A finished program can become a Veranda application of its own: a file in
+/VERANDA/APPS with its own name, its own tile in the shell and the dock, the
+documents it opens with a double click, and nothing else to install. The
+editor's File > Make application... makes it; on the PC, vbasic.py app makes
+the same file, byte for byte (apart from the date in the file's directory
+entry).
+
+@{What an application is}
+@{The APP lines}
+@{The tile}
+@{Documents}
+@{Making it}
+@{Bird Watch, the application}
+@{Memory}
+
+= What an application is
+An application made by VeraBASIC is VeraBASIC Run with the program inside
+it. Its file holds Run's own records (the runtime, about 88 KB on the card)
+and after them the program's four records, the same ones a program document
+holds (docs/vbasic/FORMAT.md, section 7.3). Its info block (the class, the
+author, the description, the extensions it opens) and its tile come from the
+program's @APP lines. When it starts it finds the program in its own records
+and runs it at once: there is no Open program... in its first menu, the menu
+is named after the application, and its window is titled with its name.
+
+A .bas file: A program document: An application
+made by: you, the editor: File > Save program..., vbasic.py build: File >
+Make application..., vbasic.py app
+opens with: VeraBASIC (the editor): VeraBASIC Run: itself
+needs: VeraBASIC: VeraBASIC Run on the card: nothing
+its tile: the shell's for text: VeraBASIC's icon: its own (@APP @TILE)
+size: the text: the tokens: the tokens and the runtime, about 90 KB
+The application carries the version of the token format it was made with; a
+VeraBASIC Run older than the program says Made by a newer VeraBASIC rather
+than run it wrongly.
+
+= The APP lines
+@APP lines describe the application. They do nothing when the program runs
+(from the editor or VeraBASIC Run), so they can stay at the top of the
+program while you work on it:
+
+  APP NAME "Bird Watch", CLASS "BirdWatch", VERSION "1.0", AUTHOR "Me"
+  APP DESCRIPTION "Counts the birds at the feeder."
+  APP DOCUMENTS "BRD"
+  APP TILE SKY
+  PRINT "The APP lines do nothing when the program runs."
+
+Item: What it gives: Default
+NAME n$: the application's name: its file (n$.cvt, up to 63 characters, none
+of / : ? = "), its first menu, its window's title, DOCUMENT$'s owner: the
+.bas file's name
+CLASS c$: its GEOS class (12 characters), which its own GEOS documents name
+as their parent: the name's first 12 characters
+VERSION v$: the class's version, "1.0" style (6 characters): "1.0"
+AUTHOR a$: 19 characters, shown by the shell's Info: none
+DESCRIPTION d$: 95 characters, shown by the shell's Info: none
+DOCUMENTS e$, ...: up to four file extensions of 1-4 letters or digits: a
+double click on such a file starts the application with it (V48): none
+TILE colour: the tile's paper: a colour of Look 2 (SKY, ORANGE, DUSK ...):
+VeraBASIC Run's (green)
+STAY: the switcher never puts it aside: Alt+Tab asks to quit it instead: off
+CLASSIC: the first menu is not named after the program: off
+Items go on one line or several, separated by commas. The values must be
+written out: a string in quotes, a colour by its name or number. The editor
+reads the lines from the text itself, so a value worked out by an expression
+is an error, APP: NAME "...", CLASS "...", TILE SKY ....
+
+= The tile
+The shell shows an application as a tile: a 32 x 32 picture in the ink on a
+block of 4 x 4 cards of one paper colour, in a rounded frame the shell
+draws. @APP @TILE gives the colour; 32 rows of 32 characters in @TILE DATA
+lines give the picture, # for the ink and . for none. Without them the
+application has VeraBASIC Run's tile.
+
+  APP TILE ORANGE
+  TILE DATA "................................", "............................
+  TILE DATA "................................", "............................
+  TILE DATA "................................", "............................
+  TILE DATA "...............##...............", "..............####..........
+  TILE DATA ".............######.............", "............########........
+  TILE DATA "...........##########...........", "..........############......
+  TILE DATA ".........##############.........", "........################....
+  TILE DATA ".......##################.......", "......####################..
+  TILE DATA ".....######################.....", "....########################
+  TILE DATA "...##########################...", "..##########################
+  TILE DATA ".............######.............", ".............######.........
+  TILE DATA ".............######.............", ".............######.........
+  TILE DATA "................................", "............................
+  TILE DATA "................................", "............................
+  TILE DATA "................................", "............................
+  TILE DATA "................................", "............................
+  PRINT "The tile is the application's, not the program's."
+
+Leave the outermost two pixels empty: the frame is drawn over them. A tile
+is easiest to draw in a PC editor with a fixed font; the rows must be
+exactly 32 characters, and there must be 32 of them.
+
+= Documents
+@APP @DOCUMENTS names the extensions the application opens. A double click
+on Garden.brd in the shell then starts Bird Watch with that file; the
+program finds its whole name in @DOCUMENT$ and the current folder is the
+file's. Started any other way, @DOCUMENT$ is "", and under VeraBASIC Run (or
+the editor) it is always "".
+
+  doc$ = DOCUMENT$
+  IF doc$ = "" THEN
+    PRINT "Started without a document"
+  ELSE
+    OPEN #1, doc$, "r"
+    LINE INPUT #1, a$
+    CLOSE #1
+    PRINT "The document says "; a$
+  END IF
+
+Writing such a file is up to the program: @OPEN, @PRINT # and @CLOSE, in
+@FOLDER$(DOCS) for a new one.
+
+= Making it
+In the editor, File > Make application...:
+
+1. The program is checked, as Check does (Ctrl+K); an error stops it there,
+with the line shown red. 2. The @APP lines are read; an error in them is
+shown with its line. 3. The Save dialog opens in /VERANDA/APPS with the
+application's name. Choose another folder if you want it elsewhere; a name
+without .cvt gets it. An application of that name already there is replaced
+after a question. 4. VeraBASIC Run's file is read from /VERANDA/APPS (or the
+card's top folder) and the application written: the status bar says Written:
+Bird Watch.cvt.
+
+The shell shows it with its tile the next time the folder is shown; a double
+click starts it, Alt+Tab puts it aside and the dock brings it back, and its
+own Quit (a handler that ends with @END) quits it.
+
+File > Save program... writes a program document instead (class VeraBASIC
+V1.0, opened by VeraBASIC Run), as vbasic.py build does.
+
+On the PC:
+
+  python3 -I -B tools/vbasic.py app "Bird Watch.bas" \
+      --run "VeraBASIC Run.cvt" -o "Bird Watch.cvt"
+  python3 -I -B tools/vbasic.py list "Bird Watch.cvt"
+
+--run names VeraBASIC Run's file (the one on the card, or the SDK's build);
+-o defaults to the name from APP NAME. list shows the program inside an
+application, as it does a document's.
+
+= Bird Watch, the application
+/DOCUMENTS/VeraBASIC Examples/Bird Watch.bas is the tutorial's seventh step
+with its @APP lines, a tile of a bird on SKY, .brd documents (a count of
+birds, read with @DOCUMENT$ at the start and written by File > Save the
+count, into /DOCUMENTS/Sightings.brd when it was started without one) and
+File > Put aside (@ASIDE, as Alt+Tab). The package ships it made, as
+/VERANDA/APPS/Bird Watch.cvt, with Garden.brd in /DOCUMENTS to open with it.
+
+= Memory
+An application needs what VeraBASIC Run needs (13 RAM banks at rest) and one
+bank for each 8 KB of its program, so a small one runs in about 15 banks and
+can be put aside at 512 KB. Its program has the same room for names in main
+RAM as under VeraBASIC Run.
+
+See also: @Contents
+
+= Coming from V2 BASIC
+VeraBASIC keeps the core of Commodore BASIC V2, the BASIC of the C64 and of
+the X16's ROM: line numbers, @GOTO, @GOSUB, @FOR ... @NEXT, @IF ... @THEN,
+@DATA and @READ, @PRINT with ; and ,, the string functions, floats in the
+ROM's own format. A V2 listing with blanks between its words runs as it is,
+in the console window:
+
+  10 REM A V2 PROGRAM, AS IT IS
+  20 DIM N(10)
+  30 FOR I=1 TO 10:N(I)=I*I:NEXT I
+  40 S=0:FOR I=1 TO 10:S=S+N(I):NEXT
+  50 PRINT "SUM OF SQUARES";S
+  60 GOSUB 100
+  70 END
+  100 PRINT "IN THE SUBROUTINE":RETURN
+
+@{Bringing a .PRG in: vbasic.py import}
+@{What differs}
+@{Speed}
+
+= Bringing a .PRG in: vbasic.py import
+A program saved by the C64 or the X16's BASIC is tokenized: its keywords are
+single bytes, and a crunched line (FORI=1TO9) has no blanks at all.
+vbasic.py import turns such a .PRG into a .bas file:
+
+  python3 -I -B tools/vbasic.py import SQUARES.PRG -o "Squares.bas"
+
+- every keyword token becomes its word with a blank before and after it, so
+FORI=1TO9 becomes FOR I=1 TO 9;
+
+- text in quotes, after @REM and in @DATA stays as it was;
+
+- PETSCII becomes Latin-1: the letters as letters (the shifted set as lower
+case); a control character in quotes (clear the screen, a colour) becomes "
++ CHR$(147) + ";
+
+- an X16 BASIC statement (the ROM's extended tokens, $CE and a byte: SCREEN,
+LINE, RECT ...) has no VeraBASIC form: it is kept as a @REM and named in a
+warning, for you to rewrite with the Veranda statements (chapter 3).
+
+Then open it in VeraBASIC (or vbasic.py check it), and Check (Ctrl+K).
+Format gives it VeraBASIC's canonical form if you want it.
+
+= What differs
+V2: VeraBASIC
+names: two significant characters (COUNT and CO are one variable): every
+character counts (count and co are two); names are case-blind
+keywords inside names (FORM is FOR M): a keyword is a whole word: form is a
+name
+floats unless % or $: the same; @OPTION @INTEGER makes unsuffixed names
+16-bit integers, much faster
+a @FOR loop runs once even when its start is past its end: it does not run
+@IF ... @THEN on one line: that, and block @IF ... @ELSE ... @{END IF}
+@GOSUB and line numbers only: @SUB and @FUNCTION with arguments and @LOCAL
+variables, labels, @WHILE, @REPEAT, @DO, @{SELECT CASE}
+errors end the program: @TRY ... @CATCH, @ON @ERROR @GOTO and @RESUME
+the screen at $0400, @POKE 53280 for the border: no text screen: the console
+window; colour with @PAPER; @POKE and @PEEK reach main RAM below $A000
+LOAD, SAVE, LIST, RUN: the editor's File and Run menus
+@OPEN 1,8,2,"FILE,S,W": @OPEN #1, "A long file name.txt", "w": names up to
+63 characters, folders
+@GET from the keyboard buffer: @INKEY$, or @ON @KEY @CALL for a windowed
+program
+@TI and @TI$: @TI (frames), @TIME$, @DATE$; @TIMER for events
+@FRE(0): the free bytes of the variables' banks
+@SYS: allowed, at your own risk: Veranda's memory map is not the X16 ROM's
+= Speed
+The same V2 program runs about as fast as on the X16's BASIC (the floats are
+the ROM's own routines); with @OPTION @INTEGER at the top and % on the
+floats you do not need, loops run three to six times faster (gate vb_speed,
+the Rugg/Feldman benchmarks).
+
+  10 OPTION INTEGER
+  20 T=0
+  30 FOR I=1 TO 1000:T=T+I MOD 7:NEXT
+  40 PRINT T
+
+See also: @Contents
+
+= Memory limits
+VeraBASIC runs on a Commander X16 with 512 KB of RAM banks or more. A
+program's memory is in three places: main RAM for its names, RAM banks for
+everything else, and the screen.
+
+@{A program}
+@{RAM banks at 512 KB}
+@{Main RAM}
+
+= A program
+What: Limit: When it is passed
+the source text: 64 KB (65,280 bytes): The program is too big
+a source line: 255 characters: Line too long
+a string: 255 characters: error 14, String too long
+the tokens (record 1): 64 KB, in 8 banks of 7.75 KB: Program too big
+names: 512, with 7.9 KB of spellings (the X16's tokenizer); in main RAM 8
+bytes each at run time, about 290 under VeraBASIC Run, an application or the
+editor: Too many names; Too many names for main RAM
+procedures: 128, each with 100 parameters and @LOCALs: Program too big
+blocks open at once: 24 (@FOR, @IF, @WHILE ... nested in one place): Program
+too big
+numbered lines: 2,048: Program too big
+@DATA items: 4,096: Program too big
+arrays and strings: the variables' banks: 4 (32 KB) by default, @OPTION
+@MEMORY n up to 24 (192 KB): error 7, Out of memory
+the BASIC stack: one bank, 8 KB: about 300 nested procedures, loops, @GOSUBs
+and @TRYs: error 16, Stack overflow
+an expression: as deep as the value stack holds: error 15, Formula too
+complex
+windows: 4: error 25, No such window
+files open: 3: error 51, Too many files
+timers: 8 (@TIMER 1-8): error 5, Illegal quantity
+sprites: 2-7 (the kernel keeps the others): error 5, Illegal quantity
+file names: 63 characters, folders in them, 64 in all: the kernel's error
+= RAM banks at 512 KB
+The emulator and a 512 KB X16 have 43 banks for programs once Veranda's
+kernel has its own (fewer with fonts loaded or the wallpaper's picture).
+
+Program: Banks at rest: Running a small program
+VeraBASIC Run: 13: about 21 (the program's tokens, its stack, its 4 variable
+banks)
+an application made by VeraBASIC: 13, and one more for each 8 KB of its
+program: about 22
+VeraBASIC, the editor: 32 (its records, the text's 2, undo's 2): about 40;
+the editor's screen is kept in 6 more when 16 are free
+The switcher keeps 18 banks free for the desktop, so VeraBASIC Run and a
+small application can be put aside at 512 KB; the editor can be at 2 MB, and
+at 512 KB its switcher box offers to quit it instead.
+
+= Main RAM
+A program's names take 8 bytes each in main RAM, with its procedures'
+tables. The room is 2,436 bytes in the editor and 3,052 under VeraBASIC Run
+and in an application. @POKE and @PEEK reach main RAM below $A000;
+$7F00-$7FFF is safe for a program's own bytes when it has few names.
+
+See also: @Contents
+
+= The ROM maths
+VeraBASIC's floats are the Commander X16 ROM's own: the 5-byte format of
+Commodore BASIC V2 (an exponent byte and a 4-byte mantissa with its sign),
+about nine significant digits, from 2.9E-39 to 1.7E+38. Every float
+operation (+ - /, ^, @SQR, @SIN, @LOG, @VAL, @STR$ ...) is a call into the
+ROM's maths library through its public jump table, so a VeraBASIC program
+computes what the same V2 program computes on the X16, to the last bit.
+
+@{Called, not copied}
+@{Two things the runtime does itself}
+@{The reference on the PC}
+@{The ROM's version}
+
+= Called, not copied
+The maths library belongs to the ROM. VeraBASIC carries none of its code or
+tables: the runtime calls the jump table's entries (FADD, FMULT, FDIV, FOUT
+and the others) at run time, with the ROM bank they are in mapped, and
+leaves the library's zero page ($A9-$D3) alone. So the library's licence and
+origin stay with the ROM (the plan's section 10).
+
+= Two things the runtime does itself
+- Reading a number. The tokenizer turns a float written in the text into its
+5 bytes once, when the program is checked. It rounds the spelling correctly
+(the PC with Python's fractions, the X16 with big integers in overlay 5),
+and does not use the ROM's VAL routine, which differs in the last bit for
+some spellings. @VAL at run time is the ROM's.
+
+- Integers. With @OPTION @INTEGER or a % name, values are 16-bit integers
+worked out by the runtime: no ROM call, and 3-6 times faster. A float is
+made from an integer only where an expression mixes them.
+
+= The reference on the PC
+vbasic.py run --rom rom.bin runs the ROM's own maths routines in a small
+65C02 emulator (tools/vbrom.py), so the reference interpreter's floats are
+the X16's. Without a ROM image it uses the PC's doubles and says the floats
+are approximated: the last digit of a result can differ.
+
+  ' the same digits on the X16 and in the reference with --rom
+  x = 1 / 3
+  PRINT x, x * 3, SQR(2), 10 ^ 0.5
+  PRINT INT(-2.5), 7 MOD 3, 2 ^ 31
+
+= The ROM's version
+The jump table has kept its entries through the X16's ROM releases. The
+gates run under release R49; a ROM whose maths entries moved would be found
+by gate vb_core, which compares every float result with the reference's.
+
+See also: @Contents

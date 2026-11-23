@@ -1,0 +1,113 @@
+# A Veranda release, built from the source (DECISIONS V139, docs/PUBLISHING.md).
+# tools/publish.sh <version> pushes the tag v<version>; this builds the
+# kernel, the shell, the SDK and the programs with the pinned cc65, the
+# sibling repositories at the same tag, runs the fast gates under the
+# official x16emu R49, and publishes the release: Veranda Update's files
+# (UPDATE.LST and the <crc32>.bin assets: tools/release.allow, the port
+# guard), the SD-card zip and SHA256SUMS; Veranda Update's test build
+# installs that release folder from GitHub played on localhost
+# (tools/ci/updcheck.sh), and the release is not made unless it can.
+# Then it asks the website to rebuild.
+name: release
+on:
+  push:
+    tags: ['v[0-9]*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'The tag to build again (v1.0.1): its release is replaced'
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: release
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          path: veranda
+          fetch-depth: 0
+      - name: The siblings at the same tag
+        run: |
+          mkdir sibs
+          for r in commander-write commander-calc lighthouse-pinball harbour-walls veranda-sidplay veranda-solitaire mod-player; do
+            git clone -q --branch "$TAG" --depth 1 "https://github.com/veranda-x16/$r.git" "sibs/$r" 2>/dev/null ||
+              echo "::warning::$r has no tag $TAG: left out of the package"
+          done
+          ls sibs
+      - name: The tools' cache (cc65, x16emu)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ~/ci-tools
+          key: ci-tools-cc65-547d923-x16emu-r49-modem-1db040b
+      - name: Tools (pinned)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq python3-pil libsdl2-2.0-0 libsdl2-dev cmake zip >/dev/null
+          veranda/tools/ci/setup.sh all
+          veranda/tools/ci/setup.sh modem
+      - name: Build, gates, package, release files
+        working-directory: veranda
+        env:
+          SIBS: ${{ github.workspace }}/sibs
+          REPO: ${{ github.repository }}
+        run: tools/ci/build.sh "${TAG#v}" "$RUNNER_TEMP/out"
+      - name: Veranda Update installs this release (GitHub played on localhost)
+        working-directory: veranda
+        run: tools/ci/updcheck.sh "$RUNNER_TEMP/out/rel" stable
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        if: always()
+        with:
+          name: gates-and-logs
+          path: |
+            ${{ runner.temp }}/out/gates
+            ${{ runner.temp }}/out/*.log
+            ${{ runner.temp }}/out/*.txt
+            !**/rom.bin
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: release
+          path: ${{ runner.temp }}/out/rel
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: release
+          path: rel
+      - name: The GitHub release
+        run: |
+          cd rel
+          V=${TAG#v}
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" --clobber UPDATE.LST *.bin *.zip SHA256SUMS
+            gh release edit "$TAG" --notes-file NOTES.md --latest
+          else
+            gh release create "$TAG" --verify-tag --title "Veranda $V" --notes-file NOTES.md --latest \
+              UPDATE.LST *.bin *.zip SHA256SUMS
+          fi
+      - name: The website (a repository_dispatch, when the token is there)
+        env:
+          SITE_TOKEN: ${{ secrets.SITE_DISPATCH_TOKEN }}
+        run: |
+          if [ -z "$SITE_TOKEN" ]; then
+            echo "no SITE_DISPATCH_TOKEN: the site rebuilds on its daily schedule"
+            exit 0
+          fi
+          GH_TOKEN=$SITE_TOKEN gh api "repos/${GITHUB_REPOSITORY_OWNER}/${GITHUB_REPOSITORY_OWNER}.github.io/dispatches" \
+            -f event_type=veranda-release -F "client_payload[tag]=$TAG"

@@ -1,0 +1,108 @@
+# Veranda Update's Test channel (DECISIONS V136, V139): the one release
+# tagged "test", a pre-release never marked latest, whose assets each test
+# build replaces. Built from the branch "next" (tools/publish.sh --test
+# pushes it; not called test, which is the release's tag), by hand, or each
+# night when the branch moved since the last test build.
+name: test build
+on:
+  push:
+    branches: [next]
+  workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * *'
+permissions:
+  contents: read
+concurrency:
+  group: test-release
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    outputs:
+      skip: ${{ steps.moved.outputs.skip }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: next
+          path: veranda
+          fetch-depth: 0
+      - name: Moved since the last test build?
+        id: moved
+        run: |
+          now=$(git -C veranda rev-parse HEAD)
+          was=$(gh release view test --json body -q .body 2>/dev/null | sed -n 's/.*Built from commit \([0-9a-f]\{40\}\).*/\1/p' | head -1)
+          if [ "${{ github.event_name }}" = schedule ] && [ "$now" = "$was" ]; then
+            echo "skip=1" >> "$GITHUB_OUTPUT"
+            echo "next is where the last test build was ($now): nothing to do"
+          else
+            echo "skip=0" >> "$GITHUB_OUTPUT"
+          fi
+      - name: The siblings (their branch next, else main)
+        if: steps.moved.outputs.skip != '1'
+        run: |
+          mkdir sibs
+          for r in commander-write commander-calc lighthouse-pinball harbour-walls veranda-sidplay veranda-solitaire mod-player; do
+            git clone -q --branch next --depth 1 "https://github.com/veranda-x16/$r.git" "sibs/$r" 2>/dev/null ||
+              git clone -q --depth 1 "https://github.com/veranda-x16/$r.git" "sibs/$r" 2>/dev/null ||
+              echo "::warning::no $r: left out"
+          done
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        if: steps.moved.outputs.skip != '1'
+        with:
+          path: ~/ci-tools
+          key: ci-tools-cc65-547d923-x16emu-r49-modem-1db040b
+      - name: Tools (pinned)
+        if: steps.moved.outputs.skip != '1'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq python3-pil libsdl2-2.0-0 libsdl2-dev cmake zip >/dev/null
+          veranda/tools/ci/setup.sh all
+          veranda/tools/ci/setup.sh modem
+      - name: Build, gates, package, release files (the Test channel)
+        if: steps.moved.outputs.skip != '1'
+        working-directory: veranda
+        env:
+          SIBS: ${{ github.workspace }}/sibs
+          REPO: ${{ github.repository }}
+        run: |
+          tools/ci/build.sh --test "$RUNNER_TEMP/out"
+          echo "" >> "$RUNNER_TEMP/out/rel/NOTES.md"
+          echo "Built from commit $(git rev-parse HEAD) of the branch next." >> "$RUNNER_TEMP/out/rel/NOTES.md"
+      - name: Veranda Update installs this test build (GitHub played on localhost)
+        if: steps.moved.outputs.skip != '1'
+        working-directory: veranda
+        run: tools/ci/updcheck.sh "$RUNNER_TEMP/out/rel" test
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        if: steps.moved.outputs.skip != '1'
+        with:
+          name: test-release
+          path: ${{ runner.temp }}/out/rel
+  publish:
+    needs: build
+    if: needs.build.outputs.skip != '1'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: test-release
+          path: rel
+      - name: The release "test" (its assets replaced; the old CRC-named ones kept)
+        run: |
+          cd rel
+          title="Veranda test build $(sed -n 's/^build \([0-9a-f]*\) \(.*\)/\1 (\2)/p' UPDATE.LST)"
+          if gh release view test >/dev/null 2>&1; then
+            gh release upload test --clobber UPDATE.LST *.bin *.zip SHA256SUMS
+            gh release edit test --title "$title" --notes-file NOTES.md --prerelease --latest=false
+          else
+            gh release create test --target next --title "$title" --notes-file NOTES.md --prerelease --latest=false \
+              UPDATE.LST *.bin *.zip SHA256SUMS
+          fi

@@ -1,0 +1,12 @@
+# Veranda application header (tools/vpack.py)
+name        = Veranda Claude
+class       = VerandaClau
+version     = 1.0
+author      = Veranda
+description = A conversation with Claude (Anthropic's API) through the Wi-Fi modem.
+mode        = 640x480
+api         = 6
+icon        = icon.pbm
+tile        = tile.txt
+icon3       = icon.txt
+overlays    = banked

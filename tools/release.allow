@@ -1,0 +1,114 @@
+# Veranda Update's public channel (DECISIONS V130): the files a GitHub
+# release may carry, one path a line, from the package's top. Only these
+# go in (tools/mkrelease.py): a file of the package that is not named here
+# is left out, and a release never has more. Every one is the user's own
+# work under the MIT licence (Copyright (c) 2026 Marcin Spoczynski):
+# Veranda's tree (this repository) and two sibling repositories whose
+# LICENSE says so (commander-calc: Veranda Calc; commander-write:
+# Veranda Write).
+#
+# NEVER here (tools/mkrelease.py refuses them even if listed; gate update's
+# host test checks it): the personal-use ports geoWrite and TopDesk (by file
+# name, and by a .cvt's class, parent class or author). Both are no longer
+# in the package (2026-11-21).
+#
+# Other people's work released with credit (the user's choice, 2026-11-21):
+#   geoChess by Scott Hutter (github.com/geos64128/geochess, his permission
+#   to modify with credit; engine after BMCP by Maksim Korzh, WTFPL);
+#   MOD Player (x16-mod, MIT; vendor/micromod-c BSD-3 is only a test
+#   oracle); Solitaire and SID Player (GPL-3.0-or-later: their source is
+#   published at github.com/veranda-x16).
+#
+# To add one: put its path here after reading its repository's LICENSE.
+
+# the system (kind system: swapped last, then the restart)
+VERANDA/VERANDA.PRG
+VERANDA/AUTOBOOT.X16
+VERANDA/VERANDA.SYS
+VERANDA/RBOOT
+VERANDA/SHELL.cvt
+VERANDA/Veranda Setup.cvt
+
+# Veranda's applications and desk accessories (this repository's apps/)
+VERANDA/APPS/Paint.cvt
+VERANDA/APPS/Colour Paint.cvt
+VERANDA/APPS/Veranda Edit.cvt
+VERANDA/APPS/View.cvt
+VERANDA/APPS/Archive.cvt
+VERANDA/APPS/Term.cvt
+VERANDA/APPS/Veranda FTP.cvt
+VERANDA/APPS/Veranda Gopher.cvt
+VERANDA/APPS/Veranda Gemini.cvt
+VERANDA/APPS/Wikipedia.cvt
+VERANDA/APPS/Veranda Chat.cvt
+VERANDA/APPS/Veranda Claude.cvt
+VERANDA/APPS/Veranda Ask.cvt
+VERANDA/APPS/Disk Tools.cvt
+VERANDA/APPS/About this X16.cvt
+VERANDA/APPS/Veranda Update.cvt
+VERANDA/APPS/FontEd.cvt
+VERANDA/APPS/Calculator.cvt
+VERANDA/APPS/Note Pad.cvt
+VERANDA/APPS/Dex.cvt
+VERANDA/APPS/Calendar.cvt
+VERANDA/APPS/Preferences.cvt
+VERANDA/APPS/PhotoMgr.cvt
+VERANDA/APPS/TextMgr.cvt
+VERANDA/APPS/VeraBASIC.cvt
+VERANDA/APPS/VeraBASIC Run.cvt
+VERANDA/APPS/Bird Watch.cvt
+
+# the user's sibling repositories, MIT (their LICENSE read: Marcin Spoczynski)
+VERANDA/APPS/Veranda Calc.cvt
+VERANDA/APPS/Veranda Write.cvt
+
+# fonts, pictures, help (tools/fontcvt.py, gatemono.py, mkwall.py, wall_*.py, vbgen.py, vbmanual.py)
+VERANDA/FONTS/Gate Sans.cvt
+VERANDA/FONTS/Gate Mono.cvt
+VERANDA/WALLPAPERS/Dusk.cvt
+VERANDA/WALLPAPERS/Still Water.cvt
+VERANDA/WALLPAPERS/Low Hills.cvt
+VERANDA/WALLPAPERS/Sunroom Tiles.cvt
+VERANDA/HELP/KEYWORDS.HLP
+VERANDA/HELP/ERRORS.HLP
+VERANDA/HELP/TUTORIAL.HLP
+VERANDA/HELP/EDITOR.HLP
+VERANDA/HELP/MANUAL.HLP
+VERANDA/HELP/Reference card.pdf
+# Veranda's manual as text (tools/mkhelp.py, DECISIONS V134; docs/manual)
+VERANDA/HELP/Veranda manual.txt
+VERANDA/HELP/Veranda manual 1 - Getting started.txt
+VERANDA/HELP/Veranda manual 2 - Programs.txt
+VERANDA/HELP/Veranda manual 3 - Network.txt
+VERANDA/HELP/Veranda manual 4 - Music games and BASIC.txt
+VERANDA/HELP/Veranda manual 5 - Reference.txt
+
+# the PC helpers (this repository's tools/)
+PC/claude_bridge.py
+PC/chatgpt_signin.py
+PC/web_proxy.py
+PC/update_server.py
+
+# VeraBASIC's examples (kind doc-sample: listed for a new card; Veranda
+# Update never writes to /DOCUMENTS)
+DOCUMENTS/Garden.brd
+DOCUMENTS/VeraBASIC Examples/Notes.bas
+DOCUMENTS/VeraBASIC Examples/Dice.bas
+DOCUMENTS/VeraBASIC Examples/Address book.bas
+DOCUMENTS/VeraBASIC Examples/Tiles.bas
+DOCUMENTS/VeraBASIC Examples/Bird Watch.bas
+DOCUMENTS/VeraBASIC Examples/Bird Watch - tutorial step 1.bas
+DOCUMENTS/VeraBASIC Examples/Bird Watch - tutorial step 2.bas
+DOCUMENTS/VeraBASIC Examples/Bird Watch - tutorial step 3.bas
+DOCUMENTS/VeraBASIC Examples/Bird Watch - tutorial step 4.bas
+DOCUMENTS/VeraBASIC Examples/Bird Watch - tutorial step 5.bas
+DOCUMENTS/VeraBASIC Examples/Bird Watch - tutorial step 6.bas
+DOCUMENTS/VeraBASIC Examples/Bird Watch - tutorial step 7.bas
+
+# the games and players (sibling repositories, published under veranda-x16)
+VERANDA/APPS/MOD Player.cvt
+VERANDA/APPS/Solitaire.cvt
+VERANDA/APPS/SID Player.cvt
+VERANDA/APPS/Lighthouse Pinball.cvt
+VERANDA/APPS/Harbour Walls.cvt
+VERANDA/APPS/geoChess.cvt

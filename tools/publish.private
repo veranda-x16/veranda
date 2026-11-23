@@ -1,0 +1,39 @@
+# What never leaves this machine (DECISIONS V139, docs/PUBLISHING.md).
+#
+# tools/publish.sh takes these out of every export (git archive of the
+# commit), and tools/pubscan.py refuses an export that still has one, or a
+# secret, or a home folder written out. One line a glob:
+#   <repo> <glob>     repo: an organisation repository's name, or * for all;
+#                     glob: a path from the repository's top (fnmatch; a
+#                     name without "/" matches in any folder; "dir/" a folder)
+#
+# --- every repository: the working notes of the sessions that built it
+*  DECISIONS.md
+*  CLAUDE.md
+*  MEMORY.md
+*  .claude/
+*  .mcp.json
+*  *.memory.md
+*  __pycache__/
+*  *.pyc
+*  .env
+*  *.pem
+#
+# --- veranda (this tree)
+# the decisions log: the user's requests quoted, the sessions' notes
+veranda  docs/DECISIONS.md
+#
+# --- mod-player (x16-mod): its working notes and the brief it was built from
+mod-player  PLAN.md
+mod-player  docs/decisions.md
+mod-player  docs/original-brief.md
+# (this machine's paths and set-up, written for the sessions)
+mod-player  docs/environment.md
+#
+# --- commander-calc: memory dumps from debugging sessions (untracked today;
+#     listed so that they never go in)
+commander-calc  dump*.bin
+#
+# --- geochess: a Windows build of VICE's c1541 (GPL; no source with it):
+#     the upstream repository carries it, an export does not
+geochess  c1541.exe

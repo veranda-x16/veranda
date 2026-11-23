@@ -1,0 +1,143 @@
+# The hardware checklist (docs/RELEASING.md): tools/release.sh puts it into
+# the package's VERANDA/README.txt, the sections whose sources changed since
+# the release before first, each marked NEW; the rest after them. Taken from
+# tools/mkdist.sh's README (THE NETWORK CHECKLIST, THE HARDWARE CHECKLIST)
+# and the checklists of the packages until 2026-11-21.
+#
+#   [<section>] <source> ...
+#   - an item (its next lines indented), one "[ ]" on the card's list
+#
+# A source: a path of this tree (a folder or a file: changed when
+# "git diff <the release before> HEAD -- <path>" is not empty), or
+# sibling:<repository folder> (changed when the commit mkdist.sh built is
+# not the one the release before was built from). Keep each item short and
+# something a person can see on the X16.
+
+[Veranda] kernel loader shell inc api cfg
+- Veranda starts from BOOT in /VERANDA; the desktop, no garbage tiles, no
+  flicker, the menu bar clean
+- open menus and close them; Veranda > About, OK: the desktop whole again;
+  Duplicate / Rename's box; an error box
+- move a window (drag its title): what was under it comes back; close it
+- minimise a folder window (the - button), click it on the belt: it comes
+  back whole and leaves the belt
+- Alt+Tab in Paint (and in Veranda Claude): it goes to the belt with a
+  dot; click it there: it comes back as it was
+- click the clock in the menu bar: Preferences, Date and Time; click the
+  speaker: the volume slider; drag, Mute, click outside
+- dark mode (Preferences): the desktop and icons readable; back to light
+
+[The look] tools/mkicons3.py tools/mkicons.py tools/mkshellicons.py tools/mkwall.py tools/wallkit.py tools/wall_stillwater.py tools/wall_hills.py tools/wall_tiles.py tools/fontcvt.py tools/gatemono.py
+- colour icons on the desktop and in windows; labels that wrap
+- Preferences > Desktop > Choose: Dusk, Still Water, Low Hills, Sunroom Tiles, a plain colour, a pattern
+- List view: the row stripes line up with the text (a photo if not)
+- Gate Mono shows letters (Veranda Write, Veranda Edit); italic not cut
+
+[Veranda > Help] tools/mkhelp.py docs/manual
+- Veranda > Help in the desktop: the manual opens in View; Esc lists its
+  parts; a part opens
+
+[Veranda Setup] apps/setup
+- a card of the layout before: Veranda Setup runs once, LAYOUT.LOG says
+  what moved where
+
+[Preferences] apps/prefs
+- type a time, Save; the menu bar shows it a minute later
+
+[Paint] apps/paint
+- draw, Save, open it again; File > Print to PDF opens on a PC
+
+[Veranda Edit] apps/edit
+- open a .TXT from /DOCUMENTS, edit, Save, open again; Find
+
+[View, Archive, Term] apps/view apps/archive apps/term
+- View: a .BMP; Archive: a .D64's files; Term: ATI answers
+
+[Veranda FTP] apps/ftp
+- a real server: list, F5 copy both ways, F6 rename, F7 new folder, F8
+  delete, Esc stops; a refused server gives its box at once
+- Alt+Tab in the middle of a download, back: it goes on or stops cleanly
+
+[Veranda Gopher] apps/gopher
+- Floodgap from the bookmarks; a menu, Back, Forward; a text; a search;
+  download a small file and open it; a host that does not exist: a box
+  at once
+
+[Veranda Gemini] apps/gemini tools/web_proxy.py
+- geminiprotocol.net from the bookmarks; links (Tab, Return), Back,
+  Forward; a page that asks; Esc during a load; bookmark a page
+- the Wikipedia icon, "wp Commodore 64"; a NewsWaffle page; a PNG with
+  [Show image]
+
+[Veranda Chat] apps/irc
+- your nick, Connect to Libera.Chat; /join a channel; say something; the
+  nick list; Alt+Tab away a minute and back: still connected; /quit
+
+[Veranda Claude] apps/claude tools/claude_bridge.py
+- Term: ATCS"example.com:443" gives CONNECT (the firmware has TLS)
+- your API key in Settings; hello, a second turn; Esc stops a reply; a
+  wrong key gives a "check your API key" box
+- through PC/claude_bridge.py: Settings > "Claude Code on my PC"; hello;
+  a wrong password gives its box
+- ask for a short BASIC program; Save .PRG; LOAD and RUN it in BASIC;
+  Ctrl+L lists the chat after quitting and starting again
+
+[Veranda Ask] apps/ask tools/chatgpt_signin.py
+- sign in from the PC (python3 chatgpt_signin.py), the code, Continue
+  with ChatGPT: "signed in"; a wrong code gives its box
+- hello, a second turn, Esc during a reply; two questions more than an
+  hour apart (the renewal); if it fails, a photo of ASK.LOG
+
+[Disk Tools] apps/disktools apps/sysui
+- Card: size, free space and cluster size as a PC shows them (Rename...
+  and back); Space use (Esc stops a count); Check (a PC's fsck agrees);
+  Clean up: a file in the trash, Empty the trash...
+
+[About this X16] apps/about apps/sysui VERSION
+- Veranda's version (1.0) and build; Installed: the card's build;
+  KERNAL ROM R49 (or yours); CPU about 8.0 MHz; VERA and the SMC; RAM
+  512 KB: 64 banks, 44 for programs; Alt+Tab a program aside: listed
+- the network card at $9FE0, Ask the modem: the Zimodem line; Copy, then
+  paste in Veranda Edit
+
+[Veranda Update] apps/update tools/update_server.py tools/mkmanifest.py tools/mkrelease.py
+- Source...: GitHub, the repository, Stable; Check: Installed and
+  Available show "Veranda 1.0, build ..."; the list of changed files
+- Source...: Test (Cancel at "Stable releases?"); Check asks the release
+  "test" (none yet: "the repository has no release with UPDATE.LST")
+- from a PC (python3 update_server.py <the package>): Check, Update,
+  Restart to finish; Undo last update
+
+[Desk accessories] apps/calc apps/notepad apps/dex apps/calendar apps/scrapman apps/fonted
+- Calculator, Note Pad, Dex, Calendar, Photo and Text Manager open over
+  a program and close back to it
+
+[VeraBASIC] apps/vbasic vbasic tools/vbasic.py tools/vbgen.py
+- a program from before still runs the same; F1 help; Ctrl+K Check,
+  Ctrl+R Run
+- File > Make application... makes an app that starts from the desktop;
+  Bird Watch opens /DOCUMENTS/Garden.brd
+- the debugger: F9 breakpoint, F7/F10/F11 step, Ctrl+W watch, F12 trace
+
+[Veranda Write] sibling:commander-write
+- type, Bold, Italic, a bigger size, Undo/Redo, Copy/Paste, Style menu,
+  a numbered list, Ctrl+F; Save as, Alt+Tab away and back, open again
+
+[Veranda Calc] sibling:commander-calc
+- open a .CSV or .XLSX from /DOCUMENTS; a formula; Save
+
+[Lighthouse Pinball] sibling:veranda-pinball
+- the table in colour, lamps, ball and flippers right, sound, a whole
+  game, a high score kept; Alt+Tab aside and back from the dock: as it
+  was; Game > Quit: the desktop right
+
+[Harbour Walls] sibling:harbour-walls
+- the sea, walls and crates in colour, the crests moving; a game, a high
+  score typed in and kept; Alt+Tab aside and back; Game > Quit
+
+[SID Player] sibling:veranda-sidplay
+- with the X16-SID card: a .SID from /DOCUMENTS plays; next song, the
+  voices view; without the card: "No X16-SID card found"
+
+[MOD Player, Solitaire, geoChess] sibling:x16-mod sibling:veranda-solitaire sibling:veranda-geochess
+- each starts and quits back to a whole desktop

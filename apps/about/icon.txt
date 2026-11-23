@@ -1,0 +1,37 @@
+# About this X16: a Veranda Look 3 colour icon (DECISIONS V133), style A "Sunroom";
+# written by tools/mkicons3.py write (its geometry is the source: change
+# it there). 32 rows: '.' none, 'K' the ink, 'a'-'o' entries 1-15 of the
+# icons' palette row (tools/mkicons3.py PAL).
+icon About this X16
+................................
+................................
+....KKKKKKKKKKKKKKKKKKKKKKKK....
+...KbbbbbbbbbbbbbbbbbbbbbbbbK...
+..KbccccccccccccccccccccccccbK..
+..KbccddddddddddddddddddddccdKc.
+..KbcdKKKKKKKKKKKKKKKKKKKKbcdKc.
+..KbcdKffffffffffffffffffKbcdKc.
+..KbcdKffffffffffffffffffKbcdKc.
+..KbcdKfffffffafffaffffffKbcdKc.
+..KbcdKfffffffafffaffffffKbcdKc.
+..KbcdKffffffffafafffffffKbcdKc.
+..KbcdKffffffffafafffffffKbcdKc.
+..KbcdKfffffffffaffffffffKbcdKc.
+..KbcdKffffffffffffffffffKbcdKc.
+..KbcdKffffffffffffffffffKbcdKc.
+..KbcdKffffffffffffffffffKbcdKc.
+..KbcdKffffffffffffffffffKbcdKc.
+..KbcdKKKKKKKKKKKKKKKKKKKKbcdKc.
+..KbccbbbbbbbbbbbbbbbbbbbbccdKc.
+..KbccccccccccccccccccccccccdKc.
+...KbdddddddddddddddddddddddKcc.
+....KKKKKKKKKKKKKKKKKKKKKKKKcc..
+.....KKKKKKKKKKKKKKKKKKKKKKcc...
+....KbbbbbbbbbbbbbbbbbbbbbbK....
+...KbccccccccccccccccccccccbK...
+..KbcccccccccccccccccccccccdKc..
+..KbccccccccccccccccccccccccbK..
+.KbddddddddddddddddddddddddddbK.
+..KKKKKKKKKKKKKKKKKKKKKKKKKKKKcc
+...cccccccccccccccccccccccccccc.
+................................

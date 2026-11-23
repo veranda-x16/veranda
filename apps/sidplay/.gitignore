@@ -1,6 +1,0 @@
-build/
-*.o
-*.map
-*.bin
-*.cvt
-__pycache__/

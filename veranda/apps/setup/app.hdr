@@ -1,9 +1,0 @@
-# Veranda application header (tools/vpack.py)
-name        = Veranda Setup
-class       = VSetup
-version     = 1.0
-author      = Veranda
-description = Moves an older card into the folders once: APPS, .SYSTEM, /DOCUMENTS.
-mode        = 640x480
-api         = 3
-icon        = icon.pbm

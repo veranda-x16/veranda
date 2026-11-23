@@ -1,0 +1,12 @@
+# Veranda desk accessory header (tools/vpack.py)
+name        = Preferences
+class       = Preferences
+type        = deskacc
+version     = 1.0
+author      = Veranda
+description = Veranda's settings: blanking, colours, sounds, pointer, video mode, desktop, clock.
+mode        = keep
+api         = 2
+icon        = icon.pbm
+tile        = tile.txt
+icon3       = icon.txt

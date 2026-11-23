@@ -1,5 +1,0 @@
-# gate vb_ui: the screens (tests/vbasic/check_ui.py); NAME HASH [masked x0,y0,x1,y1]
-colour 542950a5d75a82acb44769c0d5c6c527 168,112,169,119
-colourdark 3884922fc4a8aa66eb46538408d7a0e0 168,112,169,119
-error a4fe9b08ef2e46057ef97cc261adbb9e 0,104,1,111
-errordark e9d361c3da8881cc192706239db058fe 0,104,1,111

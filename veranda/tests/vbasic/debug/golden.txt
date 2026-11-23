@@ -1,2 +1,0 @@
-# gate vb_debug: VeraBASIC Run's box (tests/vbasic/check_ui.py); NAME HASH [masked x0,y0,x1,y1]
-runbox cbb4932b8d4819ce376efd43d665c2dd
