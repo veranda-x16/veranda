@@ -45,8 +45,9 @@ jobs:
         if: steps.moved.outputs.skip != '1'
         run: |
           mkdir sibs
-          for r in commander-write commander-calc lighthouse-pinball harbour-walls veranda-sidplay veranda-solitaire mod-player; do
+          for r in veranda-write commander-calc lighthouse-pinball harbour-walls veranda-sidplay veranda-solitaire mod-player geochess; do
             git clone -q --branch next --depth 1 "https://github.com/veranda-x16/$r.git" "sibs/$r" 2>/dev/null ||
+              git clone -q --branch veranda --depth 1 "https://github.com/veranda-x16/$r.git" "sibs/$r" 2>/dev/null ||
               git clone -q --depth 1 "https://github.com/veranda-x16/$r.git" "sibs/$r" 2>/dev/null ||
               echo "::warning::no $r: left out"
           done

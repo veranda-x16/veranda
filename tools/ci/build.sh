@@ -6,10 +6,10 @@
 #   tools/ci/build.sh --test <out>                the Test channel's build
 #
 # SIBS: a folder with the organisation's sibling repositories checked out
-# (commander-write, commander-calc, lighthouse-pinball, harbour-walls,
-# veranda-sidplay, veranda-solitaire, mod-player), each at the tag v<version>
+# (veranda-write, commander-calc, lighthouse-pinball, harbour-walls,
+# veranda-sidplay, veranda-solitaire, mod-player, geochess), each at the tag v<version>
 # (a test: its test branch, else main); a missing one is left out with
-# mkdist's warning. geoWrite, geoChess and TopDesk are never looked for.
+# mkdist's warning. geoWrite and TopDesk are never looked for.
 #
 #   1. the fast gates (tools/ci/gates.sh; CI_GATES=, or NO_GATES=1)
 #   2. the package: tools/mkdist.sh (VERANDA_BUILD: the source's build id,
@@ -58,14 +58,15 @@ fi
 # 2. the package
 S=${SIBS:-$TOP/../sibs}
 sib() { [ -d "$S/$1/.git" ] && echo "$S/$1" || echo "/nonexistent/$1"; }
-export CWRITE=$(sib commander-write) CWRITE_REF=HEAD
+export CWRITE=$(sib veranda-write) CWRITE_REF=HEAD
 export CALC=$(sib commander-calc) CALC_REF=HEAD
 export PINBALL=$(sib lighthouse-pinball) PINBALL_REF=HEAD
 export HWALLS=$(sib harbour-walls) HWALLS_REF=HEAD
 export SIDPLAY=$(sib veranda-sidplay) SIDPLAY_REF=HEAD
 export SOLITAIRE=$(sib veranda-solitaire) SOLITAIRE_REF=HEAD
 export X16MOD=$(sib mod-player) X16MOD_REF=HEAD
-export GEOWRITE=/nonexistent/geowrite GEOCHESS=/nonexistent/geochess TOPDESK=
+export GEOCHESS=$(sib geochess) GEOCHESS_REF=HEAD
+export GEOWRITE=/nonexistent/geowrite TOPDESK=
 export MKDIST_SIBLINGS=1
 # the notes: the tag's message (publish.sh: the release's points), else the commit's
 if [ "$TEST" = 0 ] && git rev-parse -q --verify "refs/tags/v$VER" >/dev/null; then
