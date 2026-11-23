@@ -54,7 +54,7 @@ jobs:
         if: steps.moved.outputs.skip != '1'
         with:
           path: ~/ci-tools
-          key: ci-tools-cc65-547d923-x16emu-r49-modem-40bd5fe
+          key: ci-tools-cc65-547d923-x16emu-r49-modem-97ffc0e
       - name: Tools (pinned)
         if: steps.moved.outputs.skip != '1'
         run: |
