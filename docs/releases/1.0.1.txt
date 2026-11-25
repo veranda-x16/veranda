@@ -1,0 +1,13 @@
+# Veranda 1.0.1: what is new since 1.0.
+# One "- " line a point; the part before the first "; " goes into
+# Veranda Update's short list (UPDATE.LST). Plain words, no testing claims.
+- Veranda Write opens and exports Word and OpenDocument files; File > Open takes .docx and .odt (a note says what was left out), File > Export as Word and as OpenDocument
+- Veranda Write draws correctly after a style change; no old lines left when a heading becomes body text, right line heights after redo, page counts in footers kept up to date
+- Headers and footers in Veranda Write show Polish letters, and a right-aligned date is shown whole
+- A scientific Calculator; sin, cos, tan and their inverses, logs, powers, roots, n!, brackets, degrees or radians, memory keys, in a new look
+- Veranda Gemini shows JPEG pictures, faster with VERA's multiplier; leaving a picture with the wheel or a click works at once, and Gemini quits from a picture (close box, Ctrl+Q)
+- Veranda is faster; Alt+Tab brings a program back in about half the time, menus and lists draw faster, more memory free for programs
+- A dragged icon follows the pointer as a see-through picture; Esc cancels a drag
+- The mouse wheel scrolls the desktop's windows
+- Screen blanking turns the video signal off, so a monitor can go to power save
+- Veranda Term's status bar no longer flickers, and its address book and hosts list work with the mouse; click, double-click, buttons
