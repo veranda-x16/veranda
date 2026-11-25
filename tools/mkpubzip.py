@@ -40,6 +40,11 @@ TO INSTALL IT
      (or LOAD"VERANDA.PRG" and RUN in /VERANDA).
   3. Later versions: Veranda Update (in /VERANDA/APPS) fetches only the
      files that changed.
+  4. Veranda Write's spelling dictionaries (English, Polish: 1.9 MB) are
+     a download of their own: Tools > Get dictionaries in Veranda Write
+     fetches them over the Wi-Fi modem, or copy the files of
+     Veranda-Write-dictionaries.zip (the release dict-1 at
+     https://github.com/veranda-x16/veranda-write/releases) to the card.
 
 It needs a Commander X16 with 512 KB of banked RAM or more and a mouse.
 The network programs need TexElec's Serial & ESP32 Network Card

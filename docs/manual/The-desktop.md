@@ -133,6 +133,12 @@ column's header is bold, with a small triangle.
 
   A GEOS document (a `.cvt` file, such as a Paint picture) opens with
   the program that made it.
+- **Double-click an X16 program** (a `.PRG` file, such as a game for
+  the X16's BASIC) to run it. Veranda asks first, goes to BASIC, runs
+  the program in its own folder and comes back to the desktop by itself
+  when the program ends. See
+  [BASIC and back](BASIC-and-back.md#run-a-program-from-the-desktop).
+  These files have their own icon: a BASIC screen with a play mark.
 - **File > View** opens the selected file in [View](View.md), whatever
   it is.
 

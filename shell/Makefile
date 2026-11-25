@@ -4,7 +4,7 @@
 # overlays = banked in app.hdr.
 SDK   ?= ../build/sdk
 CC65  := cl65 -t none --cpu 65C02 -O -I $(SDK)/include --asm-include-dir $(SDK)/include
-SRC   := main.c win.c mouse.c wops.c view.c dir.c files.c print.c pins.c chrome.c tiles.c bars.c look.c wall.c dock.c look3.c look3b.c info.c ghost.s ovl.s play.s wallmap.s clip.s cmove.s gui.s guiart.s
+SRC   := main.c win.c mouse.c wops.c view.c dir.c files.c print.c pins.c chrome.c tiles.c bars.c look.c wall.c dock.c look3.c look3b.c info.c prg.c ghost.s ovl.s play.s wallmap.s clip.s cmove.s gui.s guiart.s
 OVLS  := shell.bin.1 shell.bin.2 shell.bin.3 shell.bin.4 shell.bin.5 shell.bin.6 shell.bin.7 shell.bin.8 shell.bin.9 shell.bin.10 shell.bin.11 shell.bin.12
 
 all: SHELL.cvt
@@ -25,7 +25,7 @@ icons3c.bin: icons3s.txt $(SDK)/tools/mkicons3.py
 	python3 -I -B $(SDK)/tools/mkicons3.py lib icons3s.txt icons3c.bin
 
 SHELL.cvt: shell.bin app.hdr icon.pbm icons3a.bin icons3b.bin icons3c.bin
-	python3 -I -B $(SDK)/tools/vpack.py --load 0x0801 -o SHELL.cvt app.hdr shell.bin $(OVLS) icons3a.bin icons3b.bin icons3c.bin shell.bin.16
+	python3 -I -B $(SDK)/tools/vpack.py --load 0x0801 -o SHELL.cvt app.hdr shell.bin $(OVLS) icons3a.bin icons3b.bin icons3c.bin shell.bin.16 shell.bin.17
 
 clean:
 	rm -f *.o shell.bin shell.bin.* shell.map SHELL.cvt icons3a.bin icons3b.bin icons3c.bin

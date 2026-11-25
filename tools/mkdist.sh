@@ -222,6 +222,17 @@ export_tree() {
 	echo "$name at $ref ($(git -C "$tree" rev-parse --short "$ref"))" >> "$WORK/refs.txt"
 	echo "$WORK/src/$name"
 }
+# copy_dict <dir>: Veranda Write's spelling code, SPELL.OVL (it must come
+# from the same build as Veranda Write.cvt), into /VERANDA/DICT. Only that:
+# the dictionaries and their licences (PL.DIC, EN.DIC, *.txt), which a
+# Write build before W61 also put there, are not in the package (DECISIONS
+# V198): Write's Tools > Get dictionaries fetches them (Veranda Update),
+# or the zip of their release (dict-1 of veranda-write) is copied by hand
+copy_dict() {
+	[ -f "$1/SPELL.OVL" ] || return 0
+	mkdir -p "$V/DICT"
+	cp "$1/SPELL.OVL" "$V/DICT/"
+}
 port() {                # $1 the name, $2 the tree, $3 the refs (space separated), $4 the build, $5 its output, $6 the name on the card
 	local s
 	if [ ! -d "$2/.git" ] && [ ! -f "$2/.git" ]; then
@@ -232,6 +243,7 @@ port() {                # $1 the name, $2 the tree, $3 the refs (space separated
 	s=$(export_tree "$2" $3) || { say "WARNING: $1: none of the refs $3: left out"; return; }
 	(cd "$s" && eval "$4") >"$WORK/b/$1.log" 2>&1 || { tail "$WORK/b/$1.log"; die "$1 does not build"; }
 	cp "$s/$5" "$V/APPS/$6"
+	copy_dict "$s/$(dirname "$5")/DICT"
 	say "$1: $(tail -1 "$WORK/refs.txt")"
 }
 # Inside veranda-x16 (MONO): its ../apps instead of the sibling repositories
@@ -249,6 +261,7 @@ local_app() {
 	tar -C "$2" --exclude=./build -cf - . | tar -x -C "$s"
 	(cd "$s" && eval "$3") >"$WORK/b/$1.log" 2>&1 || { tail "$WORK/b/$1.log"; die "$1 does not build"; }
 	cp "$s/$4" "$V/APPS/$5"
+	copy_dict "$s/$(dirname "$4")/DICT"
 	rev=$(git -C "$2" log -1 --format=%h -- . 2>/dev/null || true)
 	echo "$1 from apps/$(basename "$2")${rev:+ ($rev)}" >> "$WORK/refs.txt"
 	say "$1: apps/$(basename "$2")"
@@ -289,6 +302,12 @@ THE FOLDERS (DECISIONS V71)
                       Preferences > Desktop chooses one, or a plain colour,
                       or a pattern. Your own: tools/mkwall.py picture.jpg
                       (in the SDK; a C compiler makes its helper once)
+  /VERANDA/DICT       Veranda Write's spelling code (SPELL.OVL); the
+                      Polish and English dictionaries go here too, with
+                      their licences: Tools > Get dictionaries in Veranda
+                      Write fetches them (the Wi-Fi modem), or copy them
+                      from Veranda-Write-dictionaries.zip (the release
+                      dict-1 of github.com/veranda-x16/veranda-write)
   /VERANDA/HELP       Veranda's manual as text (Veranda > Help in the
                       desktop opens it in View; Esc there lists its parts),
                       VeraBASIC's help files (F1 in the editor), the

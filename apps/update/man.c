@@ -218,6 +218,8 @@ const char *__fastcall__ man_load_o(const char *dir, const char *name)
                 FClose(ih);
                 return why;
             }
+            if (xmode && (memcmp(E.path, X_DIR, sizeof X_DIR - 1) || E.kind != K_APP))
+                return bad("a file outside VERANDA/DICT");     /* (V198: the dictionaries' list) */
             ent_put(nents++);
         } else if (!memcmp(ln, "end ", 4)) {
             for (k = 0, p = ln + 4; *p >= '0' && *p <= '9'; ++p)

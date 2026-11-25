@@ -9,6 +9,14 @@
     check_update.py check <session> <fx-dir> <card> <log> <requests.log>
         the card and the logs after a session, against what it must be
 
+(V198) Veranda Write's dictionaries: relD, a release as Write's
+tools/mkdict.py makes it (DICT.LST, tag dict-1, the assets by their
+names: EN.DIC, EN.DIC.txt, PL.DIC, PL.DIC.txt), served for
+veranda-x16/veranda-write; the card has an older PL.DIC (a package made
+before V198 had the dictionaries), which nothing but a chosen download
+may change. A build's VERANDA/DICT holds SPELL.OVL (every build) and, in
+B1, a stray EN.DIC: never in a release.
+
 The user's files (in /DOCUMENTS, /VERANDA/.SYSTEM's settings, an
 application of the user's own in /VERANDA/APPS, VERANDA/README.txt) are
 checksummed in card0 and must be the same after every session.
@@ -47,6 +55,14 @@ def rnd(seed, n):
     return bytes(r.getrandbits(8) for _ in range(n))
 
 
+# (V198) an older PL.DIC (from a package before V198); the dictionaries'
+# release, as Write's tools/mkdict.py makes it
+USER['VERANDA/DICT/PL.DIC'] = rnd('plold', 48000)
+DICTS = {'EN.DIC': rnd('en', 30000), 'EN.DIC.txt': b'SCOWL: its notice\n' * 20,
+         'PL.DIC': rnd('pl', 50000), 'PL.DIC.txt': b'CC BY-SA 4.0, Morfologik: BSD\n' * 20}
+DTAG = 'dict-1'
+
+
 def files_of(build, shell):
     """{path: bytes} of a made-up package"""
     prg = rnd('prg', 6203)
@@ -63,9 +79,12 @@ def files_of(build, shell):
         'VERANDA/FONTS/Gate Sans.cvt': rnd('font', 3000),
         'VERANDA/HELP/KEYWORDS.HLP': rnd('kw', 9000),
         'VERANDA/WALLPAPERS/Dusk.cvt': rnd('dusk', 5000),
+        'VERANDA/DICT/SPELL.OVL': rnd('spell', 2200),                # (V198: Write's spelling code)
         'PC/update_server.py': open(os.path.join(TOOLS, 'update_server.py'), 'rb').read(),
         'DOCUMENTS/VeraBASIC Examples/Dice.bas': b'10 REM dice\r\n20 PRINT INT(RND(1)*6)+1\r\n',
     }
+    if build == 'B1':
+        f['VERANDA/DICT/EN.DIC'] = rnd('enstray', 3000)              # (V198: never in a release)
     if build in ('B1', 'B2'):
         f['VERANDA/APPS/Veranda Gemini.cvt'] = rnd('gemini2', 41000)
         f['VERANDA/APPS/Paint.cvt'] = rnd('paint2', 12000)          # (the same size: the CRC tells)
@@ -128,13 +147,26 @@ def fixture(fx, shell_path):
                 sys.exit('mkrelease %s: %s' % (rel, out.stderr))
             if 'geoWrite' in open(os.path.join(fx, 'rel' + rel, 'UPDATE.LST')).read():
                 sys.exit('FAIL  geoWrite in release %s' % rel)
+            if '.DIC' in open(os.path.join(fx, 'rel' + rel, 'UPDATE.LST')).read() or \
+                    'VERANDA/DICT/SPELL.OVL' not in open(os.path.join(fx, 'rel' + rel, 'UPDATE.LST')).read():
+                sys.exit('FAIL  release %s: a dictionary in it, or no SPELL.OVL (V198)' % rel)
+    rd = os.path.join(fx, 'relD')
+    os.makedirs(rd)
+    ents = []
+    for n, b in DICTS.items():
+        open(os.path.join(rd, n), 'wb').write(b)
+        ents.append({'size': len(b), 'crc': zlib.crc32(b) & 0xFFFFFFFF, 'kind': 'app', 'min': '-', 'asset': n,
+                     'path': 'VERANDA/DICT/' + n})
+    open(os.path.join(rd, 'DICT.LST'), 'w').write(mkmanifest.render(
+        'dict1', '2026-11-25', ents, ['Veranda Write\'s dictionaries: English and Polish.'], DTAG, '1.0'))
     card = os.path.join(fx, 'card0')
     a = files_of('A', shell)
     write_tree(card, {p: b for p, b in a.items() if not p.startswith('DOCUMENTS/') and 'geoWrite' not in p})
     write_tree(card, USER)
     shutil.copy(os.path.join(fx, 'relA', 'UPDATE.LST'), os.path.join(card, 'VERANDA', 'UPDATE.LST'))
     json.dump(snapshot(card), open(os.path.join(fx, 'card0.json'), 'w'), indent=0)
-    print('ok    fixtures: packages A, B1, B2 (%d, %d, %d files), releases A and B1 (no geoWrite), the card %s'
+    print('ok    fixtures: packages A, B1, B2 (%d, %d, %d files), releases A and B1 (no geoWrite; of VERANDA/DICT only '
+          'SPELL.OVL, B1\'s EN.DIC left out), the dictionaries\' release dict-1 (4 files), the card %s'
           % tuple([len(files_of(n, shell)) for n in ('A', 'B1', 'B2')] + [card]))
 
 
@@ -161,6 +193,25 @@ def expected(fx, build, source):
     b = open(man, 'rb').read()
     exp['VERANDA/UPDATE.LST'] = (len(b), zlib.crc32(b) & 0xFFFFFFFF)
     return exp
+
+
+def expected_dict(fx, names):
+    """(V198) the card at A with these dictionaries' files of relD"""
+    exp = expected(fx, 'A', 'github')
+    for n in names:
+        b = DICTS[n]
+        exp['VERANDA/DICT/' + n] = (len(b), zlib.crc32(b) & 0xFFFFFFFF)
+    return exp
+
+
+def dict_reqs(reqs, session):
+    """(V198) the dictionaries' list asked of their release, never of Veranda's"""
+    r = [x for x in reqs if x['host'] == 'github']
+    if not r or r[0]['path'] != '/veranda-x16/veranda-write/releases/download/%s/DICT.LST' % DTAG:
+        fail('%s: the dictionaries\' list not asked of veranda-write\'s %s: %s' % (session, DTAG, r[:1]))
+    if any('/latest/' in x['path'] or x['path'].startswith('/veranda-x16/veranda/') for x in r):
+        fail('%s: a request to Veranda\'s releases: %s' % (session, r))
+    return r
 
 
 def compare(card, exp, what, ignore=('VERANDA/.SYSTEM/UPD/', 'VERANDA/.SYSTEM/OLD/', 'VERANDA/.SYSTEM/UPDATE.CFG')):
@@ -325,6 +376,62 @@ def check(session, fx, card, logf, reqf):
         print('ok    the PC source (PC/update_server.py on localhost: the full package, geoWrite.cvt too): %d changed, '
               '%d new (a new file in PC/), the doc-sample not written; %d files swapped, the %d system files last, '
               'the manifest after them; Restart to finish' % (num(log, 'CHANGED'), num(log, 'NEW'), len(sw), nsys))
+    elif session == 'dcrc':
+        need(log, 'UP REQUEST dict', session)
+        dict_reqs(reqs, session)
+        need(log, 'UP REFUSED VERANDA/DICT/EN.DIC', session)
+        compare(card, expected(fx, 'A', 'github'), session)
+        if os.path.exists(os.path.join(card, 'VERANDA', '.SYSTEM', 'UPDATE.REQ')):
+            fail('dcrc: UPDATE.REQ left behind')
+        print('ok    dictionaries asked for (UPDATE.REQ, read and deleted): the list of veranda-write\'s %s, never '
+              'Veranda\'s; EN.DIC with a byte changed on the way: refused, the card unchanged' % DTAG)
+    elif session == 'dspace':
+        need(log, 'UP NOROOM ', session)
+        dict_reqs(reqs, session)
+        if [x for x in reqs if x['host'] == 'assets' and x.get('name') != 'DICT.LST']:
+            fail('dspace: an asset was fetched')
+        compare(card, expected(fx, 'A', 'github'), session)
+        print('ok    the card with 100 KB free: "%s", nothing fetched, the card unchanged'
+              % [l for l in log if l.startswith('UP NOROOM ')][0][10:])
+    elif session in ('dict', 'handoff'):
+        need(log, 'BOX Get the English dictionary', session)
+        need(log, 'BOX Get the Polish dictionary', session)
+        need(log, 'UP DONE ' + DTAG, session)
+        dict_reqs(reqs, session)
+        got = [x['name'] for x in reqs if x['host'] == 'assets' and x.get('name') != 'DICT.LST']
+        if sorted(got) != ['EN.DIC', 'EN.DIC.txt']:
+            fail('%s: fetched %s, not English\'s two' % (session, got))
+        compare(card, expected_dict(fx, ['EN.DIC', 'EN.DIC.txt']), session)
+        man = open(os.path.join(card, 'VERANDA', 'UPDATE.LST'), 'rb').read()
+        if man != open(os.path.join(fx, 'relA', 'UPDATE.LST'), 'rb').read():
+            fail('%s: VERANDA/UPDATE.LST changed' % session)
+        undo = open(os.path.join(card, 'VERANDA', '.SYSTEM', 'OLD', DTAG, 'UNDO.LST')).read()
+        if 'N VERANDA/DICT/EN.DIC\n' not in undo or 'UPDATE.LST' in undo or 'PL.DIC' in undo:
+            fail('%s: OLD/%s/UNDO.LST: %r' % (session, DTAG, undo))
+        if open(os.path.join(card, 'VERANDA', '.SYSTEM', 'OLD', 'LAST.UPD')).read().strip() != DTAG:
+            fail('%s: LAST.UPD' % session)
+        if session == 'handoff':
+            for l in ('STANDIN ASIDE', 'UP REQUEST dict', 'UP BACK TO Veranda Write', 'STANDIN BACK'):
+                if not any(l in x for x in open(logf, encoding='latin-1')):
+                    fail('handoff: no "%s" in the log' % l)
+            for f in ('START.REQ', 'UPDATE.REQ'):
+                if os.path.exists(os.path.join(card, 'VERANDA', '.SYSTEM', f)):
+                    fail('handoff: %s left behind' % f)
+            print('ok    hand-off: the desktop (the real shell) started a stand-in as Veranda Write from a START.REQ; it '
+                  'wrote START.REQ and UPDATE.REQ and put itself aside; the desktop started Veranda Update from '
+                  'START.REQ, which checked the dictionaries, fetched English, and its Quit brought Veranda Write '
+                  'back; both requests deleted')
+        else:
+            print('ok    dictionaries: English chosen, Polish not (its older PL.DIC left as it was): EN.DIC and its licence '
+                  'fetched, their CRC-32 checked, put in /VERANDA/DICT; Veranda\'s build (UPDATE.LST) unchanged; the '
+                  'backup OLD/%s apart from the builds\'' % DTAG)
+    elif session == 'dundo':
+        need(log, 'UP UNDONE ' + DTAG, session)
+        need(log, 'BOX Undo the dictionaries fetched last?', session)
+        compare(card, expected(fx, 'A', 'github'), session)
+        if os.path.exists(os.path.join(card, 'VERANDA', '.SYSTEM', 'OLD', DTAG)):
+            fail('dundo: OLD/%s left behind' % DTAG)
+        print('ok    undo: the dictionaries fetched removed, the card as it was (the older PL.DIC kept)')
     else:
         fail('no session %s' % session)
 

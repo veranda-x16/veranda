@@ -602,15 +602,16 @@ def subjects():
     ic.d(I(R(8.5, 11, 13, 15), E(11, 27, 9, 6)), 'green')
     ic.d(I(R(8.5, 11, 13, 15), E(21, 28, 6, 5)), 'lgreen')
 
-    ic = new('TopDesk', 'TopDesk', 'lib')              # a screen on a desk
-    ic.s(R(1, 22, 30, 4), 'wood')
-    ic.s(R(3, 26, 3, 5), 'wood')
-    ic.s(R(26, 26, 3, 5), 'wood')
-    ic.s(RR(6, 4, 20, 15, 1), 'metal')
-    ic.s(R(8, 6, 16, 11), 'sky', outline=True, shade='flat')
-    ic.d(R(10, 8, 4, 3), 'yellow')
-    ic.d(R(16, 8, 4, 3), 'paper')
-    ic.s(R(14, 19, 4, 3), 'metal')
+    # (V197) an X16 program (a plain .PRG, which BASIC runs): BASIC's
+    # screen, its lines and cursor, and a play mark; TopDesk's gave it its
+    # room (24 at most; TopDesk is not in the package: V173's small one)
+    ic = new('X16 program', '*Prg', 'lib')
+    ic.s(RR(2, 3, 28, 22, 2), 'metal')
+    ic.s(R(4, 5, 24, 17), 'navy', outline=True, shade='flat')
+    ic.d(R(6, 8, 13, 1), 'sky')
+    ic.d(R(6, 11, 9, 1), 'sky')
+    ic.d(R(6, 14, 2, 3), 'white')
+    ic.s(P((18, 16), (30, 23), (18, 30)), 'yellow')
 
     ic = new('geoChess', 'GeoChess', 'lib')            # two pawns
     for (cx, mat) in ((11, 'paper'), (21, 'dark')):

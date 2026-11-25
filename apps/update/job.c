@@ -120,7 +120,12 @@ static void close_fh(void)
 /*---------------------------------------------------------------- the addresses */
 static void __fastcall__ url_of(const char *file, unsigned char latest)
 {
-    if (C.src == SRC_PC) {
+    if (xmode) {
+        /* (V198) the dictionaries: their release's assets, from GitHub */
+        strcpy(hurl, "https://");
+        strcat(hurl, C.gh);
+        strcat(hurl, "/" X_REPO "/releases/download/" X_TAG "/");
+    } else if (C.src == SRC_PC) {
         strcpy(hurl, "http://");
         strcat(hurl, C.pc);
         strcat(hurl, "/");
@@ -153,7 +158,7 @@ static void man_start(void)
         job_stop("The card could not be written (/VERANDA/.SYSTEM/UPD).");
         return;
     }
-    url_of("UPDATE.LST", 1);
+    url_of(xmode ? X_LIST : "UPDATE.LST", 1);
     hsink = sink_file;
     http_get();
     job = J_MAN;
@@ -161,10 +166,8 @@ static void man_start(void)
     up_log("UP GET ", hurl);
 }
 
-void job_check(void)
+static void check_start(void)
 {
-    if (job || !tbank)
-        return;
     checked = 0;
     refused = 0;
     nchanged = nnew = nready = nsys = nskip = 0;
@@ -176,6 +179,23 @@ void job_check(void)
     man_start();
 }
 
+void job_check(void)
+{
+    if (job || !tbank)
+        return;
+    xmode = 0;
+    check_start();
+}
+
+/* (V198) Dictionaries for Write: the same Check, of the dictionaries' list */
+void job_dict(void)
+{
+    if (job || !tbank)
+        return;
+    xmode = 1;
+    check_start();
+}
+
 static void __fastcall__ man_done(unsigned char r)
 {
     const char *w;
@@ -185,7 +205,7 @@ static void __fastcall__ man_done(unsigned char r)
         del(K(SYS_UPD "NEW.LST"));
         strcpy(line, "No list of files: ");
         if (r == H_E404)
-            strcat(line, C.src == SRC_PC ? "the PC has none (UPDATE.LST)" : "the repository has no release with UPDATE.LST");
+            strcat(line, xmode ? "no release " X_TAG " of " X_REPO : C.src == SRC_PC ? "the PC has none (UPDATE.LST)" : "the repository has no release with UPDATE.LST");
         else
             strcat(line, http_why(r));
         strcat(line, ".");
@@ -243,7 +263,7 @@ static void scan_step(void)
         checked = 1;
         ui_all();
         if (!nchanged && !nnew) {
-            say("Up to date: the card has every file of this build.");
+            say(xmode ? "Every dictionary of the list is on the card (/VERANDA/DICT)." : "Up to date: the card has every file of this build.");
             up_log("UP UPTODATE", "");
         } else {
             strcpy(line, "To update: ");
@@ -252,7 +272,7 @@ static void scan_step(void)
             ui_num(line + strlen(line), nnew);
             strcat(line, " new (");
             ui_size(line + strlen(line), tchanged);
-            strcat(line, "). Update brings them.");
+            strcat(line, xmode ? "). Update asks which to get." : "). Update brings them.");
             say(line);
             up_log("UP CHANGES ", line);
         }
@@ -272,6 +292,105 @@ static unsigned char __fastcall__ todo(unsigned char pass)
 }
 
 /* (swap.c, overlay 3: swap_go) */
+
+/* (V198) the dictionaries: which to get. The list's files go by their
+   name's first part ("EN" for EN.DIC and EN.DIC.txt, its licence): a box
+   for each part with something to fetch; a part not chosen is skipped
+   (as a doc-sample is). 0: nothing chosen */
+static char pk[8];
+
+static unsigned char __fastcall__ part_of(const char *path, char *out)
+{
+    const char *b = base_(path);
+    unsigned char n = 0;
+    while (b[n] && b[n] != '.' && n < sizeof pk - 1) {
+        out[n] = b[n];
+        ++n;
+    }
+    out[n] = 0;
+    return n;
+}
+
+static unsigned char choose(void)
+{
+    static char q[8];
+    static unsigned long sz;
+    unsigned char i, j, any = 0;
+    for (i = 0; i < nents; ++i) {
+        ent_get(i);
+        if (E.st != S_CHANGED && E.st != S_NEW)
+            continue;
+        part_of(E.path, pk);
+        for (j = 0; j < i; ++j) {        /* (a part asked about already) */
+            ent_get(j);
+            if ((E.st == S_CHANGED || E.st == S_NEW || E.st == S_SKIP) && part_of(E.path, q) && !strcmp(q, pk))
+                break;
+        }
+        if (j < i)
+            continue;
+        sz = 0;
+        for (j = i; j < nents; ++j) {
+            ent_get(j);
+            if ((E.st == S_CHANGED || E.st == S_NEW) && part_of(E.path, q) && !strcmp(q, pk))
+                sz += E.size;
+        }
+        strcpy(line, "Get the ");
+        strcat(line, !strcmp(pk, "EN") ? "English" : !strcmp(pk, "PL") ? "Polish" : pk);
+        strcat(line, " dictionary (");
+        ui_size(line + strlen(line), sz);
+        strcat(line, ")?");
+        if (up_confirm(line, "With its licence. Cancel: not this one.")) {
+            any = 1;
+            continue;
+        }
+        for (j = i; j < nents; ++j) {   /* (not this one) */
+            ent_get(j);
+            if ((E.st == S_CHANGED || E.st == S_NEW) && part_of(E.path, q) && !strcmp(q, pk)) {
+                if (E.st == S_CHANGED)
+                    --nchanged;
+                else
+                    --nnew;
+                tchanged -= E.size;
+                if (E.ready)
+                    --nready;
+                E.st = S_SKIP;
+                ++nskip;
+                ent_put(j);
+            }
+        }
+    }
+    ui_list();
+    if (!any) {
+        checked = 0;                    /* (Check again to choose again) */
+        say("No dictionary chosen: nothing fetched.");
+        up_log("UP NONE CHOSEN", "");
+    }
+    return any;
+}
+
+/* (V198) room on the card for what is to come (in UPD, then moved into
+   place: the old versions go to OLD on the same card), with 64 KB to
+   spare; CalcBlksFree's blocks of 254 bytes (65,535 at most: 16 MB,
+   enough to tell) */
+static unsigned char room(void)
+{
+    unsigned long f = (unsigned long)CalcBlksFree() * 254;
+#ifdef UP_TEST
+    if (t_free)
+        f = (unsigned long)t_free << 10;
+#endif
+    if (f >= tfetch + 65536UL)
+        return 1;
+    strcpy(line, "Not enough room on the card: ");
+    ui_size(line + strlen(line), tfetch + 65536UL);
+    strcat(line, " needed, ");
+    ui_size(line + strlen(line), f);
+    strcat(line, " free.");
+    up_log("UP NOROOM ", line);
+    up_message(line, "Nothing was fetched; make room and try again.");
+    say("Not enough room on the card: nothing fetched.");
+    return 0;
+}
 
 /* the next file to fetch (cur on), or the swap */
 static void dl_next(void)
@@ -320,9 +439,11 @@ void job_update(void)
         return;
     }
     if (!nchanged && !nnew) {
-        up_message("Up to date:", "the card has every file of this build.");
+        up_message("Up to date:", xmode ? "every dictionary of the list is on the card." : "the card has every file of this build.");
         return;
     }
+    if (xmode && !choose())
+        return;
     tfetch = 0;
     nfetch = 0;
     for (i = 0; i < nents; ++i) {
@@ -340,12 +461,14 @@ void job_update(void)
             ++nfetch;
         }
     }
-    strcpy(line, "Update ");
+    if (!room())
+        return;
+    strcpy(line, xmode ? "Get " : "Update ");
     ui_num(line + strlen(line), nchanged + nnew);
     strcat(line, " files (");
     ui_size(line + strlen(line), tfetch);
     strcat(line, " to fetch)?");
-    if (!up_confirm(line, nsys ? "Veranda restarts at the end (its system files change)." : "Your documents and settings are not touched."))
+    if (!up_confirm(line, xmode ? "Into /VERANDA/DICT; nothing else on the card is touched." : nsys ? "Veranda restarts at the end (its system files change)." : "Your documents and settings are not touched."))
         return;
     refused = 0;
     tdone = 0;

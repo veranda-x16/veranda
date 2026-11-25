@@ -47,6 +47,31 @@ Serial & ESP32 Network Card (Zimodem), as Veranda Gemini and Claude.
 - **The version:** a list with a `version 1.0` line shows "Veranda
   1.0, build ..." for Installed and Available.
 
+- **Dictionaries** (D; V198): Veranda Write's spelling dictionaries
+  are not in Veranda's releases nor its package. They are the assets of
+  the release `dict-1` of `veranda-x16/veranda-write` (made by that
+  repository's `tools/mkdict.py`; the tag is the dictionaries' format,
+  so a later format gets another tag and an older Write never fetches
+  one it cannot read), with their list `DICT.LST` in `UPDATE.LST`'s
+  format, every file under `VERANDA/DICT/` (a list naming anything else
+  is refused). Dictionaries fetches that list from
+  `https://github.com/veranda-x16/veranda-write/releases/download/dict-1/DICT.LST`
+  (always GitHub, whatever Source... says) and compares the card;
+  Update then asks for each dictionary with something to fetch
+  ("English", "Polish": a file's name before its first dot, so EN.DIC
+  goes with its licence EN.DIC.txt), checks that the card has the room
+  (what is to come and 64 KB more, by `CalcBlksFree`), and fetches and
+  swaps them as any update (CRC-32, UPD, the swap). Their backup is
+  `/VERANDA/.SYSTEM/OLD/dict-1/`, apart from the builds'; the card's
+  `VERANDA/UPDATE.LST` does not change. Undo removes them (one undo is
+  kept, as ever). Check never offers them.
+- **A program's request** (V198): `/VERANDA/.SYSTEM/UPDATE.REQ`, read
+  and deleted at the start: the line `dict` runs Dictionaries at once;
+  `back <name>`: Quit brings that program back if it is aside (its task
+  name, the name it was started by). Veranda Write's Tools > Get
+  dictionaries writes it, and the desktop's `START.REQ` (the shell
+  starts the program it names: shell/prg.c) to start Veranda Update.
+
 **What it never touches:** `/DOCUMENTS` (the example programs a package
 has are in its list as `doc-sample`, and never written), the settings in
 `/VERANDA/.SYSTEM` (`*.CFG`, the chats, bookmarks, notes, preferences),
@@ -142,12 +167,12 @@ list without its `end` line was cut short and is refused.
     make SDK=../../build/sdk           # Update.cvt
     make test SDK=../../build/sdk      # the test build (gate update)
 
-Main RAM holds `main.c` (the settings, the menus, the overlays' wrappers),
+Main RAM holds `main.c` (the menus, the overlays' wrappers),
 `http.c` (HTTP/1.1 on vrnet: redirects, Content-Length, chunked),
 `crc.s` (CRC-32, table-driven, about 50 cycles a byte; its table in a
 RAM bank), vrnet and sysui; overlay 1 (appBank) `job.c` (Check, Update);
-overlay 2 `man.c` and `ui.c` (the list, the window); overlay 3 `swap.c`
-(the card's files, the swap, Undo). RAM banks: the overlays' 3, 4 of its
+overlay 2 `man.c` and `ui.c` (the list, the window, the settings since
+V198); overlay 3 `swap.c` (the card's files, the swap, Undo, a request). RAM banks: the overlays' 3, 4 of its
 own (the list's 2, a text's, the CRC table's), vrnet's 2 while the modem
 is on. Its gate: `tools/gate_update.sh`.
 

@@ -147,6 +147,7 @@ All in the repositories themselves; every action pinned to a commit
 | veranda | `.github/workflows/wiki.yml` | a push to main touching `docs/manual` | `tools/mkwiki.sh` into the wiki, committed and pushed with GITHUB_TOKEN |
 | veranda | `.github/workflows/ci.yml` | every push to main/next, pull requests | the package (this tree only), the host tests (`test_mkrelease.py`, `test_tocard.sh`, `test_publish.sh`), the fast gates |
 | each sibling | `.github/workflows/veranda-ci.yml` | pushes, tags, pull requests | Veranda's SDK from `veranda-x16/veranda` (the same tag or branch, else main), then its own build against it |
+| veranda-write | `.github/workflows/dictionaries.yml` (its own, kept by the export) | by hand only (Actions > Dictionaries > Run workflow) | (V198) Veranda Write's spelling dictionaries as their own release, `dict-1`: `tools/mkdict.py` from `dict/` (EN.DIC, PL.DIC, their licences, DICT.LST for Veranda Update, `Veranda-Write-dictionaries.zip`); made the first time, its assets replaced after (`--clobber`), never latest. Locally: `make dict-release` in commander-write prints the same `gh` commands |
 | veranda-x16.github.io | `.github/workflows/pages.yml` | the dispatch, daily at 04:41 UTC, a push, by hand | `tools/site/build.py --api` from veranda's main, deployed to Pages |
 
 **The fast gates** (`tools/ci/gates.sh`): spec, boot, gfx1, input, disk,

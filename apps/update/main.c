@@ -39,13 +39,10 @@
 #include <vrser.h>
 #include "up.h"
 
-/* the public repository (DECISIONS V139): the organisation's; a card that
-   saved the one before (sandlbn/veranda-x16, before the organisation)
-   reads the new one, and the next save writes it */
-#define DEF_REPO "veranda-x16/veranda"
-static const char oldRepo[] = "sandlbn/veranda-x16";
 
 struct cfg C;
+unsigned char xmode;
+char back[18];
 char line[128];
 unsigned char iobuf[IOBUF];
 unsigned char net_on;
@@ -89,6 +86,12 @@ unsigned char undo_ready(void)
     return r;
 }
 void job_undo(void) OVX(bOv3, job_undo_o())
+unsigned char req_load(void)
+{
+    unsigned char r;
+    OVX(bOv3, r = req_load_o());
+    return r;
+}
 void swap_go(void) OVX(bOv3, swap_go_o())
 unsigned char __fastcall__ exists(const char *p)
 {
@@ -117,80 +120,20 @@ void __fastcall__ ent_put(unsigned char i)
 }
 
 /*---------------------------------------------------------------- the settings */
-static unsigned char cfh;
-
-static void cfg_load(void)
-{
-    char *b = (char *)iobuf;
-    unsigned char n, k;
-    char *p, *e;
-    C.src = SRC_GITHUB;
-    strcpy(C.repo, DEF_REPO);
-    C.pc[0] = 0;
-    strcpy(C.gh, "github.com");
-    if (ChDir(VR_DATADIR))
-        return;
-    cfh = FOpen("UPDATE.CFG", 'r');
-    if (cfh < 2 || cfh > 9 || dosStatus >= 20)
-        return;
-    n = FRead(cfh, b, 200);
-    FClose(cfh);
-    b[n] = 0;
-    for (p = b; *p; p = e) {
-        for (e = p; *e && *e != '\n' && *e != '\r'; ++e)
-            ;
-        k = e - p;
-        if (*e)
-            *e++ = 0;
-        if (!memcmp(p, "source=", 7))
-            C.src = !strcmp(p + 7, "pc") ? SRC_PC : SRC_GITHUB;
-        else if (!memcmp(p, "repo=", 5) && k - 5 < sizeof C.repo && k > 5 && strcmp(p + 5, oldRepo))
-            strcpy(C.repo, p + 5);
-        else if (!memcmp(p, "pc=", 3) && k - 3 < sizeof C.pc)
-            strcpy(C.pc, p + 3);
-        else if (!memcmp(p, "github=", 7) && k - 7 < sizeof C.gh && k > 7)
-            strcpy(C.gh, p + 7);
-        else if (!memcmp(p, "channel=", 8))
-            C.test = !strcmp(p + 8, "test");
-    }
-}
-
-void cfg_save(void)
-{
-    char *b = (char *)iobuf;
-    strcpy(b, "source=");
-    strcat(b, C.src == SRC_PC ? "pc" : "github");
-    strcat(b, "\r\nrepo=");
-    strcat(b, C.repo);
-    strcat(b, "\r\npc=");
-    strcat(b, C.pc);
-    strcat(b, C.test ? "\r\nchannel=test\r\n" : "\r\nchannel=stable\r\n");
-    if (strcmp(C.gh, "github.com")) {
-        strcat(b, "github=");
-        strcat(b, C.gh);
-        strcat(b, "\r\n");
-    }
-    ChDir("/VERANDA");
-    MkDir(".SYSTEM");
-    if (ChDir(VR_DATADIR))
-        return;
-    cfh = FOpen("UPDATE.CFG", 'w');
-    if (cfh < 2 || cfh > 9 || dosStatus >= 20)
-        return;
-    FWrite(cfh, b, strlen(b));
-    FClose(cfh);
-}
+/* (ui.c's, overlay 2, since V198: main RAM) */
+static void cfg_load(void) OVX(bOv2, cfg_load_o())
+void cfg_save(void) OVX(bOv2, cfg_save_o())
 
 /*---------------------------------------------------------------- boxes, the log */
 #ifdef UP_TEST
-unsigned char t_no;                     /* the next box's answer is Cancel */
+unsigned char t_no;                     /* bit 0: the next box's answer is Cancel, bit 1 the one after ... */
 #endif
 
 unsigned char __fastcall__ up_confirm(const char *a, const char *b)
 {
 #ifdef UP_TEST
-    unsigned char r = !t_no;
-    t_no = 0;
+    unsigned char r = !(t_no & 1);      /* (bit n: the box n after this one) */
+    t_no >>= 1;
     up_log("BOX ", a);
     return r;
 #else
@@ -269,25 +212,27 @@ void net_restart(void)
 }
 
 /*---------------------------------------------------------------- menus */
-static void m_about(void), m_quit(void), m_check(void), m_update(void), m_undo(void), m_source(void);
+static void m_about(void), m_quit(void), m_check(void), m_update(void), m_undo(void), m_dict(void), m_source(void);
 
 struct item { const char *text; unsigned char type; void *p; };
 struct menu1 { unsigned char top, bottom; unsigned int left, right; unsigned char flags; struct item i[1]; };
 struct menu2 { unsigned char top, bottom; unsigned int left, right; unsigned char flags; struct item i[2]; };
 struct menu3 { unsigned char top, bottom; unsigned int left, right; unsigned char flags; struct item i[3]; };
+struct menu4 { unsigned char top, bottom; unsigned int left, right; unsigned char flags; struct item i[4]; };
 
 #define IH 14
 static struct menu2 mapp = { 14, 14 + 2 * IH, 0, 0, VERTICAL | 2, {
     { "About Veranda Update...", MENU_ACTION, m_about }, { "\x1f" "Quit\tCtrl Q", MENU_ACTION, m_quit } } };
-static struct menu3 mupd = { 14, 14 + 3 * IH, 0, 0, VERTICAL | 3, {
+static struct menu4 mupd = { 14, 14 + 4 * IH, 0, 0, VERTICAL | 4, {
     { "Check\tC", MENU_ACTION, m_check }, { "Update\tU", MENU_ACTION, m_update },
-    { "\x1f" "Undo last update", MENU_ACTION, m_undo } } };
+    { "\x1f" "Undo last update", MENU_ACTION, m_undo },
+    { "\x1f" "Dictionaries for Write\tD", MENU_ACTION, m_dict } } };
 static struct menu1 mset = { 14, 14 + IH, 0, 0, VERTICAL | 1, {
     { "Source...", MENU_ACTION, m_source } } };
 static struct menu3 mbar = { 0, 14, 0, 0, HORIZONTAL | UN_CONSTRAINED | 3, {
     { "Veranda Update", SUB_MENU, &mapp }, { "Update", SUB_MENU, &mupd }, { "Settings", SUB_MENU, &mset } } };
 static const char *const barnames[3] = { "Veranda Update", "Update", "Settings" };
-static const char *const longest[3] = { "About Veranda Update...", "Undo last update", "Source..." };
+static const char *const longest[3] = { "About Veranda Update...", "Dictionaries for Write\tD", "Source..." };
 static unsigned int *const lefts[3] = { &mapp.left, &mupd.left, &mset.left };
 static unsigned int *const rights[3] = { &mapp.right, &mupd.right, &mset.right };
 unsigned int barx[3], barl[3];
@@ -305,6 +250,10 @@ void up_quit(void)
     net_stop();
     if (tbank)
         BankFree(tbank);
+    /* (V198) started for a program put aside (UPDATE.REQ's back): it comes
+       back, else the desktop */
+    if (back[0])
+        OVX(bOv3, back_o())
     EnterDeskTop();
 }
 
@@ -312,12 +261,14 @@ static void m_quit(void) { GotoFirstMenu(); up_quit(); }
 static void m_check(void) { GotoFirstMenu(); job_check(); }
 static void m_update(void) { GotoFirstMenu(); job_update(); }
 static void m_undo(void) { GotoFirstMenu(); job_undo(); }
+static void m_dict(void) { GotoFirstMenu(); job_dict(); }
 static void m_source(void) { GotoFirstMenu(); ui_source(); }
 
 static const struct btn tools[] = {
-    { 1, 9, "Check" }, { 11, 10, "Update" }, { 22, 19, "Undo last update" }, { 42, 12, "Source..." }
+    { 1, 9, "Check" }, { 11, 10, "Update" }, { 22, 19, "Undo last update" }, { 42, 12, "Source..." },
+    { 55, 15, "Dictionaries" }
 };
-#define NTOOLS 4
+#define NTOOLS 5
 
 static void press(void)
 {
@@ -329,6 +280,7 @@ static void press(void)
         case 1: job_update(); break;
         case 2: job_undo(); break;
         case 3: ui_source(); break;
+        case 4: job_dict(); break;
         }
 }
 
@@ -342,6 +294,8 @@ static void key(void)
         job_check();
     else if (k == 'u' || k == 'U')
         job_update();
+    else if (k == 'd' || k == 'D')
+        job_dict();
     else if (k == 'q' - 96 && (keyDataMods & (2 | KEYM_ARROW)) == 2)
         up_quit();                      /* Ctrl Q (KEY_DOWN is 17 too) */
 }
@@ -382,8 +336,12 @@ int main(void)
     ui_all();
     if (!tbank) {
         say("Not enough memory (4 RAM banks): quit a program put aside.");
-    } else if (!job_resume_swap())
-        say(C.src == SRC_PC ? "Check asks your PC what changed." : "Check asks GitHub what changed.");
+    } else if (!job_resume_swap()) {
+        if (req_load())                 /* (V198: a program asked for the dictionaries) */
+            job_dict();
+        else
+            say(C.src == SRC_PC ? "Check asks your PC what changed." : "Check asks GitHub what changed.");
+    }
     otherPressVec = VR_FN(press);
     keyVector = VR_FN(key);
     asideVector = VR_FN(aside);
