@@ -150,6 +150,11 @@ const char hexd[] = "0123456789ABCDEF";
 unsigned char capfh;
 unsigned char sendfh;
 static unsigned int last_sec;
+unsigned char st_full = 1;
+char stbuf[40];
+#ifdef TERM_TEST
+unsigned int st_draws, st_parts;
+#endif
 
 /* the status bar (hosts.c's o_status, overlay 3: V149's room); called
    from overlay 2 too (tcp.c), so the bank mapped before comes back */
@@ -168,6 +173,7 @@ static void frame(void)
     WRectangle(0, 15, 639, 479);
     WHorizontalLine(0xFF, 0, 639, 15);
     WHorizontalLine(0xFF, 0, 639, STATY);
+    st_full = 1;
     status();
 }
 
@@ -615,25 +621,45 @@ static void page_draw(void)
     if (page == 3) {
         MAPBANK(ovl3);
         o_hosts_draw();
-        return;
+    } else {
+        MAPBANK(ovl);
+        o_page_draw(page);
     }
-    MAPBANK(ovl);
-    o_page_draw(page);
+    if (page > 1) {                     /* (V195) the buttons */
+        MAPBANK(ovl2);
+        o_btns(page == 3);
+    }
 }
 
+static void page_done(unsigned char p, unsigned char r);
+
+/* k: a key (0: a click, V195: the address book's and the Hosts page's
+   rows and buttons; the settings page takes none) */
 static void page_key(unsigned char k)
 {
     unsigned char r, p = page;
-    static char n[25], a[41];
     if (p == 3) {
         MAPBANK(ovl3);
-        r = o_hosts_key(k);
+        r = k ? o_hosts_key(k) : o_hosts_click();
     } else {
         MAPBANK(ovl);
-        r = p == 1 ? o_settings_key(k) : o_book_key(k);
-        if (r == 2)
-            o_book_entry(n, a);
+        r = p == 1 ? (k ? o_settings_key(k) : 0) : k ? o_book_key(k) : o_book_click();
     }
+    page_done(p, r);
+}
+
+/* (V195) otherPressVec: a press (not its release) on a page */
+void page_press(void)
+{
+    if (page && !(mouseData & 0x80))
+        page_key(0);
+}
+
+static void page_done(unsigned char p, unsigned char r)
+{
+    static char n[25], a[41];
+    if (p == 2 && r == 2)
+        o_book_entry(n, a);             /* (overlay 1 still mapped) */
     if (!r)
         return;
     page_close();
@@ -690,6 +716,30 @@ void list_row(unsigned int y, const char *s, unsigned char sel)
     put_text(line, 1, y + 4, 0);
     if (sel)
         WInvertRectangle(8, y, 631, y + 15);
+}
+
+/* (V195) a list page's mouse parts (the address book, the Hosts page;
+   their buttons are drawn by overlay 2's o_btns): where a click is */
+/* the button under the pointer (0-4), else 255 */
+unsigned char btn_at(void)
+{
+    unsigned char c = mouseXPos >> 3, i;
+    if (mouseYPosW < BTNY || mouseYPosW >= BTNY + 16)
+        return 255;
+    for (i = 0; i < 5; ++i)
+        if (c >= 1 + 13 * i && c < 1 + 13 * i + BTNW)
+            return i;
+    return 255;
+}
+
+/* the list's row under the pointer (rows of 16 lines from LISTTOP, x
+   8-631), else 255 */
+unsigned char row_at(unsigned char n)
+{
+    unsigned int y = mouseYPosW, x = mouseXPos;
+    if (y < LISTTOP || y >= LISTTOP + 16 * n || x < 8 || x > 631)
+        return 255;
+    return (y - LISTTOP) >> 4;
 }
 
 /* a page's heading: its title in bold, a line of help, a rule under them */
@@ -771,6 +821,8 @@ static void m_desk(void)
     r = GetFile(daname, 0, 0, 0, 0);
     ser_resume();
     vr_cdback();
+    st_full = 1;                        /* (V194: drawn whole again) */
+    status();
     if (r)
         message("Cannot open", daname);
 }
@@ -1112,6 +1164,7 @@ int main(void)
     DoMenu((void *)&mbar, 0);
     title(ttl);                         /* (in the bar: after DoMenu) */
     keyVector = VR_FN(key);
+    otherPressVec = VR_FN(page_press);  /* (V195) */
     appMain = VR_FN(tick);
     LogText(nouart ? "TERM RUNNING (NO UART)" : "TERM RUNNING");
     sync_start();                       /* the modem's rate (V94) */

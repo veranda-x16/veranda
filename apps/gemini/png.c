@@ -796,6 +796,13 @@ unsigned char png_open(void)
 void png_start(void)
 {
     unsigned int i;
+#ifndef PNG_HOST
+    if (pjpeg) {                        /* (V192: a JPEG, overlays 6 and 7) */
+        ov6(jpg_start);
+        ov7(jinit);
+        return;
+    }
+#endif
 #ifdef PNG_HOST
     bb = bc = 0;
     state = ST_HEADER;
@@ -835,11 +842,18 @@ unsigned char __fastcall__ png_step(unsigned char frames)
 /* (pic.c's calls, through main.c's ov5) */
 void png_open_v(void)
 {
-    u_ret = png_open();
+    if (pjpeg)                          /* (V192: a JPEG, overlay 6) */
+        ov6(jpg_open_v);
+    else
+        u_ret = png_open();
 }
 
 void png_step_v(void)
 {
+    if (pjpeg) {                        /* (overlay 7) */
+        ov7(jpg_step_v);
+        return;
+    }
     u_ret = png_step(png_frames);
     oy_done = oy;
 }

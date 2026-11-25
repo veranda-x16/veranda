@@ -12,7 +12,6 @@
 #pragma data-name ("OVL3DATA")
 #pragma bss-name ("OVL3BSS")
 #include <string.h>
-#include <vrwin.h>
 #include "term.h"
 #include "net.h"
 
@@ -109,6 +108,22 @@ static void save(void)
     LogText("TERM HOSTS WRITTEN");
 }
 
+static const char bk[5] = { 13, 'C', 'N', 'X', 27 };   /* (the buttons' keys) */
+
+/* row i of the list (its number, the name, host:port, the mode) */
+static void host_row(unsigned char i)
+{
+    memset(b, ' ', COLS);
+    b[COLS] = 0;
+    if (i < nh) {
+        b[0] = i < 9 ? '1' + i : 'A' + i - 9;
+        memcpy(b + 3, hl[i].name, strlen(hl[i].name));
+        memcpy(b + 30, hl[i].addr, strlen(hl[i].addr));
+        memcpy(b + 70, hl[i].raw ? "raw" : "Telnet", hl[i].raw ? 3 : 6);
+    }
+    list_row(LISTTOP + 16 * i, b, i == sel && i < nh);
+}
+
 void o_hosts_draw(void)
 {
     unsigned char i;
@@ -119,21 +134,12 @@ void o_hosts_draw(void)
         load();
     }
     page_head("Connect to a host (TCP through the Wi-Fi modem)",
-              "1-9, A, B or Up, Down choose; Return connects; C another host; N new; X removes; Esc goes back.");
+              "Click, 1-9, A, B or Up, Down choose; a double click or Return connects; C another host; N new; X removes.");
     ui_text("Name", 8 + 3 * 8, TY + 48, 1);
     ui_text("Host and port", 8 + 30 * 8, TY + 48, 1);
     ui_text("Mode", 8 + 70 * 8, TY + 48, 1);
-    for (i = 0; i < HOSTS; ++i) {
-        memset(b, ' ', COLS);
-        b[COLS] = 0;
-        if (i < nh) {
-            b[0] = i < 9 ? '1' + i : 'A' + i - 9;
-            memcpy(b + 3, hl[i].name, strlen(hl[i].name));
-            memcpy(b + 30, hl[i].addr, strlen(hl[i].addr));
-            memcpy(b + 70, hl[i].raw ? "raw" : "Telnet", hl[i].raw ? 3 : 6);
-        }
-        list_row(LISTTOP + 16 * i, b, i == sel && i < nh);
-    }
+    for (i = 0; i < HOSTS; ++i)
+        host_row(i);
     WHorizontalLine(0xFF, 8, 631, LISTTOP + 16 * HOSTS + 7);
     ui_text("Telnet: Term answers the options (NAWS 80 x 55, TERMINAL-TYPE ANSI, ECHO, SGA, BINARY).", 8, LISTTOP + 16 * HOSTS + 14, 0);
     ui_text("Raw: the bytes as they are. The list is TERM.HOSTS in /VERANDA/.SYSTEM; its first entries are", 8, LISTTOP + 16 * HOSTS + 30, 0);
@@ -245,6 +251,36 @@ unsigned char o_hosts_key(unsigned char k)
     return 0;
 }
 
+/* (V195) a click on the page: a row selects it (only the two rows drawn
+   again), the selected one again within CLICK_COUNT frames (a double
+   click) connects as Return; a button is its key */
+unsigned char o_hosts_click(void)
+{
+    unsigned char i = btn_at(), old = sel;
+    if (i < 5)
+        return o_hosts_key(bk[i]);
+    i = row_at(HOSTS);
+    if (i >= nh)
+        return 0;
+    if (i == sel && dblClickCount) {
+        dblClickCount = 0;
+        return o_hosts_key(13);
+    }
+    dblClickCount = CLICK_COUNT;
+    if (i != old) {
+        sel = i;
+        host_row(old);
+        host_row(i);
+    }
+#ifdef TERM_TEST
+    strcpy((char *)crow, "TERM HOSTS SEL ");
+    crow[15] = hexd[i];
+    crow[16] = 0;
+    LogText((char *)crow);
+#endif
+    return 0;
+}
+
 /* Term > About Term (here for room in main RAM, V112) */
 void o_about(void)
 {
@@ -253,9 +289,11 @@ void o_about(void)
 }
 
 /* (V149) the status bar: what the line is doing at its left, the port
-   and the rate at its right, in the UI font (vr_win_status: the SDK's
-   vrwin.c compiled into this overlay, Makefile); fields apart by a gap */
-static const struct vrwin swin = { 0, 2, 80, 58, 0, 2, 0 };
+   and the rate at its right, in the UI font, as the SDK's vr_win_status
+   draws a window's (vrwin.c) for the window of 80 x 58 cards from card
+   row 2 with 2 status rows: the band 465-479 (the line over it at 464,
+   frame()'s), the right text ending at 631, the left text from 6, cut to
+   611 pixels less the right text's width; fields apart by a gap */
 static char st[100], sr[24], nb[12];
 static unsigned char sn;
 
@@ -277,6 +315,87 @@ static void num(unsigned int v)
 {
     *put_num(nb, v) = 0;
     more(nb);
+}
+
+/* (V194) the bar drawn only when its text changes, and then only the
+   characters that changed. It was cleared and drawn whole every second
+   (term.c's tick) and at every call: on a real monitor the whole text
+   blinked once a second while nothing changed. Now: the same texts as
+   drawn, nothing; the right text changed, or st_full (term.c: the frame
+   drawn, a desk accessory), the whole bar; else the characters from the
+   first that differs: when the old and new ones up to the last that
+   differs are as wide (the online time's digits), that span cleared and
+   drawn, else from there to the end of the left text's room. (Its own
+   drawing, no longer vr_win_status's: vrwin.c's other calls cost
+   overlay 3 2 KB.) */
+static char ost[100], osr[24];
+
+static unsigned int wid(const char *s, unsigned char n)
+{
+    unsigned int w = 0;
+    while (n--)
+        w += GetCharWidth(*s++);
+    return w;
+}
+
+/* n characters of s at x, through stbuf (below $A000) */
+static void run(const char *s, unsigned char n, unsigned int x)
+{
+    unsigned char m;
+    while (n) {
+        m = n < sizeof stbuf ? n : sizeof stbuf - 1;
+        memcpy(stbuf, s, m);
+        stbuf[m] = 0;
+        WPutString(stbuf, x, 466 + baselineOffset);
+        x += wid(s, m);
+        s += m;
+        n -= m;
+    }
+}
+
+static void draw_status(void)
+{
+    unsigned char k, j, n, no;
+    unsigned int x, w, wr, end;
+    UseFont(FONT_UI);
+    wr = wid(sr, strlen(sr));
+    for (n = 0, w = 0; st[n] && (w += GetCharWidth(st[n])) <= 611 - wr; ++n)
+        ;
+    st[n] = 0;                          /* (cut to its room) */
+    SetPattern(0);
+    if (st_full || strcmp(sr, osr)) {
+        WRectangle(0, 465, 639, 479);
+        run(sr, strlen(sr), 631 - wr);
+        run(st, n, 6);
+        st_full = 0;
+#ifdef TERM_TEST
+        ++st_draws;
+#endif
+    } else if (strcmp(st, ost)) {
+        no = strlen(ost);
+        for (k = 0; st[k] && st[k] == ost[k]; ++k)
+            ;
+        j = n;
+        if (n == no)
+            while (j > k && st[j - 1] == ost[j - 1])
+                --j;
+        x = 6 + wid(st, k);
+        if (n == no && (w = wid(st + k, j - k)) == wid(ost + k, j - k))
+            end = x + w;                /* (that span only) */
+        else {
+            j = n;
+            end = 617 - wr;             /* (to the end of the room) */
+        }
+        if (end > x)
+            WRectangle(x, 465, end - 1, 479);
+        run(st + k, j - k, x);
+#ifdef TERM_TEST
+        ++st_parts;
+#endif
+    }
+    UseSystemFont();
+    strcpy(ost, st);
+    strcpy(osr, sr);
 }
 
 void o_status(void)
@@ -337,7 +456,7 @@ void o_status(void)
     }
     *put_str(put_num(put_str(p, "    "), bauds[cfg.baud]), "00 8N1") = 0;
     dispBufferOn = ST_WR_FORE;
-    vr_win_status(&swin, st, sr);
+    draw_status();
 #ifdef TERM_TEST
     if (vt_back) {                      /* (gate term: the scrollback's place) */
         strcpy((char *)crow, "TERM STATUS ");

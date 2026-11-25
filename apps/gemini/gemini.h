@@ -206,7 +206,7 @@ unsigned char __fastcall__ sb_hit(unsigned int x, unsigned int y);     /* VS_*; 
 extern struct vrscroll sbar;
 extern unsigned int sb_at, sb_n;
 extern char line[200];
-extern unsigned char bOv2, bOv3, bOv4, bOv5, bOv6;
+extern unsigned char bOv2, bOv3, bOv4, bOv5, bOv6, bOv7;
 extern unsigned char net_on;
 void net_restart(void);
 void __fastcall__ put(unsigned char x, unsigned int y, const char *s, unsigned char w, unsigned char flags);
@@ -299,14 +299,26 @@ extern unsigned char pic_redo, pic_big, png_frames;     /* (main.c) aside came; 
 extern unsigned char pic_head[24];      /* the picture's first bytes (IHDR's size) */
 extern unsigned int oy_done;            /* the rows drawn */
 void __fastcall__ ov5(void (*f)(void));
+void __fastcall__ ov6(void (*f)(void));
+void __fastcall__ ov7(void (*f)(void));
 void i_link(void);                      /* (follow) go a picture: u_ret 2 show, 1 save, 0 */
 void i_done(void);                      /* (ui_done) its fetch ended: the viewer; u_ret 1 save instead */
 void i_tick(void);                      /* (tick) */
-void i_key(void);
-void i_press(void);
+void i_key(void);                       /* (V196: pic_in's) u_ret 1 saved, 2 the page, 0 the page's key */
+void i_press(void);                     /* (V196: pic_in's) the same for a click */
 void i_off(void);                       /* (g_first) the viewer gone */
+void pic_leave(void);                   /* (V196, main.c) the way out of a picture: the page again */
+void pic_menu(void);                    /* (V196) a menu's item: GotoFirstMenu, pic_leave */
+unsigned char __fastcall__ pic_in(void (*f)(void));     /* (V196) i_press, i_key: not 0 taken */
+void g_quit(void);                      /* (V196) Quit: the picture left, the connection ended, the desktop */
+extern unsigned char pic_pv;            /* (V196) viewing as the main loop's last pass saw it */
 void png_open_v(void);                  /* (overlay 5) u_ret = png_open() */
 void png_step_v(void);                  /* (overlay 5) u_ret = png_step(png_frames) */
+void jpg_open_v(void);                  /* (overlay 6, V192) u_ret = jpg_open() */
+void jpg_start(void);                   /* (overlay 6) after png_plan */
+void jinit(void);                       /* (overlay 7) */
+void jpg_step_v(void);                  /* (overlay 7) u_ret = jstep(png_frames) */
+extern unsigned int jw, jh;             /* (jpghdr.c, main RAM) the JPEG's size */
 void png_start(void);
 /* (ui.c's boxes, here for overlay 1's room) */
 void u_where(void);                     /* go not Gemini (u_ret): where it leads */

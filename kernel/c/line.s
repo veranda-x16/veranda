@@ -1,4 +1,4 @@
-; Veranda bank T: a line's points (DECISIONS V159)
+; Veranda bank C: a line's points (DECISIONS V159; V188: from bank T)
 ;
 ; FbLine, from bank G's WDrawLine (kernel/g/draw.s) for a line wholly on
 ; the screen (and in the clip): the midpoint rule's terms in the zero page
@@ -28,7 +28,7 @@ ftSt:	.res 1                  ; $FF steep
 ftNP:	.res 1                  ; 1: port 1 used (with port 0: x = 1 .. 0)
 ftT:	.res 1
 
-.segment "LATE"
+.segment "CODE"
 
 FbLine:
 	sty ftSt

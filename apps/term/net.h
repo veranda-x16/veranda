@@ -70,6 +70,7 @@ void o_tcp_event(void);         /* tcp.c: tcp_ev shown (the log, the status line
 /* hosts.c (overlay 2): the Hosts page (TERM.HOSTS) */
 void o_hosts_draw(void);
 unsigned char o_hosts_key(unsigned char k);     /* 1 close, 2 connect */
+unsigned char o_hosts_click(void);      /* (V195) a click on the page: as o_hosts_key */
 void o_about(void);
 extern char msga[48], msgb[48]; /* term.c: a box's two lines */
 void msg_box(void);             /* term.c: msga and msgb in a box */

@@ -49,7 +49,7 @@ Wi-Fi modem and needs Zimodem with `ATCS` (see
   going), a click on the track above or below the thumb moves a page,
   and the thumb can be dragged.
 - The menus show each command's key at the right. The box at the right
-  of the title bar quits, as **Veranda Gemini > Quit** does.
+  of the title bar quits, as **Veranda Gemini > Quit** (Ctrl+Q) does.
 
 A Gopher or mail link only shows where it leads ([Veranda
 Gopher](Veranda-Gopher.md) opens Gopher addresses).
@@ -127,18 +127,25 @@ They are kept in `/VERANDA/.SYSTEM/GEMINI.CFG`.
 
 A link to a picture has **[Show image]** after it. Click it (or Tab to
 it and press Return, then **Yes** to show, **No** to save). A **PNG**
-picture is shown in the window in 16 colours, scaled to fit. **Esc**,
-Backspace or Back go back to the page. **Save** (or S) copies the
-picture to `/DOCUMENTS`.
+or **JPEG** picture is shown in the window in 16 colours, scaled to
+fit. **Save** (or S) copies the picture to `/DOCUMENTS`. Anything
+else goes back to the page: **Esc**, Backspace, Back, a click on the
+picture or the wheel. Another key, a toolbar button or a menu goes back
+to the page and then does its job, and the close box, **Quit** or
+Ctrl+Q quit straight away. While a picture is still being drawn its
+menus are off.
 
 ![A PNG picture](img/gemini-picture.png)
 
 - Pictures with a palette of 16 colours or fewer keep their colours.
   Grey pictures get 16 greys. Photographs look posterised.
-- A large picture takes time: a 740 x 300 picture about 30 seconds.
-- Not shown (save them instead): JPEG, GIF, BMP, interlaced PNG, very
-  wide pictures. With Pillow on the PC (`pip install pillow`),
-  `web_proxy.py` turns JPEG, GIF, WebP and BMP into PNG for you.
+- A large picture takes time: a 740 x 300 PNG about 30 seconds, a
+  Wikipedia photograph (a JPEG of about 440 x 290) about 11 seconds on
+  an X16 whose VERA has FX (firmware 0.3.1 or later), about 19 seconds
+  on an older one.
+- Not shown (save them instead): progressive JPEG, GIF, BMP, interlaced
+  PNG, very wide pictures. With Pillow on the PC (`pip install pillow`),
+  `web_proxy.py` turns them into PNG for you.
 
 ## Wikipedia
 

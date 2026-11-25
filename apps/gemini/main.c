@@ -27,9 +27,9 @@
 #include "png.h"
 
 char line[200];
-unsigned char bOv2, bOv3, bOv4, bOv5, bOv6, net_on;
+unsigned char bOv2, bOv3, bOv4, bOv5, bOv6, bOv7, net_on;
 #ifdef GEMINI_TEST
-static unsigned char bOvT, bOvT2;       /* (the test's overlays, 7 and 8) */
+static unsigned char bOvT, bOvT2;       /* (the test's overlays, 8 and 9) */
 #endif
 unsigned char marks_n, marks_i, marks_err;
 const char appname[] = "Veranda Gemini";
@@ -170,6 +170,22 @@ void __fastcall__ ov4(void (*f)(void))
 {
     unsigned char keep = RAMBANK;
     RAMBANK = bOv4;
+    f();
+    RAMBANK = keep;
+}
+
+void __fastcall__ ov6(void (*f)(void))
+{
+    unsigned char keep = RAMBANK;
+    RAMBANK = bOv6;
+    f();
+    RAMBANK = keep;
+}
+
+void __fastcall__ ov7(void (*f)(void))
+{
+    unsigned char keep = RAMBANK;
+    RAMBANK = bOv7;
     f();
     RAMBANK = keep;
 }
@@ -492,6 +508,66 @@ void net_restart(void)
 }
 
 /*---------------------------------------------------------------
+  (V196) the way out of a picture (here for overlay 1's room)
+ ---------------------------------------------------------------*/
+unsigned char pic_pv;                   /* viewing as the last pass saw it */
+void page(void);                        /* (ui.c's: overlay 1, mapped here) */
+
+/* the page again after a picture: its rows, the scroll bar, the lines'
+   count, the status bar's left cleared ("Esc: the page" no more) */
+static void shown(void)
+{
+    page();
+    ov2(u_lines);
+    msg[0] = 0;
+    win_status(msg, right);
+}
+
+/* every way out (a key, a click, the wheel, a menu's item, Quit; ui.c's):
+   pic.c's i_off (tile mode off, the file closed and deleted, the menus
+   on, the chrome), the page drawn again; nothing if no picture is shown */
+void pic_leave(void)
+{
+    if (!viewing)
+        return;
+    ov4(i_off);
+    pic_pv = 0;
+    shown();
+}
+
+/* (ui.c's press and key while a picture is shown) pic.c's i_press or
+   i_key says what it was (u_ret): 1 Save (done), 2 just the page (Esc,
+   Backspace, Left; on the picture, the toolbar's Back), 0 anything else
+   (then the page's: the toolbar, the close box, a key); the picture left
+   unless 1; u_ret */
+unsigned char __fastcall__ pic_in(void (*f)(void))
+{
+    ov4(f);
+    if (u_ret != 1)
+        pic_leave();
+    return u_ret;
+}
+
+/* File > Quit, Ctrl+Q, the close box: a picture's view left first (tile
+   mode off, GEMINI.TMP deleted), the connection ended, the desktop */
+void g_quit(void)
+{
+    if (gbusy && !yesno("Something is still coming.", "Quit anyway?"))
+        return;
+    g_cancel();
+    ov4(i_off);
+    net_stop();
+    EnterDeskTop();
+}
+
+/* (ui.c's menus) an item chosen: the menu closed, a picture left */
+void pic_menu(void)
+{
+    GotoFirstMenu();
+    pic_leave();
+}
+
+/*---------------------------------------------------------------
   the main loop's pass
  ---------------------------------------------------------------*/
 static void tick(void)
@@ -506,6 +582,9 @@ static void tick(void)
     ui_tick();
     if (viewing || gdl == 2)
         ov4(i_tick);                    /* (pictures: V125) */
+    if (pic_pv && !viewing)             /* (V196: gone by itself: a failed picture's box) */
+        shown();
+    pic_pv = viewing;
 #ifdef GEMINI_TEST
     RAMBANK = bOvT;
     gt_tick();
@@ -526,12 +605,14 @@ int main(void)
     bOv4 = r1L;
     LoadOverlay(5, 0);
     bOv5 = r1L;
-    LoadOverlay(6, 0);                  /* (the window's chrome, the scroll bar: V149) */
+    LoadOverlay(6, 0);                  /* (the window's chrome, the scroll bar: V149; the JPEG header, V192) */
     bOv6 = r1L;
+    LoadOverlay(7, 0);                  /* (the JPEG decoder: V192) */
+    bOv7 = r1L;
 #ifdef GEMINI_TEST
-    LoadOverlay(7, 0);
+    LoadOverlay(8, 0);
     bOvT = r1L;
-    LoadOverlay(8, 0);                  /* (the test's pictures: tests/gemini_pics.c) */
+    LoadOverlay(9, 0);                  /* (the test's pictures: tests/gemini_pics.c) */
     bOvT2 = r1L;
 #endif
     /* the page cache: a bank of its own, and the two the loader gives

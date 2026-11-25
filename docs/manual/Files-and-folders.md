@@ -65,6 +65,9 @@ shows the folders and files of one folder, with long names.
   folder. Hold **Ctrl** or **Shift** to copy instead.
 - **Drag** a file onto the card's icon: it is copied to the card's top
   folder.
+- While you drag, a see-through copy of the icon follows the pointer.
+  Press **Esc** before you let go to drop it nowhere (nothing is copied
+  or moved).
 - Or select it and choose **File > Copy** or **File > Move**, go to
   another folder, and choose **File > Put here**. A copy into its own
   folder is named `Copy of ...`.

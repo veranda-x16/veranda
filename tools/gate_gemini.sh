@@ -37,6 +37,11 @@
 #    first connection refused and tried again, a link of 281 characters,
 #    a picture shown by its MIME type, the JPEG's box, a closed port's box
 #    with the address; every ATCS after the one before's ATH)
+#    (V192: JPEG pictures shown: photo.jpg and the gallery's Wawel, their
+#    tiles equal to tests/jpeg_ref.py's; a progressive one refused)
+#    (V196: the ways out of a picture: small.png left by the wheel, a
+#    click on it, Backspace, the toolbar's Back, the wheel after Alt+Tab,
+#    a key, Go > Reload; each time the page at once, its link followed)
 # 2b. launch (V128): Wikipedia.cvt (the release build's launcher: its
 #    class, parent, data, tile) in /DOCUMENTS of the real shell (built
 #    here, as gate tile does; Veranda Gemini's test build in
@@ -44,9 +49,17 @@
 #    (tests/gemini_launch.py's SHELL.TST): Veranda Gemini started with it,
 #    the box "Look up in Wikipedia:" at once, the article
 # 3. nomodem (-uart 9FE0 file:, no modem): the address typed: the box
+# (V192, before 2: jpeg: the JPEG decoder on the X16's own runtime, its
+#    tiles against tests/jpeg_ref.py with VERA FX's multiplier and without,
+#    their times at 8 MHz)
 # Screenshots: $OUT/book.png, page.png, page2.png, input.png, plain.png,
 # xfer.png, stall.png, menu.png (V149: File open), find.png, marks.png, end.png, wiki.png, dark.png,
-# launcher.png, launch.png, gallery.png, picflag.png.
+# launcher.png, launch.png, gallery.png, picflag.png; (V196) exitpic.png,
+# exitwheel.png, qclose-pic.png, qclose-desk.png (and ckey-, fmenu-).
+# 2c. (V196) quit: qclose, ckey, fmenu: the pictures' page, small.png
+#    shown, then the close box, Ctrl+Q, Veranda Gemini > Quit: Gemini ends
+#    (the test desktop's log after it), GEMINI.TMP deleted, tile mode
+#    off, palette entries 32-255 as before the picture
 set -e
 cd "$(dirname "$0")/.."
 OUT=${OUT:-build/gate/gemini}
@@ -86,7 +99,7 @@ def sizes(d):
         c = re.search(r'CODE\s+Offs=\w+\s+Size=(\w+)', m[i:i + 400])
         return int(c.group(1), 16) if c else 0
     net = mod('veranda.lib(vrnet.o)') + mod('veranda.lib(vrser.o)') + mod('veranda.lib(vrserc.o)') + mod('veranda.lib(vrsync.o)')
-    o = [sum(seg.get(s % n, 0) for s in ('OVERLAY%d', 'OVL%dRO', 'OVL%dDATA', 'OVL%dBSS')) for n in (1, 2, 3, 4, 5, 6, 7, 8)]
+    o = [sum(seg.get(s % n, 0) for s in ('OVERLAY%d', 'OVL%dRO', 'OVL%dDATA', 'OVL%dBSS')) for n in (1, 2, 3, 4, 5, 6, 7, 8, 9)]
     return end, net, o
 end, net, o = sizes(sys.argv[1])
 tend, _, to = sizes(sys.argv[2])
@@ -94,10 +107,10 @@ cvt = len(open(sys.argv[1] + '/Gemini.cvt', 'rb').read())
 print('ok    the sizes: Gemini.cvt %d bytes; main RAM $0801-$%04X (%d bytes; the C stack 1 KB below $8800: %d free; '
       'the test build to $%04X, %d free), of it vrnet with the serial driver %d bytes of code; overlay 1 (the '
       'interface) %d bytes (%d spare), overlay 2 (the bookmarks, small boxes) %d (%d spare), '
-      'overlay 3 (URLs, the replies\' boxes) %d (%d spare), overlay 4 (web pages, Wikipedia, the picture viewer) %d (%d spare), overlay 5 (the PNG decoder) %d (%d spare), overlay 6 (the window\'s chrome, the scroll bar: V149) %d (%d spare; the test build: overlay 1 %d spare, overlay 4 %d spare); RAM banks: 7 (the page 4, its rows 1, the history and '
-      'the font 1, the page cache 1), the page cache\'s other 2 the loader\'s spare ones (V125), vrnet 2, the overlays 6: 15'
+      'overlay 3 (URLs, the replies\' boxes) %d (%d spare), overlay 4 (web pages, Wikipedia, the picture viewer) %d (%d spare), overlay 5 (the PNG decoder) %d (%d spare), overlay 6 (the window\'s chrome, the scroll bar: V149; the JPEG header: V192) %d (%d spare), overlay 7 (the JPEG decoder: V192) %d (%d spare; the test build: overlay 1 %d spare, overlay 4 %d spare); RAM banks: 7 (the page 4, its rows 1, the history and '
+      'the font 1, the page cache 1), the page cache\'s other 2 the loader\'s spare ones (V125), vrnet 2, the overlays 7: 16'
       % (cvt, end, end - 0x801, 0x8400 - end - 1, tend, 0x8400 - tend - 1, net,
-         o[0], 8192 - o[0], o[1], 8192 - o[1], o[2], 8192 - o[2], o[3], 8192 - o[3], o[4], 8192 - o[4], o[5], 8192 - o[5], 8192 - to[0], 8192 - to[3]))
+         o[0], 8192 - o[0], o[1], 8192 - o[1], o[2], 8192 - o[2], o[3], 8192 - o[3], o[4], 8192 - o[4], o[5], 8192 - o[5], o[6], 8192 - o[6], 8192 - to[0], 8192 - to[3]))
 if end >= 0x8400 or tend >= 0x8400 or max(o + to) > 8192:
     sys.exit('FAIL  out of room')
 EOF
@@ -115,6 +128,15 @@ echo "== png: the decoder on the host (apps/gemini/png.c, pngplan.c with gcc) ag
 mkdir -p "$OUT/png"
 gcc -O2 -Wall -Wno-unused-function -DPNG_HOST -I apps/gemini -o "$OUT/png/png_host" tests/png_host.c || fail "tests/png_host.c"
 $PY tests/check_png.py "$OUT/png/png_host" "$OUT/png" || fail "png on the host"
+
+echo "== jpeg: the decoder on the X16 (apps/gemini/jpghdr.c, jpegcore.s, pngplan.c on cc65's cx16 runtime: tests/jpeg_bench.c) against tests/jpeg_ref.py, with VERA FX and without (V192)"
+$PY -c "import PIL" 2>/dev/null || fail "Python's Pillow is needed (tests/jpeg_ref.py makes its JPEGs with it)"
+mkdir -p "$OUT/jpeg"
+cl65 -t cx16 -O --cpu 65C02 -DJPEG_BENCH --asm-define JPEG_BENCH=1 -I apps/gemini \
+	-o "$OUT/jpeg/JB.PRG" tests/jpeg_bench.c apps/gemini/jpghdr.c apps/gemini/pngplan.c apps/gemini/jpegcore.s \
+	> "$OUT/jpeg/build.log" 2>&1 || { cat "$OUT/jpeg/build.log"; fail "tests/jpeg_bench.c does not build"; }
+rm -f "$OUT/jpeg"/*.o
+$PY tests/check_jpeg.py "$OUT/jpeg/JB.PRG" "$EMU_NET" "$ROM" "$OUT/jpeg" || fail "jpeg on the X16"
 
 # the server: its folder; sets SPORT
 server() {
@@ -178,7 +200,7 @@ grep -q "^GE END$" "$R/log.txt" || { grep "^GE" "$R/log.txt" | tail -40; shots F
 [ -f "$R/PICFLAG.RAW" ] && $PY tests/pic_shot.py "$R/PICFLAG.RAW" "$R/PA.DMP" "$OUT/picflag.png"
 $PY tests/check_glyphs.py "$R/PAGE.RAW" "$ROM" "the root's Polish line (UTF-8, V143)" \
 	"Polish (V143): Zażółć gęślą jaźń, ZAŻÓŁĆ GĘŚLĄ JAŹŃ." || { shots PAGE; fail "the Polish glyphs"; }
-shots BOOK PAGE PAGE2 INPUT WEB PLAIN XFER STALL MENU FIND MARKS END WIKI DARK GALLERY FAIL
+shots BOOK PAGE PAGE2 INPUT WEB PLAIN XFER STALL MENU FIND MARKS END WIKI DARK GALLERY EXITPIC EXITWHEEL FAIL
 $PY tests/check_gemini.py main "$R" "$SPORT" || fail "main"
 
 echo "== launch: the Wikipedia launcher double-clicked in the shell (V128)"
@@ -230,6 +252,21 @@ server_end
 grep -q "^GE END$" "$R/log.txt" || { grep -a "^GE\|SHELL" "$R/log.txt" | tail -30; shots FAIL; fail "launch: the test failed"; }
 shots LAUNCH
 $PY tests/check_gemini.py launch "$R" "$SPORT" || fail "launch"
+
+echo "== quit (V196): a picture shown, then the close box, Ctrl+Q, Veranda Gemini > Quit: Gemini ends at once"
+for q in qclose ckey fmenu; do
+	R=$OUT/$q
+	server "$R/srv"
+	mkdir -p "$R/VERANDA/.SYSTEM"
+	printf 'pictures=56\r\n' > "$R/VERANDA/.SYSTEM/GEMINI.CFG"
+	run "$R" "$q $SPORT" 300 "modem:baud=57600,log=$R/modem.log"
+	server_end
+	[ -f "$R/dump.bin" ] || { grep -a "^GE\|TERMDESK" "$R/log.txt" | tail -30; fail "$q: the session did not end"; }
+	shots QUITPIC
+	[ -f "$OUT/quitpic.png" ] && mv "$OUT/quitpic.png" "$OUT/$q-pic.png"
+	$PY tools/vram2png.py --color "$R/dump.bin" "$OUT/$q-desk.png" 2>/dev/null || true
+	$PY tests/check_gemini.py quit "$R" "$SPORT" || fail "$q"
+done
 
 echo "== nomodem: no modem on the port"
 R=$OUT/nomodem

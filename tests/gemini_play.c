@@ -1,5 +1,5 @@
 /* gate gemini (DECISIONS V118, V124): Veranda Gemini's test build (apps/gemini,
-   make test: GEMINI_TEST; this file in overlay 7 (4 until V124, 5 in V124, 6 until V149), its script in main
+   make test: GEMINI_TEST; this file in overlay 8 (4 until V124, 5 in V124, 6 until V149, 7 until V192), its script in main
    RAM, where the pointer's player reads it from the interrupt;
    tests/term_play.s plays the mouse and the keys through mouseSource, as
    tests/gopher_play.c does for Veranda Gopher).
@@ -26,6 +26,9 @@
               tools/gate_gemini.sh's launcher) the box at once: "Ada
               Lovelace", the article, the end
      nomodem  (no modem on the port) the address typed: the box, the end
+     qclose, ckey, fmenu  (V196) the pictures' page, small.png shown, then
+              the close box, Ctrl+Q, Veranda Gemini > Quit (gemini_pics.c): Gemini
+              ends, the test desktop's log follows
    Screens (snap: the foreground's 480 rows of 80 bytes, the cards' paper
    colours, 60 rows of 80, the palette's 16 entries): BOOK.RAW, PAGE.RAW,
    PAGE2.RAW, INPUT.RAW, WEB.RAW, PLAIN.RAW, XFER.RAW, STALL.RAW, FIND.RAW,
@@ -40,8 +43,8 @@
 #include <theme.h>
 #include "../apps/gemini/gemini.h"
 #include "../apps/gemini/png.h"
-#pragma code-name ("OVERLAY7")
-#pragma rodata-name ("OVL7RO")
+#pragma code-name ("OVERLAY8")
+#pragma rodata-name ("OVL8RO")
 /* (its texts in overlay 4: say() copies them below $A000 for the kernel;
    the script and the log's line in main RAM, below) */
 
@@ -63,8 +66,9 @@ extern unsigned char t_pics_done, t_pics_prog;
 unsigned int scr[3 * 40];               /* (main RAM; gemini_pics.c's too; 48 entries until V125) */
 unsigned int stopper[3];
 unsigned char ns;
+unsigned char t_quit;                   /* (V196: gemini_pics.c reads it) the quit sessions' 'q' 'c' 'f'; 0 */
 static unsigned char step;          /* (main RAM: cleared at the start; an overlay's BSS is not) */
-#pragma data-name ("OVL7DATA")          /* (the rest in overlay 7, initialised: cc65 puts tentative BSS where
+#pragma data-name ("OVL8DATA")          /* (the rest in overlay 8, initialised: cc65 puts tentative BSS where
                                            the file ends; kernel calls get rel) */
 static unsigned char nbox = 0, sess = 0;
 static unsigned int tplay = 0, tlen = 0;
@@ -72,7 +76,7 @@ static unsigned int t0 = 0, tmax = 0, tlast = 0, tstep_t = 0;
 static char port[8] = { 0 };
 static unsigned char seen = 0;          /* (t_pics_prog as last seen) */
 #pragma data-name ("DATA")
-static char tl[100];                    /* (V149: main RAM, for overlay 7's room) */
+static char tl[100];                    /* (V149: main RAM, for overlay 8's room) */
 extern unsigned int v_find;
 extern char _STACKSIZE__[];             /* (the linker's __STACKSIZE__) */
 
@@ -347,7 +351,7 @@ static unsigned int now(void)
 }
 
 /* (called by ui.c) the page as shown: gemini_pics.c's page_log7 in
-   overlay 8 (V128: this overlay's room) */
+   overlay 9 (V128: this overlay's room) */
 void page_log7(void);
 void page_log(void)
 {
@@ -452,7 +456,9 @@ void gt_tick(void)
         if (net_state() != NET_READY || gbusy || !doc_done)
             return;
         logn("GE TEST NET READY ", ser_frames - t0);
-        if (sess == 'p') {                 /* (session pics: the pictures alone) */
+        if (sess == 'q' || sess == 'c' || sess == 'f')
+            t_quit = sess;              /* (V196: qclose, ckey, fmenu: a picture, then Quit) */
+        if (sess == 'p' || t_quit) {       /* (session pics: the pictures alone) */
             step = 45;
             return;
         }
@@ -798,8 +804,8 @@ void gt_tick(void)
         type_url(10, "/");
         go_();
         break;
-    case 45:                            /* (V125) the pictures: their page, then gemini_pics.c (overlay 8) */
-        if (!idle() || (!cur[0] && sess != 'p'))
+    case 45:                            /* (V125) the pictures: their page, then gemini_pics.c (overlay 9) */
+        if (!idle() || (!cur[0] && sess != 'p' && !t_quit))
             return;
         t_ov7(t_pics_init);
         type_url(10, "/pics.gmi");

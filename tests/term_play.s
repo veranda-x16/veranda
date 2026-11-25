@@ -7,6 +7,9 @@
 ; address x is not 0, then counts its frames from 0 again. Frame $FFFF ends a script (the pointer stays where it
 ; is, the button up). The positions go through mouseSource as absolute
 ; ones (as tests/sdk_play.s).
+; (V196) bit 3: the ROM's modifier keys held from now (shflag = x: 1
+; Shift, 2 Alt, 4 Ctrl, as tests/edit_play.s's 'M'); bit 2: the wheel, x
+; notches (signed) added to mouseWheel.
 .include "veranda.inc"
 .include "macros.inc"
 .include "x16hw.inc"
@@ -14,6 +17,7 @@
 .export _term_play, _term_dump
 
 wp = $AB                        ; (a wait's address)
+SHFLAG = $A80C                  ; the ROM's modifiers, RAM bank 0 (as tests/edit_play.s)
 sp0 = $A9                       ; the script (app-c-ovl.cfg leaves $A9-$D3 to the ROM's maths)
 
 .segment "CODE"
@@ -42,7 +46,8 @@ Player:	IncW frame
 	dey
 	lda (sp0),y
 	cmp #$FF
-	beq @out                ; the end of the script
+	bne @1
+	jmp @out                ; the end of the script
 @1:	ldy #1                  ; due? (frame <= now)
 	lda (sp0),y
 	cmp frame+1
@@ -72,7 +77,11 @@ Player:	IncW frame
 	stz frame
 	stz frame+1
 	bra @adv
-@nw:	bit #$80
+@nw:	bit #$0C
+	beq @nh
+	jsr ModWheel            ; (V196)
+	bra @adv
+@nh:	bit #$80
 	bne @key
 	and #1
 	sta pb
@@ -102,6 +111,24 @@ Player:	IncW frame
 	MoveW py, r1
 	lda pb
 	sec
+	rts
+
+; (V196) a = the flags: bit 3 the modifiers held (the ROM's shflag = x),
+; else bit 2 the wheel (x notches)
+ModWheel:
+	ldy #2
+	bit #$08
+	beq @w
+	lda (sp0),y
+	ldx $00
+	stz $00
+	sta SHFLAG
+	stx $00
+	rts
+@w:	lda (sp0),y
+	clc
+	adc mouseWheel
+	sta mouseWheel
 	rts
 
 .segment "DATA"

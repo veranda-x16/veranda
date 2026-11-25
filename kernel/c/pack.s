@@ -1,10 +1,11 @@
-; Veranda bank W: the switcher's packer (DECISIONS V83); unpack.s the other way
+; Veranda bank C: the switcher's packer (DECISIONS V83, V189); unpack.s
+; the other way
 ;
-; An image that bank W copies to PK_RUN ($0600: dbFileNames and
-; dataLongName; the system variables were put aside first) and calls
-; there, so that it can map any RAM bank at $A000: bank W cannot map
-; another bank under itself. Its page buffer is PK_BUF ($0400:
-; fileHeader).
+; An image (at PKIMG_A in bank C, V189: bank W had no room) that bank W
+; copies to PK_RUN ($0600: dbFileNames and dataLongName; the system
+; variables were put aside first) and calls there, so that it can map any
+; RAM bank at $A000: bank W cannot map another bank under itself. Its page
+; buffer is PK_BUF ($0400: fileHeader).
 ;
 ; PkGo, a = 0 (pack): the application's state, page by page, into a chain
 ; of RAM banks from PK_LIST[0] at r4 (the first bank's first free page);
@@ -22,12 +23,13 @@
 ;                      to nothing (32)
 ; The application's own banks (overlays, a record file, what it asked
 ; for) are not copied: they stay its own while it is aside.
+; V189: a page of one byte (most of VRAM) is seen as it is read, without
+; the copy to PK_BUF and the scan: $FF and the byte, as Pack writes it.
 
 .include "kernel.inc"
 
-.export PkImgA, PkLenA
-.import kBankBase
 .global S_k_TaskCtl
+.import kBankBase
 
 
 pkSP    = r8L
@@ -40,9 +42,10 @@ pkV     = r11L
 pkT     = r11H
 pkCur   = r12L
 
-.segment "RODATA"
+.segment "PKIMG"
 
 PkImgA:
+.assert PkImgA = PKIMG_A, lderror, "the pack image is not at PKIMG_A"
 .org PK_RUN
 .include "pkgo.inc"
 
@@ -50,23 +53,13 @@ PageOp:	jsr Fetch
 	jmp Pack
 
 ; the page to PK_BUF (kind 0 RAM at r6, 1 VRAM, 2 bank r7L at r6, 3 the
-; same XOR bank r7H)
+; same XOR bank r7H) -> y = k: its first k bytes are pkV (VRAM, V189: k
+; >= 3, they are not in PK_BUF; 0: nothing known)
 Fetch:	ldy #0
 	ldx pkKind
-	bne @1
-@r:	lda (r6),y
-	sta PK_BUF,y
-	iny
-	bne @r
-	rts
-@1:	dex
-	bne @2
-@v:	lda VERA_DATA0
-	sta PK_BUF,y
-	iny
-	bne @v
-	rts
-@2:	ldx ram_bank
+	dex
+	beq @v
+	ldx ram_bank            ; (kind 0: r7L the chain's bank, PkGo)
 	lda r7L
 	sta ram_bank
 @b:	lda (r6),y
@@ -85,9 +78,46 @@ Fetch:	ldy #0
 	bne @x
 @3:	stx ram_bank
 	rts
+@v:	lda VERA_DATA0          ; (V189) while the bytes are the first one,
+	sta pkV                 ; only compared
+	sta @c+1
+@s:	iny
+	beq @one
+	lda VERA_DATA0
+@c:	cmp #0
+	beq @s
+	sta PK_BUF,y            ; another, at k
+	sty pkI
+	cpy #3
+	bcs @w0
+	lda pkV                 ; (k < 3: the ones before it to PK_BUF)
+@f:	dey
+	sta PK_BUF,y
+	bne @f
+	ldy pkI
+@w0:	iny
+	beq @r1
+@w:	lda VERA_DATA0
+	sta PK_BUF,y
+	iny
+	bne @w
+@r1:	ldy pkI
+	rts
+@one:	pla                     ; one byte: $FF and it, as Pack writes it,
+	pla                     ; and not to Pack (PageOp's caller next)
+	lda #$FF
+	jsr Put
+	lda pkV
+	jmp Put
 
 ; PK_BUF packed to the chain
-Pack:	ldy #0
+Pack:	cpy #3                  ; (V189) y = k >= 3: a run of k pkV first
+	bcc @z                  ; (the scan goes on from k)
+	stz pkI
+	dey
+	lda pkV
+	bra @r
+@z:	ldy #0
 @next:	sty pkI
 	lda PK_BUF,y
 	sta pkV
@@ -196,4 +226,5 @@ Put:	sta (r4)
 PkEnd:
 .reloc
 PkLenA = PkEnd - PkGo
-.assert PkLenA <= PK_N - PK_RUN, error, "the pack image does not fit $0600-PK_N"
+.assert PkLenA <= PK_MAX, error, "the pack image does not fit $0600-PK_N"
+	.res PKIMG_B - PKIMG_A - PkLenA     ; (unpack.s's image next, at PKIMG_B)

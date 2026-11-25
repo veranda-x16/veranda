@@ -63,6 +63,7 @@ def main():
     run(['python3', '-I', '-B', 'tools/apigen.py', 'api/veranda.api', gen])
     run(['python3', '-I', '-B', 'tools/mkfont.py', os.path.join(kgen, 'system.bin')])
     run(['python3', '-I', '-B', 'tools/mkfont.py', '--ui', os.path.join(kgen, 'uifont.bin')])
+    uibounds(os.path.join(kgen, 'uifont.bin'), os.path.join(kgen, 'uibounds.inc'))
     run(['python3', '-I', '-B', 'tools/mkicons.py', os.path.join(kgen, 'sysicons.inc')])
     run(['python3', '-I', '-B', 'tools/mkfax.py', os.path.join(kgen, 'faxcodes.inc')])
     run(['python3', '-I', '-B', 'tools/mkpointers.py', os.path.join(kgen, 'pointers.inc')])
@@ -74,7 +75,7 @@ def main():
     impl = [x for x in open(os.path.join(gen, 'impl.txt')).read().split() if x]
 
     # where each routine lives
-    where, order, nostub = {}, {b: [] for b in ['R'] + BANKS}, set()
+    where, order, nostub, hot = {}, {b: [] for b in ['R'] + BANKS}, set(), set()
     for n, line in enumerate(open(os.path.join(ROOT, 'kernel', 'exports.txt')), 1):
         line = line.split('#', 1)[0].split()
         if not line:
@@ -86,6 +87,9 @@ def main():
             if nm.startswith('-'):      # (V141) an entry in its bank's table only: no resident
                 nm = nm[1:]             # stub (the core is full); called through FarGo by hand
                 nostub.add(nm)
+            elif nm.startswith('+'):    # (V190) a hot call: the 8-byte stub, 13 cycles
+                nm = nm[1:]             # faster than the 3-byte one
+                hot.add(nm)
             if nm in where:
                 raise SystemExit('kernel/exports.txt:%d: %s listed twice' % (n, nm))
             where[nm] = b
@@ -98,8 +102,12 @@ def main():
     # a resident stub for every banked routine (kernel/res/farcall.s)
     stubs = ['; generated: resident stubs of the banked routines (kernel/res/farcall.s)',
              '.include "kernel.inc"', '.import FarGo, gA, gT', '.segment "CODE"']
-    # 8 bytes a stub: the entry's offset, then the bank's shared tail (its
-    # bank number to FarGo); 3 cycles more than a stub with its own tail
+    # (V190) 3 bytes a stub: jsr to the bank's dispatcher, which takes the
+    # entry's offset from the return address (the stubs of a bank in the
+    # order of its table, 3 bytes apart: the stub of entry i at Slot + 3i,
+    # a hole where an entry has another stub or none); a hot call (+NAME in
+    # kernel/exports.txt) keeps the 8-byte stub: the entry's offset, then
+    # the bank's shared tail (its bank number to FarGo)
     for b in BANKS:
         if not order[b]:
             continue
@@ -108,9 +116,21 @@ def main():
             for i, nm in enumerate(order[b]):       # bank S's GoC reaches it)
                 stubs += ['.export E_%s' % nm, 'E_%s = $A000 + %d' % (nm, 3 * i)]
             continue
-        stubs += ['.export Tail%d' % k, 'Tail%d:' % k, '\tsta gT', '\tlda #%d' % k, '\tjmp FarGo']
+        slow = [i for i, nm in enumerate(order[b]) if nm not in nostub and nm not in hot]
+        if any(nm in hot or nm in nostub for nm in order[b]):
+            stubs += ['.export Tail%d' % k, 'Tail%d:' % k, '\tsta gT', '\tlda #%d' % k, '\tjmp FarGo']
+        if slow:
+            stubs += ['Disp%d:' % k, '\tsta gA', '\tpla', '\tsec', '\tsbc #<(Slot%d + 2)' % k, '\tsta gT',
+                      '\tpla', '\tlda #%d' % k, '\tjmp FarGo', 'Slot%d:' % k]
+            for i in range(slow[-1] + 1):
+                nm = order[b][i]
+                if i in slow:
+                    stubs += ['.export S_%s' % nm, 'S_%s:' % nm, '\tjsr Disp%d' % k]
+                else:
+                    stubs += ['\t.byte 0, 0, 0']    # (a hole: BRK)
+            stubs += ['.assert * - Slot%d <= 255, error, "bank %s: its stubs span more than 255 bytes"' % (k, b)]
         for i, nm in enumerate(order[b]):
-            if nm not in nostub:
+            if nm in hot:
                 stubs += ['.export S_%s' % nm, 'S_%s:' % nm, '\tsta gA', '\tlda #%d' % (3 * i),
                           '\tjmp Tail%d' % k]
             # its entry in the bank's table, for code that maps the bank
@@ -229,6 +249,31 @@ def main():
              os.path.getsize(os.path.join(out, 'RBOOT'))))
 
 
+def uibounds(font, out):
+    """(V188) the UI font's glyphs 32-127 for bank T's LookRows: each one's
+    first row with a pixel and its rows from there to its last (first * 16
+    + rows; a glyph of no pixels 0), and each row's offset in the font"""
+    d = open(font, 'rb').read()
+    sw, h = d[1] | d[2] << 8, d[3]
+    it, cd = d[4] | d[5] << 8, d[6] | d[7] << 8
+    idx = [d[it + 2 * i] | d[it + 2 * i + 1] << 8 for i in range(97)]
+    bnd = []
+    for g in range(96):
+        x0, w = idx[g], idx[g + 1] - idx[g]
+        rows = [any(d[cd + r * sw + (x0 + b) // 8] & (0x80 >> ((x0 + b) % 8)) for b in range(w))
+                for r in range(h)]
+        nz = [r for r in range(h) if rows[r]]
+        bnd.append(nz[0] * 16 + nz[-1] - nz[0] + 1 if nz else 0)
+    if h > 15 or sw > 255:
+        raise SystemExit('kbuild: the UI font is %d rows of %d bytes: LookRows takes 15 of 255 at most' % (h, sw))
+    t = ['; generated (tools/kbuild.py, V188): the UI font\'s glyph bounds and row offsets',
+         'UI_H = %d' % h, 'UI_SETW = %d' % sw,
+         '.segment "TAIL"', 'UiBnd:\t.byte ' + ', '.join('$%02X' % b for b in bnd), '.segment "LATE"',
+         'UiRowLo:\t.byte ' + ', '.join('$%02X' % (r * sw & 255) for r in range(h)),
+         'UiRowHi:\t.byte ' + ', '.join('$%02X' % (r * sw >> 8) for r in range(h))]
+    open(out, 'w').write('\n'.join(t) + '\n')
+
+
 def used(mapfile):
     """bytes from $A000 to the end of the last segment (with variables)"""
     end = 0xA000
@@ -240,8 +285,8 @@ def used(mapfile):
             continue
         if seg:
             m = re.match(r'^(\w+)\s+([0-9A-F]{6})\s+([0-9A-F]{6})\s+([0-9A-F]{6})', line)
-            if m and m.group(1) == 'TAIL':      # (bank T's code after RBIMG, V81: its bytes)
-                tail = int(m.group(4), 16)
+            if m and m.group(1) in ('TAIL', 'PKIMG'):   # (bank T's code after RBIMG, V81; bank C's
+                tail += int(m.group(4), 16)             # pack images at PKIMG_A, V189: their bytes)
             elif m and int(m.group(4), 16) and m.group(1) != 'RBIMG':   # (bank T's fixed $BC00-$BFFF, V64)
                 end = max(end, int(m.group(3), 16) + 1)
             elif line.startswith('Exports list') or line.startswith('Imports list'):

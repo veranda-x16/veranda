@@ -32,14 +32,17 @@ PgUp and PgDn.
 **Connection > Connect...** opens the **Hosts** page: up to 11 hosts,
 each with a name, `host:port` and a mode, **Telnet** or **raw** TCP.
 
-| Key | Action |
-|---|---|
-| 1-9, A, B, or Up and Down | choose a host |
-| Return | connect |
-| C | connect to another host (host, port: 23 if empty, T or R) |
-| N | add a host |
-| X | remove the chosen host |
-| Esc | back |
+Click a host to choose it, and double-click it to connect. The buttons
+under the list do the same as the keys:
+
+| Key | Button | Action |
+|---|---|---|
+| 1-9, A, B, or Up and Down | (click the host) | choose a host |
+| Return | Connect | connect (or double-click the host) |
+| C | Other host | connect to another host (host, port: 23 if empty, T or R) |
+| N | New | add a host |
+| X | Remove | remove the chosen host |
+| Esc | Back | back |
 
 ![The Hosts page](img/term-hosts.png)
 
@@ -56,7 +59,9 @@ memory and **not checked** from here. The list is kept in
   it is.
 - **Connection > Address book**: eight well-known Telnet BBSes (from
   memory: check them) and eight of your own (N new, E edit, X delete).
-  Kept in `TERM.BOOK`.
+  Kept in `TERM.BOOK`. Click an entry to choose it and double-click it
+  to dial; the buttons Dial, New, Edit, Delete and Back under the list
+  work on the chosen entry, as the keys do.
 - **Connection > Modem status** sends the status commands (`ATI;ATI2`
   at first).
 - When not connected, what you type goes to the modem: type `ATI` to see

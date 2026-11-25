@@ -54,6 +54,14 @@
 # 9. (V185) the mouse wheel (tests/shell_wheel_script.py): /VERANDA/APPS in
 #    the list and the icons, a notch down and up over window 0: 3 rows or
 #    a row of icons and back; nothing at the top or off the windows
+# 10. (V193) the dragged icon's ghost (tests/shell_ghost_script.py): a
+#    document dragged out of window 0 (the button held at the end): sprite
+#    2 on, 8 bpp, at the pointer less the press's place in the icon, each
+#    of its pixels the screen's colour at the icon (every other left out);
+#    on over the dock; a desktop icon; a dock pin; in Sunroom, dark mode and
+#    on the tile wallpaper (Dusk); let go: gone; Esc over the dock's trash:
+#    gone and nothing deleted. Screenshots with the sprites drawn:
+#    build/gate/shell/ghost-*.png
 set -e
 cd "$(dirname "$0")/.."
 OUT=${OUT:-build/gate/shell}
@@ -445,6 +453,27 @@ for view in list icon; do
 	[ $view = list ] && n="3 rows" || n="a row of icons ($COLS)"
 	ok "the wheel over the Apps window, $view: a notch down scrolls $n, up again the first page (window 0 as before); at the top, over the desktop beside and below the window: nothing ($OUT/wheel-$view.png)"
 done
+
+# (V193) the dragged icon's ghost: a sprite with the icon's own colours
+echo "== the dragged icon's ghost (V193)"
+GS="$PY tests/shell_ghost_script.py"
+$PY "$SDK/tools/mkwall.py" -o "$OUT/Dusk.cvt" --dusk 2>/dev/null || fail "mkwall --dusk (the ghost on the tile desktop)"
+for lr in light:mid light:over light:desk light:after light:esc dark:mid wall:mid wall:over ${TAPPS:+light:pin}; do
+	look=${lr%%:*}
+	run=${lr##*:}
+	GD=$OUT/ghost/$look-$run
+	rm -rf "$GD"
+	mkdir -p "$GD"
+	$GS make "$GD" $look "$OUT/Dusk.cvt" $TAPPS || fail "the ghost's fixtures"
+	cp "$C" "$GD/VERANDA/"
+	cp build/VERANDA.SYS "$GD/"
+	$GS script "$GD" $run || fail "the ghost's script"
+	frun "$GD" 120
+	grep -a -q "SHELL DONE" "$GD/console.txt" || fail "ghost, $look $run: the session did not end"
+	$GS check "$GD" $run || fail "ghost, $look $run"
+	$GS png "$GD/dump.bin" "$OUT/ghost-$look-$run.png" || fail "the ghost's screenshot"
+done
+ok "the ghost: a document dragged from window 0 shows sprite 2 (8 bpp, 32 x 32, at the pointer less the press's place in the icon), each of its pixels the screen's colour at the icon, every other left out: in Sunroom, dark mode and on the tile desktop (Dusk); on over the dock; the card's desktop icon${TAPPS:+; a dock pin}; let go in its own window: gone; Esc over the dock's trash: gone, the file kept ($OUT/ghost-*.png)"
 
 echo "== Shell 2: the desktop and its windows (DECISIONS V70)"
 # tests/shell_desk_script.py: the card's icon opens window 1, both windows

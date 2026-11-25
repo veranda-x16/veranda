@@ -6,6 +6,9 @@
 # UNSUPPORTED for now.
 # A name written -NAME gets its entry but no resident stub (V141: the core is
 # full): its caller maps the bank through FarGo itself (gA, gT = <E_NAME).
+# A name written +NAME (V190) keeps the 8-byte stub, 13 cycles faster than
+# the 3-byte one (a jsr to its bank's dispatcher) every other one gets: the
+# calls made many times a second (the main loop, the interrupt, text, rows).
 R k_Unsupported k_GetVersion k_LogText k_DrawLine k_DrawPoint
 R k_MainLoop k_CallRoutine k_Sleep k_StartMouseMode k_BankCopy k_StartAppl
 R k_i_Rectangle k_i_FrameRectangle k_i_RecoverRectangle k_i_ImprintRectangle
@@ -14,25 +17,25 @@ R k_ClearRam k_FillRam k_MoveData k_InitRam k_CopyString k_CopyFString k_CmpStri
 G k_SetPattern k_WHorizontalLine k_WInvertLine k_WRecoverLine
 G k_WRectangle k_WFrameRectangle k_WInvertRectangle k_WRecoverRectangle k_WImprintRectangle
 G k_WDrawPoint k_WTestPoint k_WDrawLine
-G k_LoadCharSet k_UseSystemFont k_GetCharWidth k_GetRealSize
-G k_WPutChar k_WSmallPutChar k_WPutString k_WriteRow k_ReadRow
+G k_LoadCharSet k_UseSystemFont +k_GetCharWidth k_GetRealSize
+G +k_WPutChar +k_WSmallPutChar k_WPutString +k_WriteRow +k_ReadRow
 G2 k_Rectangle k_InvertRectangle k_RecoverRectangle k_ImprintRectangle k_FrameRectangle
 G2 k_HorizontalLine k_InvertLine k_RecoverLine k_VerticalLine DrawLineA DrawPointA k_TestPoint
-G2 k_PutChar k_SmallPutChar k_PutString k_PutDecimal k_WPutDecimal k_GraphicsString
+G2 +k_PutChar +k_SmallPutChar k_PutString k_PutDecimal k_WPutDecimal k_GraphicsString
 G2 k_BitmapUp k_BitmapClip k_WBitmapUp
 G2 k_DrawSprite k_PosSprite k_WPosSprite k_EnablSprite k_DisablSprite PointerInit
 G2 k_GetRandom k_GetSerialNumber k_InitForIO k_DoneWithIO
 G2 k_CopyRect k_ScrollRect
-S k_Init k_SetVideoMode k_SetColors k_ToBASIC ClockPoll k_SetClock AppReset
+S k_Init k_SetVideoMode k_SetColors k_ToBASIC +ClockPoll k_SetClock AppReset
 S k_ColorRect DaRun k_RstrAppl k_GetCardColor ColorCover AudioReset TileHi
-U UiKey UiClick UiFault UiWake UiInit
+U +UiKey +UiClick +UiFault +UiWake UiInit
 U k_DoDlgBox k_RstrFrmDialogue DlgKeyOK DlgStrDone DlgSysOpv k_GetString k_WGetString StrKey StrFault
 U k_DoMenu k_ReDoMenu k_DoPreviousMenu k_GotoFirstMenu k_RecoverMenu k_RecoverAllMenus k_DoIcons
-X k_IrqWork MouseInit MouseRegionAll MouseModeA k_MouseUp k_MouseOff k_ClearMouseMode
+X +k_IrqWork MouseInit MouseRegionAll +MouseModeA k_MouseUp k_MouseOff k_ClearMouseMode
 X k_TempHideMouse k_HideOnlyMouse k_IsMseInRegion k_WIsMseInRegion k_WStartMouseMode
-X k_WSetMouseRegion k_GetMouse k_GetKeyMods KeyPut KeyGet k_GetNextChar
+X k_WSetMouseRegion +k_GetMouse k_GetKeyMods +KeyPut +KeyGet k_GetNextChar
 X k_InitProcesses k_RestartProcess k_EnableProcess k_BlockProcess k_UnblockProcess
-X k_FreezeProcess k_UnfreezeProcess ProcNext
+X k_FreezeProcess k_UnfreezeProcess +ProcNext
 X k_InitTextPrompt k_PromptOn k_PromptOff ProcSave ProcRestore
 X k_ExportRect ProcOut ProcIn
 S k_DSdiv k_Dabs k_Dnegate
@@ -54,12 +57,12 @@ G2 k_SetPointer FbIrq
 S k_SysPrefs
 U AlarmBox
 T k_LoadFont k_UseFont k_FontInfo k_FontList k_FontSizes FontSel k_FontFlush
-T Look
-T FbCols k_WVerticalLine
-G2 VCopy
+T +Look
+T +FbCols k_WVerticalLine
+G2 +VCopy
 S k_EnterDeskTop
 W k_BankAlloc k_BankFree BanksInit FontBanks k_TaskCtl
 C TileCard                       # (V183: from bank W)
 C k_Ddiv k_Ddec                  # (V183: from bank W)
 G2 -HiLook                       # (V141: no resident stub; bank G calls it through FarGo)
-T FbLine
+C -FbLine                        # (V188: from bank T, for room)

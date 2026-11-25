@@ -21,7 +21,7 @@
    and Shift+Tab (the next and the previous link), Return (follow it),
    Up, Down, PgUp, PgDn, Home, End, Left or Backspace (Back), Right
    (Forward), Esc (Stop), Ctrl+L (the address line), Ctrl+R (Reload),
-   Ctrl+F (Find), Ctrl+G (Find again); the wheel and the scroll bar
+   Ctrl+F (Find), Ctrl+G (Find again), Ctrl+Q (Quit, V196); the wheel and the scroll bar
    scroll. Typing a character starts a new address. In the address line:
    Return goes, Esc leaves it, Ctrl+V pastes the clipboard's text.
 
@@ -280,7 +280,8 @@ static void here_saved(void)
    or the cache's copy): the history moved */
 void g_first(void)
 {
-    ov4(i_off);                         /* (a picture shown: gone) */
+    ov4(i_off);                         /* (a picture shown: gone; this page drawn as it comes) */
+    pic_pv = 0;
     here_saved();
     if (nav == N_NEW) {
         if (hn)
@@ -674,8 +675,12 @@ void ui_tick(void)
     w = (signed char)mouseWheel;
     mouseWheel = 0;
     asm("cli");
-    if (w && !menuNumber)
-        scroll_by(3 * w);
+    if (w && !menuNumber) {
+        if (viewing)
+            pic_leave();                /* (V196: the wheel on a picture: the page, where it was) */
+        else
+            scroll_by(3 * w);
+    }
     if (dragging) {                     /* (V149: the thumb dragged, an arrow held) */
         if (mouseData & 0x80)
             dragging = 0;
@@ -743,7 +748,7 @@ struct menu6 { unsigned char top, bottom; unsigned int left, right; unsigned cha
 /* (the menus' texts in main RAM: the kernel draws them; V149, Sunroom:
    "\x1f" a separator above the item, "\t" its key, right-aligned) */
 #pragma rodata-name (push, "RODATA")
-static const char s_about[] = "About Veranda Gemini", s_quit[] = "\x1f" "Quit", s_open[] = "Open address\tCtrl L",
+static const char s_about[] = "About Veranda Gemini", s_quit[] = "\x1f" "Quit\tCtrl Q", s_open[] = "Open address\tCtrl L",
     s_get[] = "Download", s_find[] = "\x1f" "Find...\tCtrl F", s_again[] = "Find again\tCtrl G",
     s_stop[] = "\x1f" "Stop\tEsc", s_web[] = "\x1f" "Settings...",
     s_back[] = "Back\tLeft", s_fwd[] = "Forward\tRight", s_reload[] = "Reload\tCtrl R",
@@ -800,29 +805,20 @@ static void layout(void)
 
 static void m_about(void)
 {
-    GotoFirstMenu();
+    pic_menu();
     ov2(u_about);
 }
 
-static void quit(void)
-{
-    if (gbusy && !yesno("Something is still coming.", "Quit anyway?"))
-        return;
-    g_cancel();
-    net_stop();
-    EnterDeskTop();
-}
-
-static void m_quit(void) { GotoFirstMenu(); quit(); }
-static void m_open(void) { GotoFirstMenu(); edit(1); }
-static void m_find(void) { GotoFirstMenu(); find(); }
-static void m_again(void) { GotoFirstMenu(); find_next(); }
+static void m_quit(void) { pic_menu(); g_quit(); }
+static void m_open(void) { pic_menu(); edit(1); }
+static void m_find(void) { pic_menu(); find(); }
+static void m_again(void) { pic_menu(); find_next(); }
 
 /* File > Download: the selected link (else the page shown) to the card,
    whatever it is */
 static void m_get(void)
 {
-    GotoFirstMenu();
+    pic_menu();
     if (busy())
         return;
     if (v_sel != NONE && doc_url(v_sel)) {
@@ -841,12 +837,12 @@ static void m_get(void)
     connect(1);
 }
 
-static void m_stop(void) { GotoFirstMenu(); g_cancel(); }
-static void m_web(void) { GotoFirstMenu(); ov4(w_setweb); }
-static void m_back(void) { GotoFirstMenu(); back(); }
-static void m_fwd(void) { GotoFirstMenu(); forward(); }
-static void m_reload(void) { GotoFirstMenu(); reload(); }
-static void m_home(void) { GotoFirstMenu(); home(); }
+static void m_stop(void) { pic_menu(); g_cancel(); }
+static void m_web(void) { pic_menu(); ov4(w_setweb); }
+static void m_back(void) { pic_menu(); back(); }
+static void m_fwd(void) { pic_menu(); forward(); }
+static void m_reload(void) { pic_menu(); reload(); }
+static void m_home(void) { pic_menu(); home(); }
 
 /* Go > Wikipedia... (Ctrl+W): asked, looked up in Gemipedia (wiki.c) */
 static void wiki(void)
@@ -857,11 +853,11 @@ static void wiki(void)
     go_on();
 }
 
-static void m_wiki(void) { GotoFirstMenu(); wiki(); }
+static void m_wiki(void) { pic_menu(); wiki(); }
 
 static void m_add(void)
 {
-    GotoFirstMenu();
+    pic_menu();
     if (!cur[0]) {
         ui_status("This is the bookmarks page.");
         return;
@@ -875,7 +871,7 @@ static void m_add(void)
 static void m_del(void)
 {
     unsigned int i;
-    GotoFirstMenu();
+    pic_menu();
     if (busy())
         return;
     if (cur[0] || v_sel == NONE) {
@@ -903,26 +899,13 @@ static void m_del(void)
 
 /*---------------------------------------------------------------- input */
 
-/* (V125) a key or a click while a picture is shown: pic.c's; the page again after it */
-static void __fastcall__ viewer(void (*f)(void))
-{
-    ov4(f);
-    if (!viewing) {
-        page();
-        where();
-        status2();
-    }
-}
-
 static void press(void)
 {
     unsigned int x = mouseXPos, y = mouseYPosW, i;
     if (mouseData & 0x80)
         return;
-    if (viewing) {
-        viewer(i_press);
+    if (viewing && pic_in(i_press))     /* (V196: a picture's Save; else the page first) */
         return;
-    }
     if (y >= TOOLY && y < BODYY) {
         x >>= 3;
         if (x >= FX && x < FX + FW) {
@@ -952,7 +935,7 @@ static void press(void)
     }
     if (y < TOOLY) {                    /* (V149) the close box: Quit */
         if (y >= 16 && x >= 616)
-            quit();
+            g_quit();
         return;
     }
     if (x >= SBX * 8) {                 /* (V149) the scroll bar: a line, a page, the thumb */
@@ -988,10 +971,8 @@ static void press(void)
 static void key(void)
 {
     unsigned char k = keyData, m = keyDataMods;
-    if (viewing) {
-        viewer(i_key);
+    if (viewing && pic_in(i_key))       /* (V196: a picture's Save; else the page first) */
         return;
-    }
     if (v_edit) {
         field_key(k);
         return;
@@ -1007,6 +988,8 @@ static void key(void)
             find_next();
         else if (k == 23)               /* W: Wikipedia (V128) */
             wiki();
+        else if (k == 17 && !(m & KEYM_ARROW))
+            g_quit();                   /* Q (V196; KEY_DOWN is 17 too) */
         else if (k == 22) {             /* V: a new address */
             edit(1);
             field_key(22);

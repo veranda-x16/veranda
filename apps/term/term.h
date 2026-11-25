@@ -80,6 +80,14 @@ void ui_text(const char *s, unsigned int x, unsigned int y, unsigned char bold);
 void page_head(const char *title, const char *help);        /* a page's heading */
 void list_row(unsigned int y, const char *s, unsigned char sel);    /* a row of 16 lines */
 #define LISTTOP (TY + 64)       /* a page's list (16 lines a row) */
+/* (V195) a list page's buttons: 5 framed, 12 cards wide, at cards 1, 14,
+   27, 40, 53, rows BTNY to BTNY + 15; the first the default (Return) */
+#define BTNY    352
+#define BTNW    12
+void page_press(void);          /* term.c: otherPressVec */
+void o_btns(unsigned char hosts);       /* sync.c (overlay 2): the buttons */
+unsigned char btn_at(void);             /* the button under the pointer, else 255 */
+unsigned char row_at(unsigned char n);  /* the list's row under it (n rows), else 255 */
 extern unsigned char capfh, sendfh;     /* capture, sending a file (the status) */
 extern unsigned char nouart;
 void message(const char *a, const char *b);
@@ -94,6 +102,7 @@ unsigned char ask(const char *prompt, char *buf, unsigned char max);
 void o_page_draw(unsigned char page);
 unsigned char o_settings_key(unsigned char k);   /* 1: close */
 unsigned char o_book_key(unsigned char k);       /* 1: close, 2: dial the entry */
+unsigned char o_book_click(void);        /* (V195) a click on the page: as o_book_key */
 void o_book_entry(char *name, char *addr);
 void o_save_settings(void);
 void o_load_settings(void);
@@ -106,6 +115,11 @@ unsigned char yesno(const char *a, const char *b);   /* term.c: YES 1 */
 void term_reply(const char *s);         /* to the host (terminal reports) */
 void put_text(const char *s, unsigned char x, unsigned int y, unsigned char flags);
 void status(void);              /* (hosts.c's o_status, overlay 3) */
+extern unsigned char st_full;   /* (V194) 1: the whole bar drawn at the next status() */
+extern char stbuf[40];          /* (its changed characters, below $A000) */
+#ifdef TERM_TEST
+extern unsigned int st_draws, st_parts, vt_curdraws;    /* (gate term_tcp's idle) */
+#endif
 void o_status(void);
 void title(const char *s);
 

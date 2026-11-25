@@ -56,6 +56,37 @@ unsigned char o_sync_tick(void)
     return 1;
 }
 
+/* (V195) the buttons under the address book's list and the Hosts page's
+   (term.c's page_draw; btn_at says which a click is on: each stands for
+   the page's key, ui.c's and hosts.c's bk[]): five framed, 12 cards
+   wide, at cards 1, 14, 27, 40, 53 (term.h: BTNY, BTNW); the first the
+   default (Return: bold, a double frame). Here for room: overlays 1 and
+   3 have little left */
+static const char *const bn[5] = { "Dial", "New", "Edit", "Delete", "Back" };
+static const char *const hn[5] = { "Connect", "Other host", "New", "Remove", "Back" };
+
+void o_btns(unsigned char hosts)
+{
+    unsigned char i, c;
+    unsigned int x, w;
+    const char *p;
+    const char *const *nm = hosts ? hn : bn;
+    for (i = 0; i < 5; ++i) {
+        x = (1 + 13 * i) << 3;
+        SetPattern(0);
+        WRectangle(x, BTNY, x + BTNW * 8 - 1, BTNY + 15);
+        WFrameRectangle(0xFF, x, BTNY, x + BTNW * 8 - 1, BTNY + 15);
+        if (!i)
+            WFrameRectangle(0xFF, x + 1, BTNY + 1, x + BTNW * 8 - 2, BTNY + 14);
+        UseFont(FONT_UI);
+        for (w = 0, p = nm[i]; (c = *p++) != 0; )
+            w += GetCharWidth(c) + !i;
+        UseSystemFont();
+        ui_text(nm[i], x + BTNW * 4 - (w >> 1), BTNY + 2, !i);
+    }
+}
+
+
 /*---------------------------------------------------------------
   the date and time in a line: YY-MM-DD HH:MM:SS (the daytime service,
   NIST's format) or YYYY-MM-DD[ T]HH:MM:SS (ISO); UTC

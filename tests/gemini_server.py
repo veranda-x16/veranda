@@ -137,14 +137,17 @@ PLAIN = ('Veranda Gemini: a plain text\n'
 
 LATIN1 = '# Latin-1\nCafé crème, à la française.\n'
 
-# (V125) the pictures: tests/png_ref.py's, a JPEG (not shown), one over the test's limit
+# (V125) the pictures: tests/png_ref.py's, one over the test's limit; (V192)
+# JPEGs: tests/jpeg_ref.py's (Pillow's encoder), a progressive one (refused)
 sys.path.insert(0, os.path.join(TOP, 'tests'))
 import png_ref  # noqa: E402
+import jpeg_ref  # noqa: E402
 PICS = ['gray1', 'pal1', 'pal4', 'pal8', 'gray8', 'rgb', 'rgba', 'gray16', 'small', 'comic', 'interlaced', 'corrupt', 'big']
 PNGS = {k: png_ref.make(k) for k in PICS}
-JPEG = bytes([0xFF, 0xD8, 0xFF, 0xE0]) + bytes(2000)
+JPGS = {k: jpeg_ref.make(k) for k in ('photo', 'progressive', 'p422')}
+JPEG = JPGS['p422']             # (the gallery's Wawel)
 PICPAGE = ('# Pictures\n' + ''.join('=> pic/%s.png %s.png\n' % (k, k) for k in PICS) + '=> pic/photo.jpg photo.jpg\n'
-           '=> /cgi-bin/wp.cgi/images?Poland Gallery: Poland\n')
+           '=> pic/progressive.jpg progressive.jpg\n=> /cgi-bin/wp.cgi/images?Poland Gallery: Poland\n')
 
 # (V138) Gemipedia's image gallery (Gemipedia at 00e7863: Gemipedia/Renderer/
 # GalleryRenderer.cs, Gemipedia/RouteOptions.cs MediaProxyUrl, Gemipedia/
@@ -347,8 +350,8 @@ def serve(c, port):
             for i in range(0, len(data), 2048):
                 c.sendall(data[i:i + 2048])
                 time.sleep(0.005)
-        elif path == '/pic/photo.jpg':
-            send('20 image/jpeg', JPEG)
+        elif path.startswith('/pic/') and path[5:-4] in JPGS:
+            send('20 image/jpeg', JPGS[path[5:-4]])
         elif path == '/slow':
             send('20 text/gemini', SLOW.encode('utf-8'))
             time.sleep(120)

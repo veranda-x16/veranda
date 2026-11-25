@@ -16,15 +16,10 @@ SCRAP    := $(OUT)/scrapio.o $(OUT)/scraptbeg.o
 # sync.c (V94, V98); the serial driver (vrser.s, vrserc.c) from
 # veranda.lib, resident
 SYNC     := $(OUT)/vrsync.o
-# the status bar (V149): the SDK's vrwin.c (vr_win_status) compiled into
-# overlay 3 with hosts.c's o_status; its few bytes of BSS stay in main RAM
-# (its text goes to the kernel)
-VRW      := $(OUT)/vrwin.o
+# the status bar (V149) is hosts.c's o_status in overlay 3, drawn as the
+# SDK's vr_win_status draws one (V194: its own code, only what changed)
 
 all: $(OUT)/Term.cvt
-
-$(VRW): $(SDK)/src/vrwin.c $(SDK)/include/vrwin.h
-	$(CC65) --code-name OVERLAY3 --rodata-name OVL3RO --data-name OVL3DATA -c -o $@ $<
 
 $(SCRAP): $(OUT)/%.o: $(SDK)/src/%.c $(SDK)/include/scrap.h
 	$(CC65) --code-name OVERLAY1 --rodata-name OVL1RO --bss-name OVL1BSS --data-name OVL1DATA \
@@ -33,8 +28,8 @@ $(SCRAP): $(OUT)/%.o: $(SDK)/src/%.c $(SDK)/include/scrap.h
 $(SYNC): $(SDK)/src/vrsync.c $(SDK)/include/vrser.h
 	$(CC65) --code-name OVERLAY2 --rodata-name OVL2RO --bss-name OVL2BSS --data-name OVL2DATA -c -o $@ $<
 
-$(OUT)/term.bin: $(SRC) term.h net.h app.hdr $(SCRAP) $(SYNC) $(VRW)
-	$(CC65) $(CFLAGS) -C $(SDK)/cfg/app-c-ovl.cfg -Wl -D,__STACKSIZE__=0x400 -m $(OUT)/term.map -o $@ $(SRC) $(EXTRA) $(SCRAP) $(SYNC) $(VRW) $(SDK)/lib/veranda.lib
+$(OUT)/term.bin: $(SRC) term.h net.h app.hdr $(SCRAP) $(SYNC)
+	$(CC65) $(CFLAGS) -C $(SDK)/cfg/app-c-ovl.cfg -Wl -D,__STACKSIZE__=0x400 -m $(OUT)/term.map -o $@ $(SRC) $(EXTRA) $(SCRAP) $(SYNC) $(SDK)/lib/veranda.lib
 
 $(OUT)/Term.cvt: $(OUT)/term.bin icon.pbm tile.txt
 	python3 -I -B $(SDK)/tools/vpack.py --load 0x0801 -o $@ app.hdr $(OUT)/term.bin $(OUT)/term.bin.1 $(OUT)/term.bin.2 $(OUT)/term.bin.3
@@ -47,6 +42,6 @@ run: $(OUT)/Term.cvt
 	$(SDK)/tools/vrun $(OUT)/Term.cvt
 
 clean:
-	rm -f *.o term.bin term.bin.1 term.bin.2 term.bin.3 term.map Term.cvt scrapio.o scraptbeg.o vrsync.o vrwin.o
+	rm -f *.o term.bin term.bin.1 term.bin.2 term.bin.3 term.map Term.cvt scrapio.o scraptbeg.o vrsync.o
 
 .PHONY: all test run clean

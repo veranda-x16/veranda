@@ -22,7 +22,7 @@
 ;         map's state, the name, the bank table)
 ;   FREC  bank F's record file and the program's overlays (RecVars,
 ;         LdVars: kgen/kvars.inc)
-;   STREAM, and on into the chain's banks: the packed pages (pack.s): the
+;   STREAM, and on into the chain's banks: the packed pages (bank C's pack.s, V189): the
 ;         application's RAM, VRAM, bank 1, bank U
 ; Not kept: what is live (the pointer, the buttons and keys, the clock,
 ; random), r0-r15, open streams or a listing (such a program is asked to
@@ -50,7 +50,6 @@
 .export k_TaskCtl, Roomy, EvictAny, CardOff, CardOn, daOn
 .import used, runF, runN, keep, spare, tb, TakeBank, FreeCount, k_BankFree, BankBit, GiveSpare
 .import XferIn, XferOut, kXA, kXN, kXB, kName, VramBank, kPrefs
-.import PkImgA, PkLenA, PkImgB, PkLenB
 .import kBankBase, k_BankCopy, kMenuRect, sysFont, uiTimer, uiWake, SleepN, kAppName
 .import k_MainLoop, k_CallRoutine, LogStr, LogNL, IsEmu, kSndReq
 .global S_ProcOut, S_ProcIn, S_k_DoDlgBox, S_k_EnterDeskTop, S_k_SetVideoMode, S_FontSel
@@ -470,8 +469,7 @@ DaPack:	LoadW r0, S_kColorOn    ; (Tidy: the map shown or not)
 	cpx #0
 	bne @r
 	pha
-	LoadW r0, PkImgA
-	LoadW r2, PkLenA
+	LoadW r0, PKIMG_A
 	jsr Image
 	pla
 	sta PK_LIST
@@ -490,8 +488,7 @@ DaPack:	LoadW r0, S_kColorOn    ; (Tidy: the map shown or not)
 @ok:	ldx #0
 	rts
 DaUnpack:
-	LoadW r0, PkImgB
-	LoadW r2, PkLenB
+	LoadW r0, PKIMG_B
 	jsr Image
 	ldx #CHAIN_MAX
 @c:	lda daChain,x
@@ -785,8 +782,7 @@ Keep:	; its own banks: what it uses now that no task holds and is not a
 	bpl @2
 	jsr CardOwn             ; (V145) its own banks to the card
 	bcs @fail
-@2:	LoadW r0, PkImgA
-	LoadW r2, PkLenA
+@2:	LoadW r0, PKIMG_A
 	jsr Image
 	LoadW r4, STREAM
 	jsr PK_RUN
@@ -940,18 +936,22 @@ Tidy:	LoadW r0, U_UnderFree
 	LoadB VERA_ADDR_M, >VRAM_FREE
 	LoadB VERA_ADDR_H, ^VRAM_FREE | VERA_INC1
 	LoadW r0, $1F000 - VRAM_FREE
-Zeros:	lda r0L
-	ora r0H
-	beq @r
-@z:	stz VERA_DATA0
-	lda r0L
-	bne @1
-	dec r0H
-@1:	dec r0L
-	lda r0L
-	ora r0H
-	bne @z
-@r:
+Zeros:	ldy r0L                 ; (V189: the part of a page, then the
+	beq @p                  ; pages 8 bytes a step; was 24 cycles a byte)
+@b:	stz VERA_DATA0
+	dey
+	bne @b
+@p:	ldx r0H
+	beq TidyR
+@pg:	ldy #256 / 8
+@w:
+.repeat 8
+	stz VERA_DATA0
+.endrepeat
+	dey
+	bne @w
+	dex
+	bne @pg
 TidyR:	rts
 
 ; bank a used no more
@@ -1001,10 +1001,15 @@ ToS:	lda kBankBase
 	sta r3H
 	jmp k_BankCopy
 
-; a pack image (r0, r2 bytes) to PK_RUN
-Image:	LoadW r1, PK_RUN
+; a pack image (r0: PKIMG_A or PKIMG_B, in bank C) to PK_RUN
+Image:	LoadW r1, PK_RUN        ; (V189: the images in bank C)
+	LoadW r2, PK_MAX
 	stz r3H
-	jmp FromW               ; (r3L = bank W)
+	lda kBankBase
+	clc
+	adc #BANK_C
+	sta r3L
+	jmp k_BankCopy
 
 ;---------------------------------------------------------------
 ; CtxOut: the context into Ctx
@@ -1269,8 +1274,7 @@ Resume:	jsr Used
 	lda tmp+1
 	FARCALL k_SetVideoMode
 	; the chain's list for the image, and the image
-	LoadW r0, PkImgB
-	LoadW r2, PkLenB
+	LoadW r0, PKIMG_B
 	jsr Image
 	lda tmp
 	sta r3L

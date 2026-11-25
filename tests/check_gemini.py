@@ -9,7 +9,8 @@ the wrap) and of render().
 usage: check_gemini.py <session> <run folder> <port>
   sessions: main, nomodem, launch (V128: Veranda Gemini started by the
   shell with the Wikipedia launcher; the run folder's console has the
-  shell's lines too)
+  shell's lines too), quit (V196: qclose, ckey, fmenu: a picture shown,
+  then Quit; the test desktop's lines after Gemini's)
 """
 import os
 import re
@@ -18,8 +19,11 @@ import sys
 SESS, R, PORT = sys.argv[1], sys.argv[2], int(sys.argv[3])
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import png_ref  # noqa: E402
+import jpeg_ref  # noqa: E402
 PICS = ['gray1', 'pal1', 'pal4', 'pal8', 'gray8', 'rgb', 'rgba', 'gray16', 'small', 'comic', 'interlaced', 'corrupt', 'big']
-PICNAMES = [k + '.png' for k in PICS] + ['photo.jpg']
+JPICS = ['photo', 'progressive']        # (V192: shown, refused)
+EXITS = ['wheel', 'click', 'backspace', 'back', 'aside', 'key', 'menu']    # (V196: the ways out of a picture)
+PICNAMES = [k + '.png' for k in PICS[:10]] + ['photo.jpg'] + [k + '.png' for k in PICS[10:]] + ['progressive.jpg']
 raw = open(os.path.join(R, 'log.txt'), encoding='utf-8', errors='replace').read()
 log = raw.split('\n')
 
@@ -44,6 +48,25 @@ def boxes():
 
 need('GE TEST STUCK' not in raw and 'GE TEST FAILED' not in raw and 'GE TEST SCRIPT FULL' not in raw,
      'the test stopped: %s' % re.findall(r'GE TEST (?:STUCK|FAILED|SCRIPT)[^\n]*', raw))
+if SESS == 'quit':                      # (V196) Quit from a picture: Gemini ends, the desktop's lines
+    how = re.findall(r'GE QUIT (\w)$', raw, re.M)
+    need(len(how) == 1, 'the quit: %s' % how)
+    need('GE PIC SHOWN ' in raw and raw.index('GE PIC SHOWN ') < raw.index('GE QUIT '), 'no picture shown first')
+    need('TERMDESK' in raw[raw.index('GE QUIT '):], 'Gemini did not end (no test desktop after the quit): %s'
+         % log[-6:])
+    need('GE END' not in log, 'the session went on')
+    need(not os.path.exists(os.path.join(R, 'VERANDA', '.SYSTEM', 'GEMINI.TMP')), 'GEMINI.TMP left behind')
+    d = open(os.path.join(R, 'dump.bin'), 'rb').read()
+    v = d[len(d) - 132878:]
+    l0 = v[131072 + 256 + 512]
+    need(l0 & 3 != 2 or not v[131072] & 0x10, 'tile mode left on (layer 0 config $%02X)' % l0)
+    pal, kept = v[131072 + 256 + 64:131072 + 256 + 512], v[0x12C00:0x12C00 + 448]
+    need(pal == kept, 'palette entries 32-255 not as they were before the picture (the first unlike: %s)'
+         % next((i // 2 + 32 for i in range(448) if pal[i] != kept[i]), None))
+    ok('Quit (%s) while a picture is shown: Gemini ended at once (the test desktop started after it), GEMINI.TMP '
+       'deleted, tile mode off (layer 0 config $%02X), palette entries 32-255 as before the picture'
+       % ({'q': 'the close box', 'c': 'Ctrl+Q', 'f': 'Veranda Gemini > Quit'}[how[0]], l0))
+    sys.exit(0)
 need('GE END' in log, 'no end')
 
 if SESS == 'nomodem':
@@ -421,6 +444,7 @@ want = [B, B + 'sub/page.gmi', B + 'input', B + 'input?Ada%20Lovelace', B + 'sec
         'https://example.com/page.html', 'https://example.com/varieties/cherry', 'https://example.com/typed',
         B + 'plain.txt', B + 'latin1.gmi', B + 'big.bin', B + 'slow', B, B + 'pics.gmi'] + [
         B + 'pic/%s' % k for k in PICNAMES] + [B + 'pic/pal4.png', B + 'pic/rgb.png'] + [
+        B + 'pic/small.png'] * len(EXITS) + [B + 'pics.gmi'] + [
         WPB + 'view?Ada%20Lovelace', WPB + 'view?Gemini%20%28protocol%29', WPB + 'view?no%20such%20thing',
         WPB + 'search?no+such+thing', WPB + 'view/pl?Warszawa']
 # (V138) Gemipedia's gallery: its page, then its pictures' links (relative: the
@@ -428,7 +452,7 @@ want = [B, B + 'sub/page.gmi', B + 'input', B + 'input?Ada%20Lovelace', B + 'sec
 GAL = ['flag', 'castle', 'map', 'wawel', 'unreachable']
 gal_t = open(os.path.join(F, 'gallery.gmi'), 'rb').read().decode('utf-8')
 gal_links = [l.split(' ')[1] for l in gal_t.split('\n') if l.startswith('=> ')]
-i = len(want) - want[::-1].index(B + 'pic/rgb.png')    # (after the last rgb.png: the toolbar's Save)
+i = len(want) - want[::-1].index(B + 'pics.gmi')       # (after the ways out's Reload, V196: the gallery)
 want[i:i] = [WPB + 'images?Poland'] + [B + gal_links[j][1:] for j in (1, 2, 4, 3)]     # (the order clicked: flag, castle, map, wawel)
 got = [u for u in slog if u != B]
 wantn = [u for u in want if u != B]
@@ -615,7 +639,10 @@ ok('%d connections, each ATCS"host:port" (the modem\'s TLS; the emulator\'s SECU
 groups, cur_pic = {}, None
 for l in log:
     m = re.search(r'GE PIC (\w+)$', l)
-    if m and m.group(1) in PICS + ['photo'] + GAL:
+    if m and m.group(1) == 'exits':     # (V196: small.png shown again and again: not its group)
+        cur_pic = None
+        continue
+    if m and m.group(1) in PICS + JPICS + GAL:
         cur_pic = m.group(1)
         groups[cur_pic] = {'rows': [], 'shown': []}
         continue
@@ -625,24 +652,25 @@ for l in log:
     m = re.search(r'GE PIC SHOWN (\d+)$', l)
     if m and cur_pic:
         groups[cur_pic]['shown'].append(int(m.group(1)))
-need(sorted(groups) == sorted(PICS + ['photo'] + GAL), 'the pictures tried: %s' % sorted(groups))
-done = []
-for k, name in list(enumerate(PICS[:10])) + [(17 + j, GAL[j]) for j in range(3)]:
-    data = png_ref.make(name)
+need(sorted(groups) == sorted(PICS + JPICS + GAL), 'the pictures tried: %s' % sorted(groups))
+done, jdone = [], []
+for k, name in list(enumerate(PICS[:10] + ['photo'])) + [(17 + j, GAL[j]) for j in range(4)]:
+    jpg = name in ('photo', 'wawel')    # (V192: the gallery's Wawel is jpeg_ref's p422)
+    data = jpeg_ref.make('p422' if name == 'wawel' else name) if jpg else png_ref.make(name)
     g = groups[name]
     need(g['shown'], '%s was not shown' % name)
-    if name != 'comic':
+    if name != 'comic' and not jpg:
         ref = png_ref.row_sums(data)
         need([y for y, _ in g['rows']] == list(range(len(ref))), '%s: its rows %s' % (name, [y for y, _ in g['rows']][:8]))
         bad = [y for y, s in g['rows'] if s != ref[y]]
         need(not bad, '%s: rows %s decoded unlike the reference (row %d: %d, not %d)'
              % (name, bad[:6], bad[0] if bad else 0, g['rows'][bad[0]][1] if bad else 0, ref[bad[0]] if bad else 0))
-    d = open(os.path.join(R, 'P%s.DMP' % chr(48 + k)), 'rb').read()
+    d = open(os.path.join(R, 'P%s.DMP' % ('J' if k == 10 else chr(48 + k))), 'rb').read()
     w, h, ow, oh = (int.from_bytes(d[i:i + 2], 'little') for i in (0, 2, 4, 6))
     mode, tw, th, tx, ty = d[8:13]
     pal = [int.from_bytes(d[13 + 2 * i:15 + 2 * i], 'little') & 0xFFF for i in range(16)]
-    m, cols, rw, rh, rtw, rth, rtx, rty, out = png_ref.shown(data)
-    iw, ih = png_ref.info(data)[:2]
+    m, cols, rw, rh, rtw, rth, rtx, rty, out = (jpeg_ref if jpg else png_ref).shown(data)
+    iw, ih = (jpeg_ref.parse(data)['w'], jpeg_ref.parse(data)['h']) if jpg else png_ref.info(data)[:2]
     need((w, h, ow, oh, mode, tw, th, tx, ty) == (iw, ih, rw, rh, m, rtw, rth, rtx, rty),
          '%s: shown as %s, the reference %s' % (name, (w, h, ow, oh, mode, tw, th, tx, ty), (iw, ih, rw, rh, m, rtw, rth, rtx, rty)))
     need(pal == cols, '%s: palette row 2 %s, the reference %s' % (name, pal, cols))
@@ -654,11 +682,13 @@ for k, name in list(enumerate(PICS[:10])) + [(17 + j, GAL[j]) for j in range(3)]
             v = b >> 4 if not x & 1 else b & 15
             if v != out[y][x]:
                 sys.exit('FAIL  %s: the shown picture at %d,%d is %d, the reference %d' % (name, x, y, v, out[y][x]))
-    done.append('%s %dx%d -> %dx%d (%s, %.1f s)' % (name, w, h, ow, oh, ('grey', 'colour', 'palette')[mode],
-                                                    g['shown'][-1] / 60))
+    (jdone if jpg else done).append('%s %dx%d -> %dx%d (%s, %.1f s)' % (
+        name, w, h, ow, oh, ('grey', 'colour', 'palette')[mode], g['shown'][-1] / 60))
 ok('pictures shown (tests/png_ref.py\'s, through the server): each row decoded equal to the reference decoder '
    '(r + 2g + 3b summed, before scaling), the tiles in VRAM index for index the reference\'s scaling and dither, '
    'palette row 2 its colours: ' + '; '.join(done))
+ok('JPEG pictures shown (V192: tests/jpeg_ref.py\'s, through the server, decoded with VERA FX\'s multiplier): the '
+   'tiles in VRAM index for index the reference\'s, the size, the colours: ' + '; '.join(jdone))
 c = groups['comic']
 need(val('GE PIC ASIDE AT ') and 'GE ASIDE' in raw and len(c['shown']) == 1, 'the comic and Alt+Tab: %s' % c)
 need(val('GE PIC HANDLES ') == 2, 'a stream left open before the comic: %s' % val('GE PIC HANDLES '))
@@ -668,13 +698,28 @@ ok('the comic (740 x 300 grey, %d bytes): Alt+Tab at row %d while drawn (the fil
 bx = boxes()
 for b in ('Interlaced PNG pictures are not shown here:|save it (File > Download).', 'The picture is damaged.|',
           'The picture is larger than 56 KB (the limit).|Save it to /DOCUMENTS instead?',
-          "JPEG can't be shown here: save it, or use|the private proxy. Save it to /DOCUMENTS?"):
+          "Progressive JPEGs aren't shown here:|save it (File > Download)."):
     need(b in bx, 'the box %r: %s' % (b, bx[-12:]))
 need(any(b.startswith('The picture gemini://') and 'pal4.png' in b for b in bx), 'Return\'s box: %s' % bx[-6:])
 for name in ('pal4', 'rgb'):
     f = os.path.join(R, 'DOCUMENTS', name + '.png')
     need(os.path.exists(f) and open(f, 'rb').read() == png_ref.make(name), '/DOCUMENTS/%s.png' % name)
 need(not os.path.exists(os.path.join(R, 'VERANDA', '.SYSTEM', 'GEMINI.TMP')), 'GEMINI.TMP left behind')
+
+# ---------------------------------------------------------------- the ways out of a picture (V196)
+shown_c = dict(re.findall(r'GE EXIT SHOWN (\w+) (\d+)$', raw, re.M))
+after = {m[0]: tuple(int(x) for x in m[1:]) for m in re.findall(r'GE EXIT (\w+) (\d+) (\d+) (\d+)$', raw, re.M)}
+need(sorted(shown_c) == sorted(EXITS) and sorted(after) == sorted(EXITS), 'the ways out tried: %s, %s' % (shown_c, after))
+for e in EXITS:
+    need(after[e][:2] == (0, 0), '%s: the picture still shown after it (viewing %d, the address line %d)'
+         % (e, after[e][0], after[e][1]))
+    need(shown_c[e] == '2' and after[e][2] != 2, '%s: layer 0 %s while shown, %d after (2: 4 bpp, tile mode)'
+         % (e, shown_c[e], after[e][2]))
+need('GE EXIT ASIDE BACK' in raw, 'Alt+Tab while the picture was shown')
+ok('the ways out of a picture (small.png, V196): the wheel, a click on it, Backspace, the toolbar\'s Back, the wheel '
+   'after Alt+Tab, a key ("x": the address line, Esc), Go > Reload: each time the page again at once (the viewer off, '
+   'tile mode off: layer 0 4 bpp while shown, 1 bpp after), and the link clicked next followed (small.png shown '
+   'again; after the last, the gallery)')
 
 # ---------------------------------------------------------------- Gemipedia's gallery (V138)
 gp = [p for p in P if p[0] == WPB + 'images?Poland']
@@ -688,17 +733,17 @@ rt = [l for l in log if l.endswith('GE RETRY')]
 need(len(rt) == 2, 'the retries: %d' % len(rt))
 ub = 'Could not connect: refused, or no such host.|' + ('gemini://127.0.0.1:%d/cgi-bin/wp.cgi/media/media.png?https' % CLOSED)[:48] + '...'
 need(ub in bx, 'the unreachable picture\'s box %r: %s' % (ub, bx[-6:]))
-need(sum(1 for b in bx if b.startswith("JPEG can't be shown here")) == 2, 'the JPEG boxes: %s' % bx[-8:])
+need(not any(b.startswith("JPEG can't be shown here") for b in bx), 'a JPEG box: %s' % bx[-8:])
 ok('Gemipedia\'s image gallery (its stand-in: GalleryRenderer\'s lines, MediaProxyUrl\'s links '
    '/cgi-bin/wp.cgi/media/media<ext>?<the Wikimedia thumbnail\'s URL UrlEncode\'d>): the page as the model renders it '
    '(%d rows; [Show image] on the 4 links whose path ends .png or .jpg before the query); the flag: its first '
    'connection refused (the server not listening), "GE RETRY", tried again a second later and shown; a link of %d '
    'characters (%d resolved: rel cut at 128, the rest sent from the page): its request whole, shown; a link with no '
-   'extension answering image/png: shown by its type; the JPEG: its box (No); a closed port: tried twice, then '
+   'extension answering image/png: shown by its type; the JPEG: shown (V192); a closed port: tried twice, then '
    '"%s"' % (len(gm), len(gal_links[2]), len(B) + len(gal_links[2]) - 1, ub))
 
-ok('interlaced: refused ("save it"); damaged: its box; over the limit (56 KB): "Save it instead?" (No); JPEG: '
-   '"can\'t be shown here ... the private proxy" (No); Return on pal4.png: Show/Save/Cancel, No: /DOCUMENTS/pal4.png '
+ok('interlaced: refused ("save it"); damaged: its box; over the limit (56 KB): "Save it instead?" (No); a '
+   'progressive JPEG: refused ("save it"); Return on pal4.png: Show/Save/Cancel, No: /DOCUMENTS/pal4.png '
    'equal; rgb.png shown, the toolbar\'s Save: /DOCUMENTS/rgb.png equal; GEMINI.TMP deleted')
 st = val('GE STACK ')
 need(st is not None and st < 0x300, 'the C stack: %s bytes of %s' % (st, val('GE STACKSIZE ')))

@@ -1,6 +1,7 @@
 /* Veranda shell: the mouse on the desktop and in the windows (overlay
    6; DECISIONS V70): presses, double clicks, dragging a window's title
-   bar or its corner and an icon (an outline on the foreground only), and
+   bar or its corner (an outline on the foreground only) and an icon (its
+   ghost, a sprite: ghost.s, V193; Esc or any menu key lets it go), and
    the drops (win.c says what a drop does). */
 #include <veranda.h>
 #include <string.h>
@@ -112,6 +113,12 @@ unsigned char look3_key(void)
 {
     const unsigned char *p;
     unsigned char k = keyData, m = keyDataMods & (3 | KEYM_ARROW);
+    if (drag == D_ICON || drag == D_DESKDRAG || drag == D_DOCKDRAG) {
+        drag = D_NONE;                  /* (V193) a key during an icon's drag: dropped nowhere, */
+        XCALL(bIc2, ghost_off, FV)();   /* its ghost gone; Esc no more */
+        if (k == KEY_ESC)
+            return 0;
+    }
     for (p = keys; *p; p += 3)
         if (p[0] == k && p[1] == m)
             return p[2];
@@ -329,6 +336,7 @@ static void release_(void)
     unsigned int nx, ny;
     drag = D_NONE;
     unoutline();
+    XCALL(bIc2, ghost_off, FV)();       /* (V193: an icon's ghost) */
     switch (d) {
     case D_ICON:
         ttag = "DROP";
@@ -415,16 +423,20 @@ void win_idle(void)
         if (dx > 3 || dx < -3 || dy_ > 3 || dy_ < -3) {
             ++drag;                     /* (D_ICON, D_DESKDRAG, D_DOCKDRAG) */
             dmods = keyMods;
+            r0 = px;                    /* (V193) the ghost (ghost.s: overlay 16) */
+            r1 = py;
+            r2L = drag - D_ICON;        /* (0 a window's, 4 the desktop's, 7 the dock's) */
+            r2H = wins[dwin].view;
+            r3L = drag == D_ICON ? wins[dwin].sel : dent;
+            r3H = dwin;
+            XCALL(bIc2, ghost_start, FV)();
         } else
             break;
         /* (on) */
     case D_ICON:
     case D_DESKDRAG:
     case D_DOCKDRAG:
-        if (y < 16)
-            y = 16;
-        outline(x > 12 ? x - 12 : 0, y > 26 ? y - 10 : 16, x + 11 < SW ? x + 11 : SW - 1,
-                y + 10 < SH ? y + 10 : SH - 1);
+        XCALL(bIc2, ghost_move, FV)();  /* (V193: the ghost, not an outline) */
         dmods |= keyMods;
         break;
     case D_MOVE:

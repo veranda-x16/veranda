@@ -17,8 +17,11 @@ host:port` first, with ", connecting" or ", closing"), Telnet or Raw TCP,
 Local echo, Capture, Sending a file, the XMODEM block, "Back n of m" in
 the scrollback, Lost and the bytes lost, fields apart by a gap; at its
 right the UART's address (or Script) and the line. Its code is in
-overlay 3 (`hosts.c`'s `o_status`, with the SDK's `vrwin.c` compiled
-there). The 80 columns fill the screen's 640 pixels, so the scrollback
+overlay 3 (`hosts.c`'s `o_status`, drawn as the SDK's `vr_win_status`
+draws a status bar). It is drawn only when its text changes, and then
+only from the first character that changed (the online time: its
+seconds' digits); the terminal's cursor is drawn again only when it
+moves or its row changes (DECISIONS V194). The 80 columns fill the screen's 640 pixels, so the scrollback
 has no scroll bar (a 2-card bar would cost 2 columns, and NAWS reports
 80). Menus, dialog boxes and desk accessories open over it and give it
 back with its colours (the kernel's colour map polish, V33). Telnet's
@@ -36,7 +39,12 @@ The menus (Sunroom's lists, V146: groups, keys at the right):
 The pages (settings, the address book, the hosts) have a heading in the
 UI font (bold), a line of help and a rule; the lists' column heads in
 bold, their rows 16 lines high in the window's cells, the chosen one
-inverted; the settings in three groups.
+inverted; the settings in three groups. The address book and the Hosts
+page take the mouse too (DECISIONS V195): a click on a row chooses it,
+a double click dials or connects (as Return), and five buttons under the
+list stand for keys: Dial, New, Edit, Delete, Back (Return, N, E, X,
+Esc) and Connect, Other host, New, Remove, Back (Return, C, N, X, Esc).
+Both lists fit their page (16 and 11 rows), so neither scrolls.
 
 Keys: everything goes to the host (arrows, Home, End, Insert, Delete and
 F1-F4 as VT100/xterm sequences; Ctrl + a letter its control code; STOP
@@ -49,7 +57,8 @@ Alt+H hang up, Alt+X download, Alt+Q quit.
 
 Connection > Connect... opens the Hosts page in the window: up to 11
 hosts, each with a name, `host:port` and a mode, **Telnet** or **raw**
-TCP. 1-9, A, B or Up/Down choose one, Return connects; **C** connects to
+TCP. A click, 1-9, A, B or Up/Down choose one, a double click or Return
+(the Connect button) connects; **C** connects to
 another host (three boxes: the host, letters, digits, `.` and `-`; the
 port, 23 by default; T or R), **N** adds one (a name first; the list is
 written at once), **X** removes the chosen one, Esc goes back. The list

@@ -11,7 +11,9 @@
 ; compares the two consoles: they must be the same.
 ;
 ; Then the timings, interrupts off, 8192 bytes: TIME <name> <cycles, hex>
-; (lo2bank, bank2lo, bank2bank, samebank), the kernel's and RefCopy's.
+; (lo2bank, bank2lo, bank2bank, samebank; V187: 16 bytes, a page, 8 KB
+; not on page boundaries, a bank to another into their next ones), the
+; kernel's and RefCopy's.
 ; Console: BC <case> <a> <y> <bank> <r0-r4> <sum>, BC AREA <sum>, BC DONE.
 
 .include "veranda.inc"
@@ -451,7 +453,7 @@ Timings:
 	clc
 	adc #8
 	tax
-	cpx #8 * 4
+	cpx #TDescEnd - TDesc
 	bne @t
 	rts
 
@@ -618,11 +620,28 @@ TDesc:	.word LO, $A000
 	.word $A000, $B000
 	.byte 2, 2
 	.word 4096
-TName:	.word N1, N2, N3, N4
+	.word LO, $A000         ; (V187) 16 bytes
+	.byte 0, 0
+	.word 16
+	.word LO, $A000         ; a page
+	.byte 0, 0
+	.word 256
+	.word LO + 3, $A005     ; 8 KB, not on page boundaries
+	.byte 0, 0
+	.word 8192
+	.word $B100, $B800      ; from a bank to another, both into their next
+	.byte 0, 1
+	.word 8192
+TDescEnd:
+TName:	.word N1, N2, N3, N4, N5, N6, N7, N8
 N1:	.byte "lo2bank", 0
 N2:	.byte "bank2lo", 0
 N3:	.byte "bank2bank", 0
 N4:	.byte "samebank4k", 0
+N5:	.byte "lo2bank16", 0
+N6:	.byte "lo2bank256", 0
+N7:	.byte "odd8k", 0
+N8:	.byte "bank2bankx", 0
 MsgBC:	.byte "BC ", 0
 MsgArea: .byte "BC AREA ", 0
 MsgDone: .byte "BC DONE", 0

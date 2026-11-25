@@ -385,6 +385,13 @@ static unsigned char on(unsigned int x, unsigned int y)
     return n && x >= L0() && x <= R0() && y >= T0() && y <= B0();
 }
 
+/* (V193, mouse.c's ghost) item i's tile's corner: vx, vy */
+void dock_tile(unsigned char i)
+{
+    vx = CX(i) * 8;
+    vy = (top + 1) * 8;
+}
+
 /* (V163, mouse.c) a drop at x, y: off the dock $FF; on its trash $FE (V152:
    a file dropped there is deleted, a pin unpinned); else the place among
    the pins before the first whose middle is right of x */

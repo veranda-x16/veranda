@@ -14,11 +14,14 @@
    show the tiles), the picture decoded a slice at a time from the main
    loop (png.c, pngcore.s: overlay 5; the menus off meanwhile: they would
    come back from the back screen, which holds the decoder's window), its
-   palette row 2. Esc (or Backspace, Left, the toolbar's Back) goes back
-   to the page; S, Ctrl+S or the toolbar's Save button copies the file to
-   /DOCUMENTS (named by the URL; "Replace?"). Alt+Tab while it is drawn:
-   the file closed (main.c's aside), drawn again from the start when back.
-   Going anywhere else (a menu: Back, Home ...) closes it first.
+   palette row 2. S, Ctrl+S or the toolbar's Save button copies the file
+   to /DOCUMENTS (named by the URL; "Replace?"); anything else goes back
+   to the page first (V196: ui.c's leave; i_off here, the page drawn
+   again there): Esc, Backspace, Left, the toolbar's Back, a click on the
+   picture or the wheel just that; another key, a click on the toolbar,
+   the close box, a menu's item then do what they do on the page (Quit,
+   Ctrl+Q: Gemini ends). Alt+Tab while it is drawn: the file closed
+   (main.c's aside), drawn again from the start when back.
 
    MIT licence (see LICENSE). */
 #include <veranda.h>
@@ -121,6 +124,7 @@ static unsigned char start(void)
     png_h = tmp_open('r');
     if (!png_h)
         return PE_DATA;
+    pjpeg = pic_head[0] == 0xFF && pic_head[1] == 0xD8;      /* (V192: png.c hands a JPEG on) */
     ov5(png_open_v);
     if (u_ret)
         return u_ret;
@@ -161,7 +165,8 @@ void i_off(void)
 }
 
 static const char *const why[] = { "", "", "This is not a PNG picture.", "The picture is damaged.",
-    "Interlaced PNG pictures are not shown here:", "The picture is too big to be shown here:" };
+    "Interlaced PNG pictures are not shown here:", "This picture can't be shown here:",
+    "Progressive JPEGs aren't shown here:" };
 
 /* a failed picture: its box, the viewer gone */
 static void __fastcall__ failed(unsigned char e)
@@ -299,8 +304,8 @@ void i_tick(void)
     viewing = 2;
     WImprintRectangle(0, 0, 639, 479);  /* (menus and boxes come back from the back screen) */
     mouseOn |= SET_MENUON;
-    strcpy(msg, "PNG ");
-    unum(msg + 4, pw);
+    strcpy(msg, pjpeg ? "JPEG " : "PNG ");
+    unum(msg + strlen(msg), pw);
     strcat(msg, " x ");
     unum(msg + strlen(msg), ph);
     strcat(msg, ", shown at ");
@@ -350,24 +355,37 @@ static void save(void)
     pstatus(msg);
 }
 
-/* the viewer's keys: Esc, Backspace, Left: the page; S, Ctrl+S: save */
+/* (V196: main.c's pic_in, which leaves the picture unless u_ret is 1)
+   the viewer's keys: u_ret 1 S, Ctrl+S (saved), 2 Esc, Backspace, Left
+   (just the page), 0 any other (the page's then) */
 void i_key(void)
 {
     unsigned char k = keyData;
-    if (k == KEY_ESC || k == 8 || (k == KEY_LEFT && (keyDataMods & KEYM_ARROW)))
-        off();
-    else if (k == 's' || k == 'S' || k == 19)
+    u_ret = 0;
+    if (k == 's' || k == 'S' || k == 19) {
         save();
+        u_ret = 1;
+    } else if (k == KEY_ESC || k == 8 || (k == KEY_LEFT && (keyDataMods & KEYM_ARROW)))
+        u_ret = 2;
 }
 
-/* the viewer's clicks: the toolbar's Back (the page), Save (Go's place) */
+/* the viewer's clicks: u_ret 1 the toolbar's Save (Go's place: saved), 2
+   on the picture or the toolbar's Back (just the page), 0 the rest (the
+   page's then: the toolbar's other buttons, the address line, the close
+   box) */
 void i_press(void)
 {
-    unsigned int x = mouseXPos >> 3, y = mouseYPosW;
-    if (mouseData & 0x80 || y < TOOLY || y >= TOOLY + 14)
-        return;
-    if (x >= BX && x < BX + 3)
-        off();
-    else if (x >= GOX && x < GOX + 6)
-        save();
+    unsigned char x = mouseXPos >> 3;
+    unsigned int y = mouseYPosW;
+    u_ret = 0;
+    if (y >= BODYY)
+        u_ret = 2;
+    else if (y >= TOOLY && y < TOOLY + 14) {
+        if (x < BX + 3)
+            u_ret = 2;
+        else if (x >= GOX && x < GOX + 6) {
+            save();
+            u_ret = 1;
+        }
+    }
 }

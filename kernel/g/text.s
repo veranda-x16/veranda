@@ -50,6 +50,7 @@ stBase:	.res 2                  ; the baseline of the run
 stRev:	.res 1                  ; $FF: reversed
 chW:	.res 1                  ; the character's width (with styles)
 chGW:	.res 1                  ; its glyph's width (from the index table)
+chIdx:	.res 1                  ; (V188) its glyph (0-95; $FF: a high one)
 chSrc   = kTmp + 2              ; (2) bit position in the font's rows (V141: zero
 				; page, where bank G2's HiLook gives it)
 lastW:	.res 1
@@ -57,7 +58,6 @@ yb:	.res 2                  ; baseline (wide)
 row:	.res 1
 rowSrc:	.res 2
 dbit:	.res 1
-dbyte0:	.res 1
 sShift:	.res 1
 sVec:	.res 2
 stUL:	.res 1
@@ -352,7 +352,8 @@ GlyLo:	bit sysFont             ; the system font, no bold or italic: fast
 .else
 @sl:	jmp SysSlow             ; (bold, italic: V122; its pla there)
 .endif
-@slow:	asl
+@slow:	sta chIdx               ; (V188: the UI font's bounds, LookRows)
+	asl
 	tay
 	lda (curIndexTable),y
 	sta chSrc
@@ -533,21 +534,19 @@ GlyphFast:
 	AddVW SysRows, kPtr2
 	lda #SYS_H
 GlyphRun:                       ; (a = rows, kPtr2 their left aligned bytes: UiFast too)
+	ldx #0
+GlyphRunX:                      ; (V188: from row x)
 	sta row
-	lda #0
+	txa
 	jsr StripRow
 	lda stBit
 	and #7
 	sta sShift
-	lda stBit
-	lsr
-	lsr
-	lsr
-	sta dbyte0
-	; the shift by sShift: a jump into the unrolled chain below
-	lda sShift
+	; the shift by sShift: a jump into the unrolled chain below (V188: 3
+	; bytes a step, a shifted; y the strip byte, x the rows)
+	sta kTmp
 	asl
-	asl
+	adc kTmp
 	sta kTmp
 	lda #<ChainEnd
 	sec
@@ -556,18 +555,21 @@ GlyphRun:                       ; (a = rows, kPtr2 their left aligned bytes: UiF
 	lda #>ChainEnd
 	sbc #0
 	sta sVec+1
+	lda stBit
+	lsr
+	lsr
+	lsr
+	tay
+	ldx row
 FRow:	lda (kPtr2)
-	sta kTmp+2
 	stz kTmp+3
 	jmp (sVec)
 Chain:
 .repeat 7
-	lsr kTmp+2
+	lsr a
 	ror kTmp+3
 .endrepeat
 ChainEnd:
-	ldy dbyte0
-	lda kTmp+2
 	ora (kPtr),y
 	sta (kPtr),y
 	iny
@@ -577,13 +579,13 @@ ChainEnd:
 	inc kPtr2
 	bne @2
 	inc kPtr2+1
-@2:	lda kPtr
-	clc
-	adc #STRIP_W
-	sta kPtr
+@2:	tya                     ; the next strip row: y + STRIP_W - 1 (kPtr's
+	clc                     ; page + 1 past 255)
+	adc #STRIP_W - 1
+	tay
 	bcc @3
 	inc kPtr+1
-@3:	dec row
+@3:	dex
 	bne FRow
 .assert >FRow = >*, lderror, "GlyphFast's row loop crosses a page (a cycle a row more)"
 	jmp Underline
@@ -641,12 +643,17 @@ UiFast:	lda fontBank
 	sta kPtr2+1
 	MoveB sShift, kTmp
 	MoveB chGW, kTmp+1
-	ldx #LK_ROWS
+	ldy chIdx               ; (V188: only its rows with pixels, from x:
+	ldx #LK_ROWS            ; a of them)
 	FARCALL Look
+	pha
 	MoveW kPtr, kPtr2
-	lda curHeight
-	jsr GlyphRun            ; (its Underline returns here)
-	tsx
+	pla
+	beq @ul
+	jsr GlyphRunX           ; (its Underline returns here)
+	bra @fix
+@ul:	jsr Underline
+@fix:	tsx
 	txa
 	clc
 	adc curHeight
@@ -823,6 +830,8 @@ GcwHi:	phx
 	jmp GcwLo
 GlyHi:	jsr HiCall              ; chSrc (kTmp + 2) the glyph's bit, a its high
 	bcs @q                  ; byte; c set: none
+	ldy #$FF                ; (V188: no bounds known)
+	sty chIdx
 	jmp GlySrc
 @q:	lda #'?' - 32
 	jmp GlyLo

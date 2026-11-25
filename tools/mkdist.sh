@@ -356,11 +356,11 @@ VERANDA GEMINI
     (with TLS: the modem always speaks TLS).
 
   Pictures: a link to a picture has [Show image] after it; click it (or
-  Tab to it and press Return: Yes show, No save) and a PNG is shown in
-  the window in 16 colours (scaled to fit, dithered; Esc back to the page;
-  Save or S copies it to /DOCUMENTS). Interlaced PNGs, JPEG, GIF and the
-  others are not shown: save them. With Pillow on the PC
-  (pip install pillow), web_proxy.py turns JPEG, GIF, WebP and BMP into
+  Tab to it and press Return: Yes show, No save) and a PNG or a JPEG is
+  shown in the window in 16 colours (scaled to fit, dithered; Esc back to
+  the page; Save or S copies it to /DOCUMENTS). Interlaced PNGs,
+  progressive JPEGs, GIF and the others are not shown: save them. With
+  Pillow on the PC (pip install pillow), web_proxy.py turns them into
   PNGs Veranda Gemini shows. File > Settings... sets the largest picture
   shown without asking (256 KB). Common emoji and symbols show as short
   ASCII (>> << * !); others as ?.

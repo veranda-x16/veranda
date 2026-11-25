@@ -595,10 +595,17 @@ static void draw_row(unsigned char r)
     dirty[r] = 0;
 }
 
+#ifdef TERM_TEST
+unsigned int vt_curdraws;       /* (gate term_tcp's idle: the cursor's inversions) */
+#endif
+
 static void cursor(void)
 {
     unsigned int x = cur_c << 3, y = TY + (cur_r << 3);
     WInvertRectangle(x, y, x + 7, y + 7);
+#ifdef TERM_TEST
+    ++vt_curdraws;
+#endif
 }
 
 /* everything waiting; 0 if drawing is not possible now */
@@ -607,6 +614,15 @@ static unsigned char flush(void)
     unsigned char r;
     if (!can_draw())
         return 0;
+    /* (V194) nothing changed: nothing drawn. Each pass of the main loop
+       took the cursor off and put it back, its cell inverted twice
+       (a flicker on a real monitor) */
+    if (!pend && cur_r == (curshow ? vt_cy : 255) && (!curshow || cur_c == vt_cx)) {
+        for (r = 0; r < ROWS && !dirty[r]; ++r)
+            ;
+        if (r == ROWS)
+            return 1;
+    }
     dispBufferOn = ST_WR_FORE;
     if (cur_r != 255) {
         cursor();

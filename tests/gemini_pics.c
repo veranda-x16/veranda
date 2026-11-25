@@ -1,5 +1,5 @@
 /* gate gemini (DECISIONS V125): Veranda Gemini's test build, its second
-   overlay (8): the pictures' part of session main (tests/gemini_play.c's
+   overlay (9; 8 until V192): the pictures' part of session main (tests/gemini_play.c's
    step 45 calls t_pics through main.c's t_ov7 until t_pics_done). Its
    own copies of the player's helpers (the script in gemini_play.c's
    scr, main RAM).
@@ -7,7 +7,8 @@
    The pictures' page (tests/gemini_server.py's /pics.gmi); each picture's
    link clicked: shown (its rows' sums logged by png.c, "GE IROW y sum";
    its tiles dumped to P<k>.DMP; Esc), or its box (interlaced, damaged:
-   OK; over the limit, JPEG: No); the comic (740 x 300, 40 KB) put aside
+   OK; over the limit: No; V192: photo.jpg shown, progressive.jpg: its box,
+   OK); the comic (740 x 300, 40 KB) put aside
    with Alt+Tab while it is drawn (drawn again when back; its time
    "GE PIC SHOWN frames" without the sums); Return on pal4.png: the box,
    No (saved to /DOCUMENTS); rgb.png shown and the toolbar's Save.
@@ -17,9 +18,19 @@
    refused by the server: tried again a second later), a picture behind
    a link of 281 characters (the request's rest from the page), a map
    behind a link with no extension (shown by its MIME type, image/png),
-   a JPEG (its box: No), a picture on a port nothing listens on (tried
-   twice, then the box with the address: OK); dumped to PA.DMP, PB.DMP,
-   PC.DMP. Screens: PICRGB.RAW, PICCOMIC.RAW, GALLERY.RAW, PICFLAG.RAW.
+   a JPEG (shown since V192), a picture on a port nothing listens on
+   (tried twice, then the box with the address: OK); dumped to PA.DMP,
+   PB.DMP, PC.DMP, PD.DMP. Screens: PICRGB.RAW, PICCOMIC.RAW, GALLERY.RAW, PICFLAG.RAW.
+   (V196) Between them the ways out of a picture: small.png shown, then
+   left by the wheel, a click on it, Backspace, the toolbar's Back, the
+   wheel after Alt+Tab, a key ("x": the address line, then Esc), Go >
+   Reload; "GE EXIT SHOWN <how> <layer 0's depth>" before (2: 4 bpp,
+   tile mode), "GE EXIT <how> <viewing> <v_edit> <layer 0's depth>" after
+   and the next one's link clicked (followed: shown again; the last
+   one's: the gallery). Screens: EXITPIC.RAW (shown), EXITWHEEL.RAW
+   (after the wheel). Sessions qclose, ckey, fmenu (gemini_play.c's
+   t_quit): small.png shown, then the close box, Ctrl+Q, Veranda Gemini > Quit:
+   Gemini ends (the test desktop's log follows).
 
    MIT licence (see LICENSE). */
 #include <veranda.h>
@@ -28,9 +39,9 @@
 #include <vrser.h>
 #include "../apps/gemini/gemini.h"
 #include "../apps/gemini/png.h"
-#pragma code-name ("OVERLAY8")
-#pragma rodata-name ("OVL8RO")
-#pragma bss-name ("OVL8BSS")
+#pragma code-name ("OVERLAY9")
+#pragma rodata-name ("OVL9RO")
+#pragma bss-name ("OVL9BSS")
 
 void __fastcall__ term_play(const unsigned int *script);
 extern unsigned int scr[3 * 40], stopper[3];
@@ -45,16 +56,23 @@ extern unsigned char t_pics_done, t_pics_prog;  /* (main.c's: gemini_play.c read
 #define CANCELX 400
 
 static const char *const pn[] = { "gray1", "pal1", "pal4", "pal8", "gray8", "rgb", "rgba", "gray16", "small",
-    "comic", "interlaced", "corrupt", "big", "photo" };
-#define P_SHOWN 10                      /* (the first 10 are shown; the others: a box) */
+    "comic", "photo", "interlaced", "corrupt", "big", "progressive" };
+#define P_SHOWN 11                      /* (the first 11 are shown; the others: a box) */
 #define P_COMIC 9
+#define P_JPEG(k) ((k) == 10 || (k) == 14)      /* (V192: photo.jpg shown, progressive.jpg refused) */
+#define P_BIG 13
 static unsigned char ps, pk, asided, nbox, gk;
 static const char *const gl[] = { "Flag of Poland [Show image]", "Biskupin, a reconstruction [Show image]",
     "Image: a map of Poland", "Wawel Castle in Krak\xF3w [Show image]", "Unreachable [Show image]" };
 static const char *const gn[] = { "flag", "castle", "map", "wawel", "unreachable" };
-#define G_SHOWN 3                       /* (the first 3 shown; the JPEG's box: No; the unreachable one's: OK) */
+#define G_SHOWN 4                       /* (the first 4 shown, the JPEG too: V192; the unreachable one's box: OK) */
 static unsigned int tplay, tlen;
 static char pl[48];
+extern unsigned char t_quit;            /* (gemini_play.c's, main RAM: 'q' 'c' 'f' the quit sessions, V196) */
+#define F_WHEEL 0x0400                  /* (term_play.s: x notches) */
+#define F_MOD 0x0800                    /* (term_play.s: the ROM's modifiers, 4 Ctrl) */
+static unsigned char ek;                /* (V196) the way out tried */
+static const char *const en[] = { "wheel", "click", "backspace", "back", "aside", "key", "menu" };
 
 #define VCTRL  (*(volatile unsigned char *)0x9F25)
 #define VAL    (*(volatile unsigned char *)0x9F20)
@@ -86,6 +104,17 @@ static void C(unsigned int f, unsigned int x, unsigned int y)
     S(f, x, y, 0);
     S(f + 3, x, y, F_BTN);
     S(f + 7, x, y, 0);
+}
+
+extern unsigned int barx[4], barl[4];
+
+/* (V196) menu m's item n (as gemini_play.c's) */
+static void M(unsigned int f, unsigned char m, unsigned char n)
+{
+    S(f, barx[m], 7, 0);
+    S(f + 1, barx[m], 7, F_BTN);
+    S(f + 2, barl[m] + 12, 24, 0);
+    C(f + 20, barl[m] + 12, 24 + 16 * n);
 }
 
 static void go_(void)
@@ -210,7 +239,7 @@ static void dump(void)
 {
     unsigned char h, tx, ty, i, n = 0, lo, hi;
     strcpy(rel, VR_ROOTPATH "P0.DMP");
-    rel[strlen(rel) - 5] += pk;
+    rel[strlen(rel) - 5] = pk == 10 ? 'J' : '0' + pk;    /* (V192: photo.jpg PJ, not P:) */
     h = FOpen(rel, 'w');
     if (h < 2 || h > 4) {
         say("GE PIC DUMP FAILED");
@@ -267,6 +296,10 @@ void t_pics(void)
     unsigned char n;
     switch (ps) {
     case 1:
+        if (t_quit) {                   /* (V196: the quit sessions) */
+            ps = 40;
+            return;
+        }
         if (!idle() || !doc_done || viewing)
             return;
         if (pk == sizeof pn / sizeof pn[0]) {
@@ -278,11 +311,11 @@ void t_pics(void)
         gt_log(pl);
         png_sums = pk != P_COMIC;
         strcpy(pl, pn[pk]);
-        strcat(pl, pk == 13 ? ".jpg [Show image]" : ".png [Show image]");
+        strcat(pl, P_JPEG(pk) ? ".jpg [Show image]" : ".png [Show image]");
         click(pl);
         if (pk >= P_SHOWN) {
             W();
-            C(tlen + 30, pk < 12 ? YESX : CANCELX, 272);        /* (a box's OK; Yes/No's No) */
+            C(tlen + 30, pk != P_BIG ? YESX : CANCELX, 272);    /* (a box's OK; Yes/No's No) */
         }
         go_();
         break;
@@ -349,7 +382,105 @@ void t_pics(void)
         say("GE PIC SAVED");
         S(10, 0x1B, 0, F_KEY);
         go_();
+        ps = 30;                        /* (V196: the ways out, then the gallery) */
+        ++t_pics_prog;
+        return;
+    case 30:                            /* (V196) small.png's link: shown */
+        if (!idle() || !doc_done || viewing || v_edit)
+            return;
+        if (ek == sizeof en / sizeof en[0]) {
+            ps = 14;
+            return;
+        }
+        if (!ek)
+            say("GE PIC exits");
+        png_sums = 0;
+        click("small.png [Show image]");
+        go_();
         break;
+    case 31:                            /* shown: the way out */
+        if (viewing != 2 || !played())
+            return;
+        strcpy(pl, "GE EXIT SHOWN ");
+        strcat(pl, en[ek]);
+        strcat(pl, " ");
+        unum(pl + strlen(pl), *(volatile unsigned char *)0x9F2D & 3);   /* (VERA L0_CONFIG: 2 4 bpp, tile mode) */
+        gt_log(pl);
+        if (!ek)
+            snap("EXITPIC.RAW");
+        switch (ek) {
+        case 0: S(10, 1, 0, F_WHEEL); break;
+        case 1: C(10, 320, BODYY + 150); break;
+        case 2: S(10, 8, 0, F_KEY); break;
+        case 3: C(10, 16, 40); break;  /* (the toolbar's Back) */
+        case 4:                         /* Alt+Tab, back: then the wheel */
+            t_aside = 0;
+            switchReq = SWITCH_ASIDE;
+            ps = 33;
+            ++t_pics_prog;
+            return;
+        case 5:                         /* "x": the page's address line, Esc leaves it */
+            S(10, 'x', 0, F_KEY);
+            S(40, 0x1B, 0, F_KEY);
+            break;
+        case 6: M(10, 2, 2); break;     /* Go > Reload */
+        }
+        go_();
+        break;
+    case 32:                            /* the page again, at once */
+        if (!played() || (ek == 6 && !idle()))
+            return;
+        strcpy(pl, "GE EXIT ");
+        strcat(pl, en[ek]);
+        strcat(pl, " ");
+        unum(pl + strlen(pl), viewing);
+        strcat(pl, " ");
+        unum(pl + strlen(pl), v_edit);
+        strcat(pl, " ");
+        unum(pl + strlen(pl), *(volatile unsigned char *)0x9F2D & 3);   /* (VERA L0_CONFIG: 2 4 bpp, tile mode) */
+        gt_log(pl);
+        if (!ek)
+            snap("EXITWHEEL.RAW");
+        ++ek;
+        ps = 30;
+        ++t_pics_prog;
+        return;
+    case 33:                            /* (back from Alt+Tab: the picture drawn again) */
+        if (!t_aside || pic_redo || viewing != 2)
+            return;
+        say("GE EXIT ASIDE BACK");
+        S(10, 1, 0, F_WHEEL);
+        go_();
+        ps = 32;
+        ++t_pics_prog;
+        return;
+    case 40:                            /* (V196, the quit sessions) small.png shown */
+        if (!idle() || !doc_done || viewing)
+            return;
+        png_sums = 0;
+        click("small.png [Show image]");
+        go_();
+        break;
+    case 41:                            /* then the close box, Ctrl+Q, Veranda Gemini > Quit */
+        if (viewing != 2 || !played())
+            return;
+        snap("QUITPIC.RAW");
+        strcpy(pl, "GE QUIT ");
+        pl[8] = t_quit;
+        pl[9] = 0;
+        gt_log(pl);
+        if (t_quit == 'q')
+            C(10, 628, 23);
+        else if (t_quit == 'c') {
+            S(10, 4, 0, F_MOD);
+            S(14, 17, 0, F_KEY);
+            S(40, 0, 0, F_MOD);
+        } else
+            M(10, 0, 1);
+        go_();
+        break;
+    case 42:                            /* (Gemini ends) */
+        return;
     case 14:                            /* (V138) Gemipedia's gallery */
         if (!idle() || viewing)
             return;
@@ -374,7 +505,7 @@ void t_pics(void)
         click(gl[gk]);
         if (gk >= G_SHOWN) {
             W();
-            C(tlen + 30, gk == G_SHOWN ? CANCELX : YESX, 272);        /* (the JPEG's No; the box's OK) */
+            C(tlen + 30, YESX, 272);    /* (the box's OK) */
         }
         go_();
         break;
@@ -389,7 +520,7 @@ void t_pics(void)
         }
         if (viewing != 2 || !played())
             return;
-        pk = 17 + gk;                   /* (PA.DMP, PB.DMP, PC.DMP) */
+        pk = 17 + gk;                   /* (PA.DMP, PB.DMP, PC.DMP, PD.DMP) */
         dump();
         if (!gk)
             snap("PICFLAG.RAW");
@@ -434,7 +565,7 @@ void t_menu7(void)
 void t_pics_init(void)
 {
     ps = 1;
-    pk = asided = nbox = gk = 0;
+    pk = asided = nbox = gk = ek = 0;
     tlen = 0;
     t_pics_done = 0;
 }

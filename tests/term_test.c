@@ -19,6 +19,15 @@
      clock   connect/clock from network, the box's YES clicked
      dex     started by Dex's Connect with DEX.TEL (gate da): it dials the
              document's host; the end once online (or 2 s without a UART)
+     idle    (V194, gate term_tcp) the modem found, then 10 s with nothing
+             happening: the status bar's draws (whole, in part), the
+             cursor's and the bytes sent in them logged ("TERM IDLE");
+             then Capture on (the status changes: drawn in part); the end
+     mouse   (V195, gate term_tcp) the pages with the mouse: stop h the
+             Hosts page, the 2nd and 3rd rows clicked; d those, then a
+             double click on the 3rd (it connects); a the address book,
+             row 9 clicked; b a double click on row 9 (it dials); e row 8
+             clicked, then the Dial button
    The end: TERM.SCR written, a line logged, VRAM dumped. */
 
 void __fastcall__ term_play(const unsigned int *script);
@@ -31,7 +40,9 @@ static unsigned char tstep, tstop;
 static unsigned int tt, tidle, tbase;
 static unsigned long tlast;
 static unsigned int tfirst, tend;
+#ifndef TERM_UI
 static unsigned long tbytes;
+#endif
 
 #define F_BTN 0x100
 #define F_KEY 0x8000
@@ -65,6 +76,7 @@ static void M(unsigned int f, unsigned int x, unsigned int ix, unsigned char n)
     C(f + 20, ix, 24 + 16 * n);         /* (the Veranda look's lists: 16 lines an item, V74) */
 }
 
+#ifndef TERM_UI
 static unsigned int typed(unsigned int f, const char *s)
 {
     while (*s) {
@@ -73,6 +85,7 @@ static unsigned int typed(unsigned int f, const char *s)
     }
     return f;
 }
+#endif
 
 static void go(void)
 {
@@ -112,7 +125,9 @@ static char *word(char *p, char *out)
 }
 
 static char sess[8], stopw[8], nb[4], tport[6];
+#ifndef TERM_UI
 static unsigned char tsent;
+#endif
 
 static void test_start(void)
 {
@@ -139,7 +154,7 @@ static void test_start(void)
     tbase = ser_frames;
 }
 
-static char logl[40];
+static char logl[64];
 
 static void logn(const char *k, unsigned int v)
 {
@@ -158,6 +173,8 @@ static void the_end(void)
     logn("TERM LOST ", ser_lost);
     logn("TERM OE ", ser_oe);
     logn("TERM TN ", tn_seen);
+    logn("TERM ST FULL ", st_draws);    /* (V194) */
+    logn("TERM ST PARTS ", st_parts);
     LogText("TERM END");
     term_dump();
 }
@@ -175,6 +192,7 @@ static unsigned char quiet(unsigned int n)
     return ser_frames - tidle > n && rx_total;
 }
 
+#ifndef TERM_UI                 /* (the full test build: every session but idle and mouse) */
 /* (V112) the TCP sessions: net <stop> <baud> <tz> <port> (gate term_tcp) */
 static void test_net(unsigned char q)
 {
@@ -238,6 +256,78 @@ static void test_net(unsigned char q)
         the_end();
 }
 
+#else                           /* (TERM_UI: gate term_tcp's second test build, idle and mouse) */
+/* (V194) idle: nothing drawn, nothing sent */
+static unsigned int i_st, i_pt, i_cu;
+static unsigned char i_tx;
+
+static void idle_log(const char *k)
+{
+    char *p = put_str(logl, k);
+    p = put_num(put_str(p, " STATUS "), st_draws - i_st);
+    p = put_num(put_str(p, " PARTS "), st_parts - i_pt);
+    p = put_num(put_str(p, " CURSOR "), vt_curdraws - i_cu);
+    put_num(put_str(p, " TX "), (unsigned char)(ser_txhead - i_tx))[0] = 0;
+    LogText(logl);
+}
+
+static void test_idle(void)
+{
+    if (tstep == 1 && !syncing && tt >= 120) {
+        i_st = st_draws;
+        i_pt = st_parts;
+        i_cu = vt_curdraws;
+        i_tx = ser_txhead;
+        tbase = ser_frames;
+        tstep = 2;
+    } else if (tstep == 2 && tt >= 600) {
+        idle_log("TERM IDLE 10S");
+        i_st = st_draws;
+        i_pt = st_parts;
+        i_cu = vt_curdraws;
+        capture_start("IDLE.TXT");      /* (the status: Capture added) */
+        idle_log("TERM IDLE CAPTURE");
+        tbase = ser_frames;
+        tstep = 3;
+    } else if (tstep == 3 && tt >= 60)
+        the_end();
+}
+
+/* (V195) the pages with the mouse: rows at LISTTOP + 16 i */
+#define ROWY(i) (LISTTOP + 16 * (i) + 8)
+
+static void test_mouse(void)
+{
+    unsigned char h = tstop == 'h' || tstop == 'd';
+    if (tstep != 1 || syncing || tt < 60)
+        return;
+    M(0, barx[2], mconn.left + 12, h ? 0 : 2);     /* Connect... or Address book */
+    if (h) {
+        C(60, 300, ROWY(1));            /* the 2nd host */
+        C(90, 300, ROWY(2));            /* the 3rd */
+        if (tstop == 'd') {
+            C(110, 300, ROWY(2));       /* again, 20 frames later: a double click */
+            S(30, (unsigned int)&test_box, 0, F_WAIT);  /* the box (refused) */
+            S(30, 0, 0, F_END);
+        } else
+            S(150, 0, 0, F_END);
+    } else if (tstop == 'a') {
+        C(60, 300, ROWY(9));
+        S(120, 0, 0, F_END);
+    } else if (tstop == 'b') {
+        C(60, 300, ROWY(9));
+        C(80, 300, ROWY(9));            /* a double click: dial */
+        S(400, 0, 0, F_END);
+    } else {
+        C(60, 300, ROWY(8));
+        C(90, 8 + BTNW * 4, BTNY + 8);  /* Dial */
+        S(400, 0, 0, F_END);
+    }
+    go();
+    tstep = 2;
+}
+#endif
+
 static void test_tick(void)
 {
     unsigned char q;
@@ -246,6 +336,7 @@ static void test_tick(void)
     tt = ser_frames - tbase;
     q = quiet(120);
     switch (sess[0]) {
+#ifndef TERM_UI
     case 'd':                           /* Dex's Connect (gate da): dialled from DEX.TEL */
         if ((online && q) || (nouart && tt >= 120))
             the_end();
@@ -371,5 +462,13 @@ static void test_tick(void)
             the_end();
         }
         break;
+#else
+    case 'i':
+        test_idle();
+        break;
+    case 'm':
+        test_mouse();
+        break;
+#endif
     }
 }

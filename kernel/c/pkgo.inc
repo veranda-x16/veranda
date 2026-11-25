@@ -8,6 +8,7 @@ PkGo:	tsx
 	stz pkCur
 	lda PK_LIST
 	sta ram_bank
+	sta r7L                 ; (V189: pages below $A000 read with it mapped)
 	; the application's RAM
 	stz pkKind
 	lda #$08

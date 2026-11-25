@@ -604,18 +604,16 @@ void u_save(void)
     if (!gdl && !memcmp(gmeta, "image/", 6))
         gdl = 2;                        /* (V138: a link that answers with a picture: as a picture's) */
     if (gdl == 2) {                     /* (a picture asked for, V125: PNG shown, others saved) */
-        if (!memcmp(gmeta, "image/png", 9)) {
-            strcpy(xf_name, "the picture (image/png)");
+        if (!memcmp(gmeta, "image/png", 9) || !memcmp(gmeta, "image/jpeg", 10)) {
+            strcpy(xf_name, "the picture (");
+            strncat(xf_name, gmeta, 10);
+            strcat(xf_name, ")");
             goto save;
         }
-        if (!memcmp(gmeta, "image/jpeg", 10))
-            strcpy(line, "JPEG can't be shown here: save it, or use");
-        else {
-            strcpy(line, "This can't be shown here (");
-            strncat(line, gmeta, 20);
-            strcat(line, ").");
-        }
-        if (!yesno(line, !memcmp(gmeta, "image/jpeg", 10) ? "the private proxy. Save it to /DOCUMENTS?" : "Save it to /DOCUMENTS?")) {
+        strcpy(line, "This can't be shown here (");
+        strncat(line, gmeta, 20);
+        strcat(line, ").");
+        if (!yesno(line, "Save it to /DOCUMENTS?")) {
             g_cancel();
             return;
         }

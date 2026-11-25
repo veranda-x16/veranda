@@ -12,6 +12,7 @@
 .importzp FBOP_FILL, FBOP_INV, FBOP_RECOVER, FBOP_IMPRINT
 .import kStride, kFx, fb_block, fbBlkN
 .import ClipRows
+.import gA, gT, FarGo, E_FbLine
 
 .export k_SetPattern, k_WHorizontalLine, k_WInvertLine, k_WRecoverLine
 .export k_WRectangle, k_WFrameRectangle, k_WInvertRectangle, k_WRecoverRectangle
@@ -565,7 +566,11 @@ LnFast:	jsr TransIf
 	beq @5
 	lda #1
 @5:
-	FARCALL FbLine
+	sta gA                  ; (V188: bank C's FbLine, no resident stub)
+	lda #<E_FbLine
+	sta gT
+	lda #BANK_C
+	jsr FarGo
 LnEnd:	ldx #1                  ; r3, r11 = r4, r12
 @e:	lda r4,x
 	sta r3,x

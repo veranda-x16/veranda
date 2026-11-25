@@ -222,12 +222,12 @@ A link to a picture (its address's path ends `.png`, `.jpg`, `.jpeg`,
 (`/cgi-bin/wp.cgi/media/media.jpg?<the Wikimedia address>`), and so are
 the pictures in its image galleries. Any other link that turns out to be
 a picture (the capsule answers `image/png`, `image/jpeg` ...) is treated
-as one too: a PNG is shown, the others offer to be saved.
+as one too: a PNG or a JPEG is shown, the others offer to be saved.
 **Click it** to see the picture; with the keyboard, Tab to it and press
 **Return**: a box asks **Yes** show it, **No** save it to `/DOCUMENTS`,
 **Cancel**. While it comes the status bar says what it is
 (`image/png`), its bytes and, once its header has come, its size
-(`PNG 740 x 300`). A picture larger than the limit in File >
+(`PNG 740 x 300`; a JPEG's once it is shown). A picture larger than the limit in File >
 Settings... (256 KB at first) stops, and a box offers to save it
 instead.
 
@@ -243,16 +243,35 @@ picture (or a palette of greys); otherwise a fixed set (2 reds x 4
 greens x 2 blues), so photographs look posterised. A 740 x 300 grey
 picture (40 KB) takes about 29 seconds at 8 MHz, small ones a second or two
 (DECISIONS V125).
-**Esc**, Backspace or the toolbar's Back go back to the page;
-**Save** (the toolbar's button where Go is, or S) copies the picture to
-`/DOCUMENTS`. Alt+Tab while it is drawn: it is drawn again when you come
-back.
 
-Not shown: interlaced PNGs (they say so; save them), pictures wider
-than 4,864 bytes a row (1,216 pixels of RGBA, 4,864 of grey), JPEG
-("JPEG can't be shown here: save it, or use the private proxy"), GIF,
-BMP and the others (save them). The private proxy (`web_proxy.py`)
-turns JPEG, GIF, WebP and BMP into PNG (scaled to the page) when Pillow
+It shows **JPEG** pictures too (DECISIONS V192): baseline and extended
+sequential JPEGs with Huffman coding (what cameras, Wikimedia's
+thumbnails and most programs write), grey or colour (4:2:0, 4:2:2, 4:4:4
+and the other samplings with Cb and Cr at 1 x 1), restart markers
+included, in the same 16 colours and the same scaling. The decoder uses
+VERA FX's multiplier for its IDCT when the VERA has it (firmware 0.3.1
+or later) and plain 65C02 arithmetic otherwise, with the same result. A
+picture shown at an eighth of its size or less is decoded from its
+blocks' averages alone. A 440 x 293 photograph of 21 KB (a Gemipedia
+thumbnail) takes about 11 seconds at 8 MHz with FX, about 19 without;
+small ones 2-5 seconds.
+**Save** (the toolbar's button where Go is, S or Ctrl+S) copies the
+picture to `/DOCUMENTS`; anything else goes back to the page at once
+(DECISIONS V196): **Esc**, Backspace, Left, the toolbar's Back, a click
+on the picture or a turn of the wheel just that (the picture is always
+scaled to fit, so there is nothing to scroll); another key, a click on
+the toolbar, a menu's item or the close box then does what it does on
+the page (Veranda Gemini > Quit, Ctrl+Q or the close box quit at once). While a
+picture is still being drawn the menus are off; the rest works the
+same. Alt+Tab while it is drawn: it is drawn again when you come back.
+
+Not shown: interlaced PNGs and progressive JPEGs (they say so; save
+them), pictures wider than 4,864 bytes a row (1,216 pixels of RGBA,
+4,864 of grey), JPEGs wider than 1,568 pixels (12,544 when shown at an
+eighth), with 12-bit samples or arithmetic coding ("This picture can't
+be shown here"), GIF, BMP and the others (save them). The private proxy
+(`web_proxy.py`) turns GIF, WebP, BMP and progressive JPEGs into PNG
+(scaled to the page) when Pillow
 is installed on the PC (`pip install pillow`); without it the picture
 passes as it is. The picture is kept while shown in
 `/VERANDA/.SYSTEM/GEMINI.TMP` (deleted after).
@@ -268,10 +287,10 @@ passes as it is. The picture is kept while shown in
   links to photographs with long names are 250-300); host names are
   letters, digits, dots and dashes (no IPv6 addresses, no international
   names).
-- JPEG pictures are not shown (most of Wikipedia's photographs: Gemipedia
-  passes them as they are; its flags, maps and diagrams come as PNG):
-  save them, or use the private proxy with Pillow.
-- No TOFU, no client certificates; pictures only on their own (PNG);
+- Progressive JPEGs are not shown (save them, or use the private proxy
+  with Pillow).
+- No TOFU, no client certificates; pictures only on their own (PNG,
+  JPEG);
   Unicode as CP437 (common emoji and symbols as short ASCII: ⏩ `>>`,
   ⏪ `<<`, 🎲 `*`, arrows, bullets, ✓; others `?`).
 

@@ -184,23 +184,30 @@ static void book_save(void)
     FClose(h);
 }
 
+static const char bk[5] = { 13, 'N', 'E', 'X', 27 };    /* (the buttons' keys) */
+
+/* row i of the list */
+static void book_row(unsigned char i)
+{
+    memset(b, ' ', COLS);
+    b[COLS] = 0;
+    b[0] = hexd[i];
+    if (baddr(i)[0]) {
+        memcpy(b + 3, bname(i), strlen(bname(i)));
+        memcpy(b + 30, baddr(i), strlen(baddr(i)));
+    } else
+        memcpy(b + 3, "(free)", 6);
+    list_row(LISTTOP + 16 * i, b, i == sel);
+}
+
 static void book_draw(void)
 {
     unsigned char i;
-    page_head("Address book", "0-9, A-F choose; Return dials; N new, E edits, X deletes (your own: 8-F); Esc goes back.");
+    page_head("Address book", "Click or 0-9, A-F choose; a double click or Return dials; N new, E edits, X deletes (your own: 8-F).");
     ui_text("Name", 8 + 3 * 8, TY + 48, 1);
     ui_text("Host and port", 8 + 30 * 8, TY + 48, 1);
-    for (i = 0; i < BOOK; ++i) {
-        memset(b, ' ', COLS);
-        b[COLS] = 0;
-        b[0] = hexd[i];
-        if (baddr(i)[0]) {
-            memcpy(b + 3, bname(i), strlen(bname(i)));
-            memcpy(b + 30, baddr(i), strlen(baddr(i)));
-        } else
-            memcpy(b + 3, "(free)", 6);
-        list_row(LISTTOP + 16 * i, b, i == sel);
-    }
+    for (i = 0; i < BOOK; ++i)
+        book_row(i);
 }
 
 void o_page_draw(unsigned char page)
@@ -296,6 +303,37 @@ unsigned char o_book_key(unsigned char k)
     } else
         return 0;
     book_draw();
+    return 0;
+}
+
+/* (V195) a click on the page: a row selects it (only the two rows drawn
+   again), the selected one again within CLICK_COUNT frames (a double
+   click) dials it as Return; a button is its key (Edit and Delete act on
+   the selected entry) */
+unsigned char o_book_click(void)
+{
+    unsigned char i = btn_at(), old = sel;
+    if (i < 5)
+        return o_book_key(bk[i]);
+    i = row_at(BOOK);
+    if (i >= BOOK)
+        return 0;
+    if (i == sel && dblClickCount) {
+        dblClickCount = 0;
+        return o_book_key(13);
+    }
+    dblClickCount = CLICK_COUNT;
+    if (i != old) {
+        sel = i;
+        book_row(old);
+        book_row(i);
+    }
+#ifdef TERM_TEST
+    strcpy((char *)crow, "TERM BOOK SEL ");
+    crow[14] = hexd[i];
+    crow[15] = 0;
+    LogText((char *)crow);
+#endif
     return 0;
 }
 

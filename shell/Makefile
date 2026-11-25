@@ -4,7 +4,7 @@
 # overlays = banked in app.hdr.
 SDK   ?= ../build/sdk
 CC65  := cl65 -t none --cpu 65C02 -O -I $(SDK)/include --asm-include-dir $(SDK)/include
-SRC   := main.c win.c mouse.c wops.c view.c dir.c files.c print.c pins.c chrome.c tiles.c bars.c look.c wall.c dock.c look3.c look3b.c info.c ovl.s play.s wallmap.s clip.s cmove.s gui.s guiart.s
+SRC   := main.c win.c mouse.c wops.c view.c dir.c files.c print.c pins.c chrome.c tiles.c bars.c look.c wall.c dock.c look3.c look3b.c info.c ghost.s ovl.s play.s wallmap.s clip.s cmove.s gui.s guiart.s
 OVLS  := shell.bin.1 shell.bin.2 shell.bin.3 shell.bin.4 shell.bin.5 shell.bin.6 shell.bin.7 shell.bin.8 shell.bin.9 shell.bin.10 shell.bin.11 shell.bin.12
 
 all: SHELL.cvt

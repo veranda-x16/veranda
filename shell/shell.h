@@ -370,6 +370,13 @@ void dock_init(void);
 void dock_note(const char *dir);                  /* the program tmp in dir: its path, the switcher's note (V84) */
 void dock_min(unsigned char w);
 unsigned char dock_press(unsigned int x, unsigned int y, unsigned char w);
+void dock_tile(unsigned char i);                /* (V193) item i's tile's corner: vx, vy */
+void ghost_on(void);                            /* (V193, ghost.s: overlay 16) r0, r1 the picture's corner, */
+void ghost_move(void);                          /* r2, r3 the pointer's from it, r4L its cards' rows */
+void ghost_off(void);
+void ghost_start(void);                         /* (V193, ghost.s) from mouse.c: r0, r1 the press, r2L the drag, r2H
+                                                   the window's view, r3L its selection, the desktop icon or the pin,
+                                                   r3H the window */
 unsigned char dock_at_pin(unsigned int x, unsigned int y);  /* (V163) the place among the pins at x, y; $FE the
                                                      trash, $FF off the dock */
 void dock_click(unsigned char i);                 /* (V163) item i clicked (a press and a release on it) */

@@ -9,12 +9,16 @@
 #include "png_host.h"
 #define vset1(a) vset(0, 0x10000UL + (a))
 #else
+#ifdef JPEG_BENCH
+#include "jpeg_bench.h"
+#else
 #include <veranda.h>
 #include "gemini.h"
 #include "png.h"
 #pragma code-name ("OVERLAY4")
 #pragma rodata-name ("OVL4RO")
 #pragma bss-name ("BSS")                /* (the numbers below: main RAM) */
+#endif
 #define VCTRL  (*(volatile unsigned char *)0x9F25)
 #define VAL    (*(volatile unsigned char *)0x9F20)
 #define VAM    (*(volatile unsigned char *)0x9F21)
@@ -35,7 +39,7 @@ static void __fastcall__ vset1(unsigned int a)
 #define MAPV   0x1AC00UL
 
 unsigned int pw, ph, pow_, poh;
-unsigned char pdepth, pctype, pmode, ptw, pth, ptx, pty, perr;
+unsigned char pdepth, pctype, pmode, ptw, pth, ptx, pty, perr, pjpeg;
 unsigned int ppal[16];
 
 /* the fixed colours: 2 reds x 4 greens x 2 blues (index r << 3 | g << 1 | b) */

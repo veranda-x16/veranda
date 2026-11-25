@@ -7,12 +7,16 @@
 ; did), in runs that end where either address leaves its page (V158).
 ; A run with at most one side at $A000-$BFFF, or both in the same bank:
 ; that bank mapped once, a plain loop (18 cycles a byte); two different
-; banks: switched for each byte (32). r0-r4 and y are kept; a is the
-; caller's bank, mapped again.
+; banks: switched for each byte (32). V187: a run of 32 bytes or more in
+; one mapped bank through absolute addresses written into an unrolled
+; loop: 12.75 (FastOne). r0-r4 and y are kept; a is the caller's bank,
+; mapped again.
 
 .include "kernel.inc"
 
 .export k_BankCopy, VramBank
+
+FAST_MIN = 32                   ; (V187) a run this long or longer: FastOne
 
 .segment "BSS"
 
@@ -59,8 +63,12 @@ k_BankCopy:
 	bne @map
 	cpx r3L
 	bne @sw
-@map:	stx ram_bank
-	ldx bcN
+@map:	lda bcN                 ; (V187) a long run: FastOne
+	beq @f1
+	cmp #FAST_MIN
+	bcs @f1
+	stx ram_bank
+	tax
 @cp:	lda (r0),y
 	sta (r1),y
 	iny
@@ -99,6 +107,8 @@ k_BankCopy:
 	ply
 	lda ram_bank
 	rts
+@f1:	jsr FastOne
+	bra @adv
 @sw:	ldx r3L                 ; two banks
 	stx ram_bank
 	lda (r0),y
@@ -150,3 +160,53 @@ VramBank:
 	sta ram_bank
 @1:	dex
 	rts
+
+; (V187) a run of FAST_MIN bytes or more (bcN, 0: 256) from r0 to r1, y =
+; 0: its first bcN AND 3 bytes one by one, then 4 a step through absolute
+; addresses written into the loop (a run never leaves a page, so none of
+; them crosses one); every byte read, then written, in order, as before.
+; Bank x mapped for both (12.75 cycles a byte). -> y = bcN (0: 256)
+
+; the operands of the 4 instructions lab0 .. lab3: reg + 0 .. 3
+.macro FPATCH reg, lab
+	lda reg
+	sta .ident(.sprintf("%s0", lab)) + 1
+	ina
+	sta .ident(.sprintf("%s1", lab)) + 1
+	ina
+	sta .ident(.sprintf("%s2", lab)) + 1
+	ina
+	sta .ident(.sprintf("%s3", lab)) + 1
+	lda reg + 1
+	sta .ident(.sprintf("%s0", lab)) + 2
+	sta .ident(.sprintf("%s1", lab)) + 2
+	sta .ident(.sprintf("%s2", lab)) + 2
+	sta .ident(.sprintf("%s3", lab)) + 2
+.endmacro
+
+FastOne:
+	stx ram_bank
+	FPATCH r0, "fa"
+	FPATCH r1, "fb"
+	lda bcN
+	and #3
+	beq FoLoop
+	tax
+@1:	lda (r0),y
+	sta (r1),y
+	iny
+	dex
+	bne @1
+FoLoop:
+.repeat 4, I
+.ident(.sprintf("fa%d", I)):	lda $FFFF,y
+.ident(.sprintf("fb%d", I)):	sta $FFFF,y
+.endrepeat
+	iny
+	iny
+	iny
+	iny
+	cpy bcN
+	bne FoLoop
+	rts
+

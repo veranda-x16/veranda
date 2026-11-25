@@ -59,6 +59,8 @@ LOWPIC  = LOW + 24
 KEEP    = 24 + 31
 
 .segment "BSS"
+lkN:	.res 1                  ; (V188) LookRows: the rows, the first
+lkF:	.res 1
 
 cLeft:	.res 2                  ; LookClock: from here to the right
 cTop:	.res 2
@@ -126,65 +128,6 @@ LookClick:
 	ldy #DN_VOLUME
 @n:	jmp Click
 @no:	clc
-	rts
-
-;---------------------------------------------------------------
-; LK_ROWS (V81): a glyph of the UI font (in this bank) for bank G's
-; fast path (kernel/g/text.s, UiFast): kPtr2 its row 0 (rowSrc), kTmp
-; its bit in the row (sShift), kTmp+1 its width (1-8; bold 1-7); its
-; curHeight rows to kPtr (bank G's, on the stack), each left aligned,
-; masked to the width, bold applied (v OR v >> 1)
-;---------------------------------------------------------------
-LookRows:
-	ldx kTmp+1
-	lda #$FF
-	cpx #8
-	bcs @m
-	lda KeepLeft,x          ; (the top x bits)
-@m:	sta kTmp+2
-	lda kTmp                ; the shift: a jump into the chain (3 bytes a step)
-	sta kTmp+1
-	asl a
-	adc kTmp+1
-	sta kTmp+1
-	lda #<@ce
-	sec
-	sbc kTmp+1
-	sta @rj+1
-	lda #>@ce
-	sbc #0
-	sta @rj+2
-	ldy #0
-@r:	phy
-	lda (kPtr2)
-	sta kTmp+3
-	ldy #1
-	lda (kPtr2),y
-@rj:	jmp @ce           ; (the 16 bits left by sShift)
-.repeat 7
-	asl a
-	rol kTmp+3
-.endrepeat
-@ce:
-	lda kTmp+3
-	and kTmp+2
-	sta kTmp+3
-	bit currentMode         ; bold (SET_BOLD, bit 6)
-	bvc @nb
-	lsr a
-	ora kTmp+3
-@nb:	ply
-	sta (kPtr),y
-	iny
-	lda kPtr2
-	clc
-	adc curSetWidth
-	sta kPtr2
-	lda kPtr2+1
-	adc curSetWidth+1
-	sta kPtr2+1
-	cpy curHeight
-	bne @r
 	rts
 
 .segment "CODE"
@@ -825,3 +768,90 @@ SetClk:	lda SetT,x
 	bra SetClk
 @r:	rts
 SetT:	.byte "Set clock", 0
+
+;---------------------------------------------------------------
+; LK_ROWS (V81): a glyph of the UI font (in this bank) for bank G's
+; fast path (kernel/g/text.s, UiFast): kPtr2 its row 0 (rowSrc), kTmp
+; its bit in the row (sShift), kTmp+1 its width (1-8; bold 1-7), y the
+; glyph (0-95, $FF: another: every row); its rows to kPtr (bank G's, on
+; the stack), each left aligned, masked to the width, bold applied (v OR
+; v >> 1). V188: only its rows from the first with a pixel to the last
+; (UiBnd, tools/kbuild.py) -> a = their count (0: none), x = the first
+; (in LATE: TAIL had no room)
+;---------------------------------------------------------------
+LookRows:
+	ldx kTmp+1
+	lda #$FF
+	cpx #8
+	bcs @m
+	lda KeepLeft,x          ; (the top x bits)
+@m:	sta kTmp+2
+	lda kTmp                ; the shift: a jump into the chain (3 bytes a step)
+	sta kTmp+1
+	asl a
+	adc kTmp+1
+	sta kTmp+1
+	lda #<@ce
+	sec
+	sbc kTmp+1
+	sta @rj+1
+	lda #>@ce
+	sbc #0
+	sta @rj+2
+	ldx #0                  ; (V188) the rows with pixels
+	lda curHeight
+	cpy #96
+	bcs @all
+	lda UiBnd,y
+	lsr a
+	lsr a
+	lsr a
+	lsr a
+	tax
+	lda UiBnd,y
+	and #$0F
+@all:	sta lkN
+	stx lkF
+	beq @end
+	lda kPtr2
+	clc
+	adc UiRowLo,x
+	sta kPtr2
+	lda kPtr2+1
+	adc UiRowHi,x
+	sta kPtr2+1
+	ldy #0
+@r:	phy
+	lda (kPtr2)
+	sta kTmp+3
+	ldy #1
+	lda (kPtr2),y
+@rj:	jmp @ce           ; (the 16 bits left by sShift)
+.repeat 7
+	asl a
+	rol kTmp+3
+.endrepeat
+@ce:
+	lda kTmp+3
+	and kTmp+2
+	sta kTmp+3
+	bit currentMode         ; bold (SET_BOLD, bit 6)
+	bvc @nb
+	lsr a
+	ora kTmp+3
+@nb:	ply
+	sta (kPtr),y
+	iny
+	lda kPtr2               ; (the UI font's rows: UI_SETW bytes, < 256)
+	clc
+	adc #UI_SETW
+	sta kPtr2
+	bcc @s
+	inc kPtr2+1
+@s:	cpy lkN
+	bne @r
+@end:	lda lkN
+	ldx lkF
+	rts
+
+.include "uibounds.inc"

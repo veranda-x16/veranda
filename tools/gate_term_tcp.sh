@@ -60,6 +60,9 @@ make -s -C apps/term SDK="$SDK" OUT="$TOP/$OUT/app" >"$OUT/app/build.log" 2>&1 \
 	|| { cat "$OUT/app/build.log"; fail "Veranda Term does not build"; }
 make -s -C apps/term test SDK="$SDK" OUT="$TOP/$OUT/test" >"$OUT/test/build.log" 2>&1 \
 	|| { cat "$OUT/test/build.log"; fail "the test build does not build"; }
+mkdir -p "$OUT/testui"
+make -s -C apps/term test SDK="$SDK" OUT="$TOP/$OUT/testui" TESTFLAGS=-DTERM_UI >"$OUT/testui/build.log" 2>&1 \
+	|| { cat "$OUT/testui/build.log"; fail "the idle and mouse test build does not build"; }
 end() { sed -n "s/^BSS *[0-9A-F]* *\([0-9A-F]*\).*/\1/p" "$1"; }
 ok "Veranda Term and its test build: main RAM to \$$(end "$OUT/app/term.map") and \$$(end "$OUT/test/term.map") (the C stack from \$8400); Term.cvt $(stat -c %s "$OUT/app/Term.cvt") bytes"
 T=$OUT/test/Term.cvt
@@ -70,9 +73,9 @@ freeport() { $PY -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)
 run() {
 	local stop=$1 R=$OUT/$2 mode=$3 port=$4 uart=$5 secs=$6 sp=
 	mkdir -p "$R"
-	cp "$T" "$R/AUTOSTART.cvt"
+	cp "${TCVT:-$T}" "$R/AUTOSTART.cvt"
 	cp build/VERANDA.PRG build/VERANDA.SYS "$R/"
-	echo "net $stop 6 0 $port" > "$R/TERM.TST"
+	echo "${SESS:-net} $stop 6 0 $port" > "$R/TERM.TST"
 	if [ -n "$mode" ]; then
 		$PY tests/term_tcp_server.py "$mode" "$port" "$R/srv" > "$R/srv.log" 2>&1 &
 		sp=$!
@@ -206,7 +209,80 @@ inlog nomodem "TERM TCP NO MODEM"
 ok "no modem: the rates tried again, the profile's AT unanswered: the box \"The modem does not answer\""
 png "$OUT/nomodem/dump.bin" "$OUT/nomodem.png"
 
-for f in tel raw hosts refused nomodem; do [ -s "$OUT/$f.png" ] || fail "no screenshot $f.png"; done
+# (V194, V195) the second test build (TERM_UI): idle, and the pages with the mouse
+export TCVT=$OUT/testui/Term.cvt
+echo "== idle: 10 s with nothing happening (V194)"
+SESS=idle run i idle "" 1 "modem:log=$TOP/$OUT/idle/modem.log" 90
+grep -q "^TERM IDLE 10S STATUS 0 PARTS 0 CURSOR 0 TX 0$" "$OUT/idle/log.txt" \
+	|| fail "idle: drawn or sent while nothing happened: $(grep '^TERM IDLE 10S' "$OUT/idle/log.txt")"
+ok "idle 10 s, the modem found: the status bar drawn 0 times (whole or in part), the cursor 0 times, 0 bytes sent"
+grep -q "^TERM IDLE CAPTURE STATUS 0 PARTS 1 CURSOR 0 TX 0$" "$OUT/idle/log.txt" \
+	|| fail "idle: Capture on: $(grep '^TERM IDLE CAPTURE' "$OUT/idle/log.txt")"
+ok "Capture on: the status bar drawn once, in part (from the change on), not cleared whole"
+$PY - "$OUT/idle/modem.log" <<-'EOF' || fail "idle: the modem log"
+import sys
+l = [x for x in open(sys.argv[1], encoding='latin-1').read().splitlines() if x]
+want = ['START 115200', '@115200 AT', '@115200 ATB38400', 'BAUD 38400']
+if l != want:
+    sys.exit('FAIL  idle: the modem got %r, want only the rate found %r' % (l, want))
+print('ok    the modem log: only the rate found (AT, ATB38400), then nothing in 11 s')
+EOF
+png "$OUT/idle/dump.bin" "$OUT/idle.png"
+
+echo "== mouse: the Hosts page and the address book with the mouse (V195)"
+P1=$(freeport); P2=$(freeport); P3=$(freeport)
+for d in mouse-h mouse-d mouse-a mouse-b mouse-e; do
+	mkdir -p "$OUT/$d"
+	printf 'First|127.0.0.1:%s|raw\r\nSecond|127.0.0.1:%s|raw\r\nThird|127.0.0.1:%s|raw\r\n' $P1 $P2 $P3 > "$OUT/$d/TERM.HOSTS"
+	printf 'Mine|127.0.0.1:%s\nTheirs|127.0.0.1:%s\n' $P1 $P2 > "$OUT/$d/TERM.BOOK"
+done
+SESS=mouse run h mouse-h "" 1 "modem:log=$TOP/$OUT/mouse-h/modem.log" 90
+inlog mouse-h "TERM HOSTS SEL 1"
+grep -A3 "^TERM HOSTS SEL 1" "$OUT/mouse-h/log.txt" | grep -q "^TERM HOSTS SEL 2" || fail "mouse-h: the 3rd row's click"
+png "$OUT/mouse-h/dump.bin" "$OUT/hosts-click.png"
+SESS=mouse run a mouse-a "" 1 "modem:log=$TOP/$OUT/mouse-a/modem.log" 90
+inlog mouse-a "TERM BOOK SEL 9"
+png "$OUT/mouse-a/dump.bin" "$OUT/book-click.png"
+$PY - "$OUT/hosts-click.png" 2 "$OUT/book-click.png" 9 <<-'EOF' || fail "mouse: the selection on the screen"
+import sys
+from PIL import Image
+def dark(im, y0):
+    px = im.load()
+    n = sum(1 for y in range(y0 + 2, y0 + 14) for x in range(16, 600, 2) if sum(px[x, y][:3]) < 200)
+    return n / (12 * 292)
+for png, row in ((sys.argv[1], int(sys.argv[2])), (sys.argv[3], int(sys.argv[4]))):
+    im = Image.open(png).convert('RGB')
+    d = [round(dark(im, 88 + 16 * r), 2) for r in range(row + 2)]
+    if d[row] < 0.6 or max(d[:row] + d[row + 1:]) > 0.4:
+        sys.exit('FAIL  %s: the rows\' ink %s, row %d not the one inverted' % (png, d, row))
+print('ok    on the screen the clicked row inverted, no other (hosts-click.png row 3, book-click.png row 9)')
+EOF
+$PY - "$OUT/idle.png" "$OUT/hosts-click.png" <<-'EOF' || fail "idle: the status bar drawn in parts"
+import sys
+from PIL import Image
+a, b = (Image.open(p).convert('RGB').crop((0, 464, 640, 480)).tobytes() for p in sys.argv[1:])
+if a != b:
+    sys.exit('FAIL  idle: "Offline" after Capture on and off (drawn in part twice) differs from the bar drawn whole')
+print('ok    the status bar after Capture on and off (drawn in part twice) equals the bar drawn whole, pixel for pixel')
+EOF
+ok "a click selects: the Hosts page's 2nd then 3rd host (TERM HOSTS SEL 1, 2), the address book's row 9"
+SESS=mouse run d mouse-d "" 1 "modem:log=$TOP/$OUT/mouse-d/modem.log" 90
+inlog mouse-d "TERM TCP REFUSED"
+grep -q "ATC\"127.0.0.1:$P3\"" "$OUT/mouse-d/modem.log" || fail "mouse-d: no ATC to the 3rd host"
+grep -q "ATC\"127.0.0.1:\($P1\|$P2\)\"" "$OUT/mouse-d/modem.log" && fail "mouse-d: ATC to another host"
+ok "a double click on the 3rd host connects to it: ATC\"127.0.0.1:$P3\" only (refused: nothing listens there)"
+SESS=mouse run b mouse-b "" 1 "modem:log=$TOP/$OUT/mouse-b/modem.log" 90
+grep -q "ATDT127.0.0.1:$P2" "$OUT/mouse-b/modem.log" || fail "mouse-b: no ATDT to row 9 ($(grep ATD "$OUT/mouse-b/modem.log"))"
+grep -q "ATDT127.0.0.1:$P1" "$OUT/mouse-b/modem.log" && fail "mouse-b: ATDT to row 8"
+ok "a double click on the address book's row 9 dials it: ATDT127.0.0.1:$P2"
+SESS=mouse run e mouse-e "" 1 "modem:log=$TOP/$OUT/mouse-e/modem.log" 90
+inlog mouse-e "TERM BOOK SEL 8"
+grep -q "ATDT127.0.0.1:$P1" "$OUT/mouse-e/modem.log" || fail "mouse-e: no ATDT to row 8 ($(grep ATD "$OUT/mouse-e/modem.log"))"
+ok "row 8 clicked, then the Dial button: ATDT127.0.0.1:$P1"
+unset TCVT
+
+for f in tel raw hosts refused nomodem idle hosts-click book-click; do [ -s "$OUT/$f.png" ] || fail "no screenshot $f.png"; done
 echo "screenshots: $OUT/tel.png (Telnet, closed by the host), raw.png (after Disconnect, ATI),"
-echo "             hosts.png (the Hosts page), refused.png, nomodem.png"
+echo "             hosts.png (the Hosts page), refused.png, nomodem.png, idle.png (10 s idle, then Capture on),"
+echo "             hosts-click.png (the 3rd host clicked), book-click.png (the address book's row 9 clicked)"
 echo "GATE term_tcp: PASS"

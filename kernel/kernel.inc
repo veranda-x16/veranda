@@ -121,6 +121,9 @@ PK_BUF          = $0400         ; and its page buffer (fileHeader)
 PK_N            = $07D0         ; the chain's banks: how many (dataLongName's
 PK_LIST         = $07D1         ; end), and they (CHAIN_MAX)
 CHAIN_MAX       = 40
+PKIMG_A         = $BA00         ; (V189) the pack image in bank C (kernel/c/pack.s),
+PKIMG_B         = $BC00         ; the unpack image (unpack.s): bank W copies
+PK_MAX          = PK_N - PK_RUN ; PK_MAX bytes of one to PK_RUN
 
 ; why the panic box came (kCrashWhy, kernel/res/crash.s)
 CR_BRK          = 0
