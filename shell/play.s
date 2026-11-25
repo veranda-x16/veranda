@@ -6,7 +6,8 @@
 ; stop; 1: log SHELL DONE and end with a VRAM dump; 2: stop, the shell
 ; exports the screen (play_shot, DECISIONS V101), then 1); bit 5: it plays
 ; even while the shell is busy (a press on a progress box's cancel, or
-; the end during a copy).
+; the end during a copy); bit 4 (V185): the wheel, the key byte its
+; notches (signed, + down) added to mouseWheel, the position unchanged.
 ;
 ; Played through mouseSource: a record's position is absolute (c set) on
 ; its frame; on the other frames the same position as a device's (c clear:
@@ -76,6 +77,8 @@ Player:	lda _play_end
 	bne @end
 	bit #$80
 	bne @key
+	bit #$10
+	bne @whl
 	and #3                  ; (bit 1: the right button, V83)
 	sta pb
 	ldy #2
@@ -89,6 +92,12 @@ Player:	lda _play_end
 @key:	ldy #7
 	lda (ptr),y
 	jsr k_kbdbuf_put
+	bra @adv
+@whl:	ldy #7                  ; (V185) the wheel: the key byte's notches
+	lda (ptr),y
+	clc
+	adc mouseWheel
+	sta mouseWheel
 @adv:	AddVW 8, ptr
 	bra @next
 @end:	ldy #7

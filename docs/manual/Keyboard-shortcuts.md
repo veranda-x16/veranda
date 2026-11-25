@@ -105,7 +105,7 @@ The menus show these keys at the right of their items.
 | Home, Shift+Home, End | column A, cell A1, column IV |
 | Ctrl+P | Quit (careful) |
 
-**[Calculator](Calculator.md)**: 0-9, + - * /, = or Return, C, Esc.
+**[Calculator](Calculator.md)**: 0-9 . + - * / ^ ( ) % !, = or Return, Backspace, c clear, s o t (Shift: the inverses), l L g G, q r i p a e n, d degrees/radians, f 2nd, m M k K the memory, Esc.
 
 ## Organising
 

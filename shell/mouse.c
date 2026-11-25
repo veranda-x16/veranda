@@ -382,13 +382,16 @@ static void release(void)
     tlog(c);
 }
 
-/* idle: a drag's outline (the clock: the kernel's menu bar, V74) */
+/* idle: a drag's outline (the clock: the kernel's menu bar, V74); the
+   wheel (V185) */
 void win_idle(void)
 {
     static unsigned char rWas;
     unsigned int x = mouseXPos, y = mouseYPosW;
     unsigned char w = dwin;
     int dx, dy_;
+    if (mouseWheel)                     /* (V185: info.c, overlay 16) */
+        XCALL(bIc2, win_wheel, FB)(drag == D_NONE && winAt(x, y) == front);
     if ((mouseButtons ^ rWas) & 2) {    /* the right button (the kernel's
                                            presses are the left one's): the
                                            dock's menu (V83) */

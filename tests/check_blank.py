@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Gate feedback, part 2 (DECISIONS V96): the real shell blanked under ROM
+"""Gate feedback, part 2 (DECISIONS V96, V184): the real shell blanked under ROM
 R49 with real PS/2 input; compares -dump V dumps.
 
 usage: check_blank.py blanked <ref>
@@ -9,11 +9,11 @@ usage: check_blank.py blanked <ref>
 
 <ref> a session that exits while blanked (as long after the blanking as
 the others), <dump> one woken by a mouse move (and moved back) or a key.
-blanked: the display window closed (DC_VSTOP 0: no active line, all
-border), the border entry 0, palette entry 0 black; DC_VIDEO as awake
-(layer 0 or both layers and the sprites).
-same: <dump> is <ref> awake: DC_VSTOP $F0 again, palette entry 0 the
-paper (<paper>, $0RGB hex), the rest equal: VRAM (the screen, the back
+blanked (V184): DC_VIDEO's output mode 0 (video off), its layers and
+sprites as awake (layer 0 or both layers and the sprites); the display
+window ($F0), the border and palette entry 0 (the paper) as awake.
+same: <dump> is <ref> awake: DC_VIDEO's output mode 1 (VGA) again,
+palette entry 0 the paper (<paper>, $0RGB hex) in both, the rest equal: VRAM (the screen, the back
 screen, the pointer's pictures, the colour map and its tiles, the
 palette, the sprites' attributes), the composer, the layers, the
 sprites; not what nothing has written here, whose power-up contents
@@ -58,15 +58,16 @@ def fail(msg):
 
 def blanked(t, what):
     c = comp(t)
-    if c[7] != 0 or c[3] != 0 or pal0(t) != 0:
-        fail('%s: not blanked: DC_VSTOP $%02X, DC_BORDER $%02X, palette entry 0 $%04X' % (what, c[7], c[3], pal0(t)))
-    if c[0] & 0x70 not in (0x50, 0x70):
-        fail('%s: blanked with DC_VIDEO $%02X: want the layers and sprites as awake' % (what, c[0]))
+    if c[0] & 3:
+        fail('%s: not blanked: DC_VIDEO $%02X (output mode %d)' % (what, c[0], c[0] & 3))
+    if c[0] & 0x70 not in (0x50, 0x70) or c[7] != 0xF0 or c[3] != 0:
+        fail('%s: blanked with DC_VIDEO $%02X, DC_VSTOP $%02X, DC_BORDER $%02X: want the layers, sprites and the '
+             'display window as awake' % (what, c[0], c[7], c[3]))
 
 
 def awake(t, what):
     c = comp(t)
-    if c[7] != 0xF0 or c[3] != 0 or c[0] & 0x70 not in (0x50, 0x70):
+    if c[0] & 3 != 1 or c[7] != 0xF0 or c[3] != 0 or c[0] & 0x70 not in (0x50, 0x70):
         fail('%s: not awake: DC_VIDEO $%02X, DC_VSTOP $%02X, DC_BORDER $%02X' % (what, c[0], c[7], c[3]))
 
 
@@ -87,8 +88,8 @@ def main():
     blanked(ref, a[1])
     if a[0] == 'blanked':
         c = comp(ref)
-        print('ok    blanked: DC_VSTOP $00, DC_BORDER $00, palette entry 0 $000; DC_VIDEO $%02X (as awake)'
-              % (c[0] & 0x7F))
+        print('ok    blanked: DC_VIDEO $%02X (output mode 0: video off; the layers and sprites as awake), '
+              'DC_VSTOP $F0, palette entry 0 $%03X' % (c[0] & 0x7F, pal0(ref)))
         return
     t = load(a[2])
     awake(t, a[2])
@@ -100,11 +101,10 @@ def main():
         print('ok    the shell answers after the wake: File\'s menu drawn (%d pixels below the bar)' % len(fg))
         return
     paper = int(a[3], 16)
-    if pal0(t) != paper:
-        fail('palette entry 0 $%04X after the wake: want the paper $%04X' % (pal0(t), paper))
+    if pal0(t) != paper or pal0(ref) != paper:
+        fail('palette entry 0 $%04X blanked, $%04X after the wake: want the paper $%04X' % (pal0(ref), pal0(t), paper))
     want = bytearray(ref)
-    want[VRAM + 7] = 0xF0
-    want[VRAM + COMPOSER:VRAM + COMPOSER + 2] = bytes([paper & 255, paper >> 8])
+    want[VRAM] = (want[VRAM] & 0xFC) | 1                # (the output mode: VGA)
     want[0x1FA00:0x1FA02] = t[0x1FA00:0x1FA02]     # (VRAM under entry 0: the emulator's own)
     want[VRAM] = (want[VRAM] & 0x7F) | (t[VRAM] & 0x80)
     for r in UNSET:
@@ -113,8 +113,8 @@ def main():
     if diff:
         fail('after the wake %d bytes differ from before it, from $%05X (%s)'
              % (len(diff), diff[0], ', '.join('$%05X' % i for i in diff[:8])))
-    print('ok    awake: the display as before the blanking (DC_VSTOP $F0, palette entry 0 $%03X); VRAM, the colour '
-          'map, the palette, the layers and the sprites unchanged' % paper)
+    print('ok    awake: the display as before the blanking (DC_VIDEO $%02X: VGA, palette entry 0 $%03X); VRAM, the '
+          'colour map, the palette, the layers and the sprites unchanged' % (t[VRAM] & 0x7F, paper))
 
 
 if __name__ == '__main__':

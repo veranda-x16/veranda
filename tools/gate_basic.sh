@@ -232,11 +232,13 @@ text() {
 import sys
 d = open(sys.argv[1], "rb").read()
 v = d[len(d) - 132878:]
-# (V96: blanking leaves DC_VIDEO alone and closes the display window,
-# DCSEL 1, which the dump does not hold: palette entry 0 black is the sign)
-assert v[131072 + 256:131072 + 258] == bytes(2), "palette entry 0"
+# (V184: blanking turns the output off, DC_VIDEO bits 0-1 0, and leaves
+# its layers and sprites (V96) and palette entry 0, the dark paper, alone)
+assert v[131072] & 3 == 0, "DC_VIDEO $%02X: output mode %d" % (v[131072], v[131072] & 3)
+assert v[131072] & 0x50 == 0x50, "DC_VIDEO $%02X: the layers or sprites off" % v[131072]
+assert v[131072 + 256:131072 + 258] == bytes([0x13, 0x01]), "palette entry 0"
 ' "$RUNS/host-blank/dump.bin" || fail "$where, run blank: the screen did not blank (the hard case would not be tested)"
-		ok "$where: idle 5 s with the settings' 2 s blank: the screen blanked (entry 0 black: V96)"
+		ok "$where: idle 5 s with the settings' 2 s blank: the screen blanked (DC_VIDEO output mode 0, the layers, sprites and palette entry 0 as awake: V184)"
 	fi
 	inorder "$RUNS/$kind-tkeep/console.txt" "$where, run tkeep" 'SHELL STARTED' 'VERANDA STAYS IN MEMORY' '^ 42' 'G0 TEXT'
 	inorder "$RUNS/$kind-tquit/console.txt" "$where, run tquit" 'SHELL STARTED' '^ 42' 'G0 TEXT'

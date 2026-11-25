@@ -122,8 +122,9 @@ more room for documents and for programs put aside.
 
 **Where are my files?** In `/DOCUMENTS`. **Disk > Documents** opens it.
 
-**The screen went dark.** The screen blanker: move the mouse or press a
-key. Preferences sets the delay.
+**The screen went dark.** The screen blanker: it turns the video signal
+off, so the monitor may show "no signal" or go to sleep. Move the mouse
+or press a key. Preferences sets the delay.
 
 **How do I get back to BASIC?** **Options > BASIC (keep Veranda)**; come
 back with `SYS 35328`. See [BASIC and back](BASIC-and-back.md).

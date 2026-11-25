@@ -15,16 +15,18 @@
 ;   drew into sprite 0 itself (DrawSprite: slot offset 0, 32x32).
 ; - The system sounds (SndStep, kernel/g2/sound.s; Beep is one of them).
 ; - Blanking: blankDelay seconds without a key (kKeyAct, the main loop's
-;   KeyPoll), a pointer move or a button change close VERA's display
-;   window (DC_VSTOP 0: no active line, the whole screen the border, the
-;   layers and sprites with it) and make the border (DC_BORDER 0) and
-;   palette entry 0 black; the next input puts the three back. DC_VIDEO
-;   is never touched (V96): the ROM's mouse_scan turns the sprites on at
-;   every mouse packet (sprite_set_position), before the wake would have
-;   put the layers back, and the kernel reads the layer bits as the
-;   colour map's state. The key that wakes is dropped (KeyPoll sees
-;   kBlanked); a button pressed to wake is taken away from the main loop
-;   (SET_MOUSE cleared, mouseData up) until it is released.
+;   KeyPoll), a pointer move or a button change turn VERA's video output
+;   off (V184: DC_VIDEO's output mode, bits 0-1, made 0, the mode kept in
+;   saveMode), so the monitor loses its signal and may go to power save;
+;   VERA still raises the VSYNC and line interrupts. The next input puts
+;   the mode back into bits 0-1 alone (read, modify, write), unless a mode
+;   was set meanwhile. DC_VIDEO's layer and sprite bits are never touched
+;   (V96): the ROM's mouse_scan turns the sprites on at every mouse packet
+;   (sprite_set_position), and the kernel reads the layer bits as the
+;   colour map's state. VRAM, the palette, the border and the display
+;   window are left as they are. The key that wakes is dropped (KeyPoll
+;   sees kBlanked); a button pressed to wake is taken away from the main
+;   loop (SET_MOUSE cleared, mouseData up) until it is released.
 
 .include "kernel.inc"
 
@@ -44,9 +46,7 @@ idleF:		.res 1          ; frames to the next second
 idleS:		.res 2          ; seconds without input
 last:		.res 5          ; mouseXPos, mouseYPosW, mouseButtons as last seen
 swallow:	.res 1          ; $80: a button pressed to wake: hidden until released
-saveStop:	.res 1          ; DC_VSTOP before blanking
-saveBord:	.res 1          ; DC_BORDER before blanking
-savePal:	.res 2          ; palette entry 0 before blanking
+saveMode:	.res 1          ; DC_VIDEO's output mode before blanking
 
 .segment "CODE"
 
@@ -255,47 +255,26 @@ Idle:	; a button pressed to wake stays the screen's until it is let go
 	bcs Blank
 @r:	rts
 
-Blank:	lda #%00000010          ; DCSEL 1: the display window
-	sta VERA_CTRL
-	lda VERA_DC_VSTOP
-	bne @s
-	lda #480 >> 1           ; (0 would never wake: the whole height)
-@s:	sta saveStop
-	stz VERA_DC_VSTOP       ; no active line: all border
-	stz VERA_CTRL
-	lda VERA_DC_BORDER
-	sta saveBord
-	stz VERA_DC_BORDER      ; the border: entry 0
-	jsr Pal0
-	lda VERA_DATA0
-	sta savePal
-	lda VERA_DATA0
-	sta savePal+1
-	jsr Pal0
-	stz VERA_DATA0          ; black
-	stz VERA_DATA0
+Blank:	stz VERA_CTRL           ; DCSEL 0
+	lda VERA_DC_VIDEO
+	tax
+	and #%00000011          ; the output mode
+	sta saveMode
+	txa
+	and #%01111100          ; mode 0: video off (V184)
+	sta VERA_DC_VIDEO
 	LoadB kBlanked, $80
 	rts
 
-Wake:	jsr Pal0
-	lda savePal
-	sta VERA_DATA0
-	lda savePal+1
-	sta VERA_DATA0
-	lda saveBord
-	sta VERA_DC_BORDER
-	lda #%00000010
-	sta VERA_CTRL
-	lda saveStop
-	sta VERA_DC_VSTOP
-	stz VERA_CTRL
-	stz kBlanked
-	rts
-
-Pal0:	stz VERA_CTRL
-	LoadB VERA_ADDR_L, <VRAM_PALETTE
-	LoadB VERA_ADDR_M, >VRAM_PALETTE
-	LoadB VERA_ADDR_H, ^VRAM_PALETTE | VERA_INC1
+; the output mode back, the other bits as they are now (the ROM's
+; mouse_scan sets bit 6 at every packet, V96); a mode set meanwhile kept
+Wake:	stz VERA_CTRL
+	lda VERA_DC_VIDEO
+	bit #%00000011
+	bne @k
+	ora saveMode
+	sta VERA_DC_VIDEO
+@k:	stz kBlanked
 	rts
 
 .segment "RODATA"

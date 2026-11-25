@@ -3,6 +3,7 @@
 ; A monitor in the interrupt (intBotVector, after Veranda's work) counts
 ; frames and logs a line whenever sprite 0's picture address or size,
 ; DC_VIDEO, DC_VSTOP (the display window's end, V96), palette entry 0 or
+; (V184: blanked is DC_VIDEO's output mode 0; the rest must not change)
 ; PSG voice 15 change:
 ;   "F frame A addr size V dcvideo W vstop P pal0 Q freq vol wave"
 ; The program (appMain) at its frames:
@@ -276,11 +277,10 @@ PEnd:	lda frame
 	jmp $FFFF
 @r:	rts
 
-; z set: blanked (DC_VSTOP 0: no active line)
-VStop:	LoadB VERA_CTRL, 2
-	lda VERA_DC_VSTOP
-	stz VERA_CTRL
-	tax
+; z set: blanked (V184: DC_VIDEO's output mode 0, video off)
+VStop:	stz VERA_CTRL
+	lda VERA_DC_VIDEO
+	and #%00000011
 	rts
 
 ; mouseSource: the pointer at (300, 200), the button pb

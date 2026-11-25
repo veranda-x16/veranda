@@ -25,7 +25,19 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
     steps:
+      # (a repository with no branch next, as after a snapshot publish:
+      # nothing to build, not a failure)
+      - name: Is there a branch next?
+        id: next
+        run: |
+          if gh api "repos/$GH_REPO/branches/next" --silent 2>/dev/null; then
+            echo "has=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "has=0" >> "$GITHUB_OUTPUT"
+            echo "no branch next: no test build"
+          fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        if: steps.next.outputs.has == '1'
         with:
           ref: next
           path: veranda
@@ -33,6 +45,10 @@ jobs:
       - name: Moved since the last test build?
         id: moved
         run: |
+          if [ "${{ steps.next.outputs.has }}" != 1 ]; then
+            echo "skip=1" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           now=$(git -C veranda rev-parse HEAD)
           was=$(gh release view test --json body -q .body 2>/dev/null | sed -n 's/.*Built from commit \([0-9a-f]\{40\}\).*/\1/p' | head -1)
           if [ "${{ github.event_name }}" = schedule ] && [ "$now" = "$was" ]; then

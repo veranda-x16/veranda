@@ -1,5 +1,6 @@
 # Calculator, a Veranda desk accessory in C
-#   make        Calculator.cvt, against the installed SDK (SDK, default ../../build/sdk)
+#   make        Calculator.cvt, against the installed SDK (SDK, default ../../build/sdk);
+#               linked with calc.cfg (cc65's zero page clear of the ROM's maths: fp.s)
 #   make test   the test build: a scripted session linked in (TEST_SRC;
 #               TESTFLAGS=-DCALC_STOP=n ends it at frame n with a dump)
 # OUT: where the results go (default here)
@@ -10,8 +11,12 @@ TEST_SRC ?= ../../tests/calc_play.c ../../tests/sdk_play.s
 
 all: $(OUT)/Calculator.cvt
 
-$(OUT)/calc.bin: calc.c app.hdr
-	$(CC65) $(CFLAGS) -C $(SDK)/cfg/app-c.cfg -m $(OUT)/calc.map -o $@ calc.c $(EXTRA) $(SDK)/lib/veranda.lib
+$(OUT)/calc.bin: calc.c fp.s glyphs.h calc.cfg app.hdr
+	$(CC65) $(CFLAGS) -C calc.cfg -m $(OUT)/calc.map -o $@ calc.c fp.s $(EXTRA) $(SDK)/lib/veranda.lib
+
+# the display's digits and the keys' signs (written into the repository)
+glyphs.h: mkglyphs.py
+	python3 -I -B mkglyphs.py $@
 
 $(OUT)/Calculator.cvt: $(OUT)/calc.bin icon.pbm tile.txt
 	python3 -I -B $(SDK)/tools/vpack.py --load 0x0801 -o $@ app.hdr $(OUT)/calc.bin

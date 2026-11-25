@@ -94,7 +94,9 @@ From the top:
   space on the card. Drag the corner at the right to resize the
   window.
 
-The **Page** menu (Page Down, Page Up) also moves a page.
+The **Page** menu (Page Down, Page Up) also moves a page. A mouse
+wheel scrolls the front window when the pointer is over it: three rows
+a notch in the list, a row of icons a notch in the icons.
 
 ### Icons and the list
 

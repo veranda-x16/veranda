@@ -3,7 +3,7 @@
 tests/calc_script.py).
 
 usage: check_desk.py <run dir: console.txt, PRE.RAW, POST.RAW, dump.bin>
-       check_desk.py --calc <dump.bin>   (the Calculator open)
+       check_desk.py --calc [--dark] <dump.bin>   (the Calculator open; dark mode)
 
 PRE.RAW and POST.RAW: both screens (foreground, then back screen; 480
 rows of 80 bytes each) when Paint opened the accessory and when GetFile
@@ -26,16 +26,19 @@ def check(cond, what):
 
 LIGHT = [0xFFF, 0x223, 0xDDE, 0xEEF, 0x9CF, 0xACE, 0xFD5, 0xF87, 0x8D9, 0xB9F, 0xFA5, 0x6CE, 0x36A, 0x8BE,
          0x7A8, 0xDAC]          # (sdk/lib/theme.c: Veranda's palette, light)
+DARK = [0x334, 0xEEF, 0x223, 0x223, 0x357, 0x346, 0xA82, 0xA44, 0x385, 0x649, 0xA62, 0x278, 0x124, 0x247,
+        0x343, 0x535]           # (and dark)
 
 
-def calc(path):
-    """the Calculator open over Paint (Look 3 "Sunroom", V148): its window
-    in Veranda's colours (Paint's put aside with the rest, V33): the colour
-    map shown (layer 0 the map, layer 1 the bitmap), palette entries 0-15
-    Veranda's light; in the window (200 x 224 at 216, 128: card 27, card
-    row 16) the title band's cards the theme's accent (3: Sunroom's mist),
-    the display's the paper, a digit's key the paper, an operator's the
-    chrome (2), ='s the selection colour (5)"""
+def calc(path, dark=False):
+    """the Calculator open over Paint (Look 3 "Sunroom", V148; V186): its
+    window in Veranda's colours (Paint's put aside with the rest, V33):
+    the colour map shown (layer 0 the map, layer 1 the bitmap), palette
+    entries 0-15 Veranda's, light or dark; in the window (296 x 304 at
+    168, 88: card 21, card row 11) the title band's cards the theme's
+    accent (3: Sunroom's mist), the display's the sidebar's tint (3), a
+    digit's key the paper, an operator's the chrome (2), a function's the
+    tint (3), C's orange (10), ='s the selection colour (5)"""
     sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'tools'))
     import vram2png
     v = vram2png.section(path)
@@ -44,20 +47,22 @@ def calc(path):
     check(v[131072] & 0x30 == 0x30 and not lay0[0] & 4, 'the Calculator open: the colour map shown (layer 0 the '
           'map, layer 1 the bitmap)')
     pal = [vram2png.rgb(v, i) for i in range(16)]
-    want = [((c >> 8) * 17, (c >> 4 & 15) * 17, (c & 15) * 17) for c in LIGHT]
-    check(pal == want, 'palette entries 0-15 Veranda\'s, light (%d differ)' % sum(1 for a, b in zip(pal, want) if a != b))
+    want = [((c >> 8) * 17, (c >> 4 & 15) * 17, (c & 15) * 17) for c in (DARK if dark else LIGHT)]
+    check(pal == want, 'palette entries 0-15 Veranda\'s, %s (%d differ)' % ('dark' if dark else 'light',
+                                                                           sum(1 for a, b in zip(pal, want) if a != b)))
 
     def paper(cx, cy):
         return v[mbase + 2 * (cy * 128 + cx) + 1] >> 4
-    got = [paper(30, 16), paper(30, 19), paper(28, 23), paper(46, 23), paper(40, 38)]
-    check(got == [3, 0, 0, 2, 5], 'its cards: the title band 3, the display 0, the key 7 0, / 2, = 5 (%s)' %
-          ' '.join(map(str, got)))
+    got = [paper(25, 11), paper(23, 14), paper(34, 33), paper(52, 25), paper(22, 25), paper(40, 25), paper(52, 41),
+           paper(52, 44)]
+    check(got == [3, 3, 0, 2, 3, 10, 5, 5], 'its cards: the title band 3, the display 3, the key 7 0, / 2, sin 3, '
+          'C 10, = 5 (both its rows) (%s)' % ' '.join(map(str, got)))
     sys.exit(1 if failures else 0)
 
 
 def main():
     if sys.argv[1] == '--calc':
-        calc(sys.argv[2])
+        calc(sys.argv[-1], '--dark' in sys.argv)
     d = sys.argv[1]
     con = open(os.path.join(d, 'console.txt'), 'rb').read().decode('latin-1')
     con = re.sub(r'\\X[0-9A-F]{2}', '', con).replace('\r', '')

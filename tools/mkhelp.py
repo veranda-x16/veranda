@@ -47,6 +47,8 @@ def ascii_text(s):
     s = s.replace('ł', 'l').replace('Ł', 'L').replace('−', '-')
     s = s.replace('‘', "'").replace('’', "'").replace('“', '"').replace('”', '"')
     s = s.replace('–', '-').replace('—', '-').replace('…', '...')
+    s = s.replace('×', 'x').replace('÷', '/').replace('±', '+/-').replace('π', 'pi').replace('√', 'sqrt ')
+    s = s.replace('⌫', '<-')
     s = unicodedata.normalize('NFKD', s)
     s = ''.join(c for c in s if not unicodedata.combining(c))
     return s.encode('ascii', 'replace').decode('ascii')

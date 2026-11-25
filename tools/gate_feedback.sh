@@ -15,10 +15,11 @@
 # Part 2 (V96): the real shell (release build) under ROM R49 at 512 KB
 # with real PS/2 input (EMU_MOUSE: x16emu's branch with -mousescript), a
 # blankDelay of 3 s from the settings file, on the Dusk wallpaper, on the
-# plain pattern and in Paint: the screen blanks (the display window
-# closed, DC_VIDEO as it was); a mouse move (moved back) and a key each
-# wake it, and the dump then equals a session that stayed blanked as long
-# but for the display window and palette entry 0, back as before (VRAM,
+# plain pattern and in Paint: the screen blanks (V184: DC_VIDEO's output
+# mode 0, video off; its layers and sprites, the display window and the
+# palette as they were); a mouse move (moved back) and a key each wake
+# it, and the dump then equals a session that stayed blanked as long but
+# for the output mode, VGA (1) again (VRAM,
 # the colour map, the palette, the layers, the sprites); after a wake a
 # click on the bar's File opens its menu (tests/check_blank.py). The bug
 # it guards: the ROM's mouse_scan turns the sprites on (DC_VIDEO bit 6)
@@ -112,7 +113,7 @@ for desk in dusk plain paint; do
 	done
 	m=""
 	[ $desk = paint ] || m="; a click on File after either opens its menu"
-	ok "R49, real input, $desk: blanked (DC_VSTOP 0, DC_VIDEO as awake); a mouse move and a key each wake it: the display, VRAM, the colour map, the palette, the layers and the sprites as before$m"
+	ok "R49, real input, $desk: blanked (DC_VIDEO output mode 0, its layers and sprites as awake); a mouse move and a key each wake it: the output mode (VGA), VRAM, the colour map, the palette, the layers and the sprites as before$m"
 	$PY tools/vram2png.py --color "$OUT/blank/$desk-move/dump.bin" "$OUT/blank-$desk.png" 2>/dev/null || true
 done
 echo "pointer shapes: $OUT/ptr-arrow.png, ptr-ibeam.png, ptr-cross.png, ptr-busy.png"

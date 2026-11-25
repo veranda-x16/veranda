@@ -24,7 +24,7 @@ Each row has **<** and **>** buttons to change it.
 
 | Row | Choices |
 |---|---|
-| Blank the screen after | never, 1, 2, 5, 10, 15, 30 minutes, 1 hour. The screen goes dark when you do nothing for that long. Move the mouse or press a key to wake it. |
+| Blank the screen after | never, 1, 2, 5, 10, 15, 30 minutes, 1 hour. The screen goes dark (the video signal is turned off, so the monitor can sleep) when you do nothing for that long. Move the mouse or press a key to wake it. |
 | Paper | the background colour of windows and pages: White, Cream, Mint, Sky, Silver, Sand |
 | Ink | the colour of text and lines: Slate, Black, Navy, Brown, Forest, Plum |
 | Sounds | **On** or **Off**; the volume, 0 to 63; **Menu ticks** (a small click when you choose a menu item) or **No menu ticks** |

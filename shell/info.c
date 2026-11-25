@@ -124,3 +124,27 @@ unsigned char files_match(const char *p, const char *a, const char *b)
 {
     return match(p, a) || match(p, b);
 }
+
+/* (V185; mouse.c's win_idle: overlay 6 has no room) the wheel: its
+   notches (+ down) read and cleared; on (the pointer over the front
+   window, no drag), no menu open and no find results: the front window
+   scrolled, its list 3 rows a notch, its icons a row, by view_page's row
+   step (the scroll bar's arrows: clamped there) */
+void win_wheel(unsigned char on)
+{
+    signed char k;
+    unsigned char n;
+    asm("sei");                         /* (the interrupt adds to it) */
+    k = (signed char)mouseWheel;
+    mouseWheel = 0;
+    asm("cli");
+    if (!on || menuNumber || found_on || mouseYPosW < 16)
+        return;
+    n = k < 0 ? -k : k;
+    if (n > 8)
+        n = 8;
+    if (wins[front].view == V_LIST)
+        n *= 3;
+    while (n--)
+        XCALL(bView, view_page, FBB)(front, k < 0 ? -2 : 2);
+}

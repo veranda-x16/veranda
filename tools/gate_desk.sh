@@ -11,14 +11,20 @@
 #    desk accessories, OPEN; GetFile puts Paint aside (its RAM, zero page,
 #    stack, system variables, bank U, VRAM, processes ...) and starts the
 #    Calculator over Paint's screen; it is clicked (12 + 30 = 42) and
-#    typed into (* 2 Return: 84), and its close box ends it (RstrAppl)
-# 3. tests/check_desk.py: the console in order; both screens when GetFile
+#    typed into (* 2 Return: 84), then the scientific session of
+#    tests/calc_script.py (CASES: the precedence, brackets, every
+#    function, degrees and radians, the memory, the errors, every key
+#    clicked once), and its close box ends it (RstrAppl)
+# 3. tests/check_calc.py: each case's display as Python has it (within a
+#    unit of the 9th digit); tests/check_desk.py: the console in order; both screens when GetFile
 #    returned equal those when the accessory opened; afterwards Paint
 #    draws a filled rectangle with the tool and pattern chosen before,
 #    and nothing else changed
-# 4. a screenshot with the Calculator open (calc.png; check_vera.py): the
-#    colour map hidden while it runs, the composed display black on white
-#    (DECISIONS V33); the map is back after (3.)
+# 4. screenshots with the Calculator open (check_vera.py): calc.png (a
+#    sum with a sine, light), calc-dark.png (the same, dark mode),
+#    calc-320.png (the same at 320 x 240: the short layout),
+#    calc-press.png (= pressed), calc-error.png (1 / 0: Error); the
+#    window's cards in their colours (check_desk.py --calc)
 # 5. the same session on an SD card image
 set -e
 cd "$(dirname "$0")/.."
@@ -71,21 +77,40 @@ run "$OUT/paint/Paint.cvt" "$C" "$R" 120
 $PY tools/check_vera.py "$R/dump.bin" || fail "the display"
 $PY tools/vram2png.py "$R/dump.bin" "$OUT/after.png" 2>/dev/null || true
 echo "== the session on the host folder"
+$PY tests/check_calc.py "$R/console.txt" || fail "the Calculator's results"
 $PY tests/check_desk.py "$R" || fail "the session (host folder)"
 
-# a screenshot with the Calculator open (its script stopped there)
-shot=$(sed -n 's|^/\* shot calc \([0-9]*\) \*/|\1|p' tests/calc_script.h)
-T=$OUT/shot
-mkdir -p "$T"
-make -s -C apps/calc test SDK="$SDK" OUT="$TOP/$T" TESTFLAGS=-DCALC_STOP=$shot >"$OUT/shot.log" 2>&1 \
-	|| { cat "$OUT/shot.log"; fail "the Calculator's test build (stopped at $shot)"; }
-run "$OUT/paint/Paint.cvt" "$T/Calculator.cvt" "$T/run" 60
-[ -f "$T/run/dump.bin" ] || fail "no dump with the Calculator open"
-$PY tools/check_vera.py "$T/run/dump.bin" || fail "the display with the Calculator open"
-$PY tools/vram2png.py --color "$T/run/dump.bin" "$OUT/calc.png" 2>/dev/null || true
-grep -q "CALC = 84" "$T/run/console.txt" || fail "the Calculator's session (stopped) did not get to 84"
-$PY tests/check_desk.py --calc "$T/run/dump.bin" || fail "the Calculator in the normal colours"
-ok "a screenshot with the Calculator open over Paint: $OUT/calc.png"
+# screenshots with the Calculator open (its script stopped there): the
+# shot's name in tests/calc_script.h, the build's flags, the console's
+# last result by then, the picture's name (calc-320: the build sets the
+# 320 x 240 mode first, CALC_LOWRES)
+shotrun() {
+	local name=$1 flags=$2 want=$3 png=$4 at
+	at=$(sed -n "s|^/\* shot $name \([0-9]*\) \*/|\1|p" tests/calc_script.h)
+	T=$OUT/shot-$png
+	mkdir -p "$T"
+	make -s -C apps/calc test SDK="$SDK" OUT="$TOP/$T" TESTFLAGS="-DCALC_STOP=$at $flags" >"$T/build.log" 2>&1 \
+		|| { cat "$T/build.log"; fail "the Calculator's test build ($png, stopped at $at)"; }
+	run "$OUT/paint/Paint.cvt" "$T/Calculator.cvt" "$T/run" 60
+	[ -f "$T/run/dump.bin" ] || fail "no dump with the Calculator open ($png)"
+	if [ "$png" = calc-320 ]; then         # (the 320 x 240 mode: as the screen shows it)
+		$PY tools/vram2png.py --color --scale 2 "$T/run/dump.bin" "$OUT/$png.png" 320 240 \
+			|| fail "the display with the Calculator open ($png)"
+	else
+		$PY tools/check_vera.py "$T/run/dump.bin" >/dev/null || fail "the display with the Calculator open ($png)"
+		$PY tools/vram2png.py --color "$T/run/dump.bin" "$OUT/$png.png" 2>/dev/null || true
+	fi
+	[ "$(grep -o 'CALC = [^ ]*' "$T/run/console.txt" | tail -1 | tr -d '\r')" = "CALC = $want" ] \
+		|| fail "the Calculator's session ($png, stopped) did not get to $want"
+}
+shotrun calc "" 18.5 calc
+$PY tests/check_desk.py --calc "$OUT/shot-calc/run/dump.bin" || fail "the Calculator in the normal colours"
+shotrun calc -DCALC_DARK 18.5 calc-dark
+$PY tests/check_desk.py --calc --dark "$OUT/shot-calc-dark/run/dump.bin" || fail "the Calculator in dark mode"
+shotrun calc -DCALC_LOWRES 18.5 calc-320
+shotrun press "" Error calc-press
+shotrun error "" Error calc-error
+ok "screenshots with the Calculator open over Paint: $OUT/calc.png, calc-dark.png, calc-320.png, calc-press.png, calc-error.png"
 
 if [ "${DESK_SD:-1}" != 0 ]; then
 	S=$OUT/sd
@@ -105,5 +130,5 @@ if [ "${DESK_SD:-1}" != 0 ]; then
 	echo "== the same on an SD card image"
 	$PY tests/check_desk.py "$S/out" || fail "the session (SD card)"
 fi
-echo "screenshots: $OUT/calc.png (the Calculator over Paint), after.png (the end)"
+echo "screenshots: $OUT/calc.png calc-dark.png calc-320.png calc-press.png calc-error.png (the Calculator over Paint), after.png (the end)"
 echo "GATE desk: PASS"

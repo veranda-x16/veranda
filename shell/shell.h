@@ -317,6 +317,7 @@ typedef unsigned char (*FSMALL)(unsigned char, unsigned int, unsigned char, unsi
 unsigned char info_icon(unsigned char cx, unsigned char cy);  /* E's at cards cx, cy of the box; 0 none */
 void info_unicon(void);                           /* its cards as they were, after the box */
 unsigned char files_match(const char *p, const char *a, const char *b);  /* (V182: files.c's find) a or b matches p */
+void win_wheel(unsigned char on);                 /* (V185) mouse.c's idle: the wheel (on: over the front window) */
 
 /* wall.c (overlay 11): the desktop's picture (DECISIONS V78, V101) */
 #define W_PICTURE 0                               /* wallMode: the picture */

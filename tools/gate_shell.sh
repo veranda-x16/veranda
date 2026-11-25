@@ -51,6 +51,9 @@
 #    gone from its list at once and in the trash's; one deleted for good
 #    there; the trash folder, SHELL.cvt, APPS kept; empty trash; on the
 #    host folder and an SD card image
+# 9. (V185) the mouse wheel (tests/shell_wheel_script.py): /VERANDA/APPS in
+#    the list and the icons, a notch down and up over window 0: 3 rows or
+#    a row of icons and back; nothing at the top or off the windows
 set -e
 cd "$(dirname "$0")/.."
 OUT=${OUT:-build/gate/shell}
@@ -414,6 +417,34 @@ $PY tools/vcard.py ls "$TD/sd.img" | while read -r line; do
 done
 $TS check "$TD/out" "$TAPPS" "$TD/console.txt" || fail "trash, SD card"
 ok "SD card: the same session, the same files"
+
+# (V185) the mouse wheel scrolls the front window under the pointer
+# (tests/shell_wheel_script.py; shell/play.s's wheel records): /VERANDA/APPS
+# (the package's when there is one, else 36 stubs) in the list and in the
+# icons; a notch down: 3 rows (FIRST 1, 2, 3: view_page's row step) or a
+# row of icons; up again: back to the first page, window 0 pixel for pixel
+# as before; a notch up at the top, over the desktop beside and below the
+# window: nothing
+echo "== the mouse wheel in the windows (V185)"
+WS="$PY tests/shell_wheel_script.py"
+COLS=$($PY -c 'import sys; sys.path.insert(0, "tests"); import shell_script as S; print(S.grid()[2])')
+for view in list icon; do
+	for run in ref down both; do
+		WD=$OUT/wheel/$view-$run
+		mkdir -p "$WD"
+		$WS make "$WD" $TAPPS || fail "the wheel fixtures"
+		cp "$C" "$WD/VERANDA/"
+		cp build/VERANDA.SYS "$WD/"
+		$WS script "$WD" $view $run || fail "the wheel script"
+		frun "$WD" 120
+		$WS check "$WD/console.txt" $view $run "$COLS" || fail "wheel, $view, $run"
+	done
+	$WS same "$OUT/wheel/$view-ref/dump.bin" "$OUT/wheel/$view-both/dump.bin" || fail "wheel, $view: up again"
+	$PY tools/vram2png.py --color "$OUT/wheel/$view-down/dump.bin" "$OUT/wheel-$view.png" 2>/dev/null \
+		|| $PY tools/vram2png.py "$OUT/wheel/$view-down/dump.bin" "$OUT/wheel-$view.png" || fail "vram2png"
+	[ $view = list ] && n="3 rows" || n="a row of icons ($COLS)"
+	ok "the wheel over the Apps window, $view: a notch down scrolls $n, up again the first page (window 0 as before); at the top, over the desktop beside and below the window: nothing ($OUT/wheel-$view.png)"
+done
 
 echo "== Shell 2: the desktop and its windows (DECISIONS V70)"
 # tests/shell_desk_script.py: the card's icon opens window 1, both windows

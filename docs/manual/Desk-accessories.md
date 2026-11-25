@@ -6,7 +6,7 @@ as it was.
 
 | Accessory | What it does |
 |---|---|
-| [Calculator](Calculator.md) | a pocket calculator |
+| [Calculator](Calculator.md) | a scientific calculator |
 | [Note Pad](Note-Pad.md) | pages of short notes |
 | [Dex](Dex.md) | an address book |
 | [Calendar](Calendar.md) | a month, appointments and alarms |
