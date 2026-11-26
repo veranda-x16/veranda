@@ -10,14 +10,14 @@ CC65     := cl65 -t none --cpu 65C02 -O -I $(SDK)/include -I . -I ../claude --as
 CL       := ../claude
 SHARED   := $(CL)/main.c $(CL)/copy.s $(CL)/store.c $(CL)/net.c $(CL)/ui.c $(CL)/prefs.c $(CL)/parse.c \
             $(CL)/code.c $(CL)/file.c $(CL)/conv.c $(CL)/hist.c
-SRC      := $(SHARED) tok.c turn.c page.c auth.c log.c logx.c logclk.c logq.c
+SRC      := $(SHARED) tok.c turn.c page.c auth.c log.c logx.c logclk.c logq.c rq.c
 TEST_SRC ?= ../../tests/ask_play.c ../../tests/term_play.s
 # main RAM: main.c, copy.s, store.c, net.c, tok.c and vrnet (veranda.lib);
 # overlay 1 (appBank) ui.c; overlay 2 prefs.c, turn.c; overlay 3 parse.c
 # (with pick.c) and vrwin; overlay 4 page.c; overlay 5 auth.c; overlay 6
 # code.c and the scrap library, 7 file.c, 8 conv.c, 9 hist.c (V123);
 # overlay 10 log.c (V129; logclk.c in 4, logx.c in 8 and 9), sbar.c and
-# vrscroll (V149); overlay 11 the test's
+# vrscroll (V149); overlay 11 rq.c (V199: a request); overlay 12 the test's
 
 all: $(OUT)/Ask.cvt
 
@@ -45,11 +45,11 @@ $(OUT)/ask.bin: $(SRC) pick.c ask.h $(CL)/claude.h $(CL)/basictok.h app.hdr $(VR
 	$(CC65) -DASK $(CFLAGS) -C $(SDK)/cfg/app-c-ovl.cfg -Wl -D,__STACKSIZE__=0x0400 -m $(OUT)/ask.map -o $@ $(SRC) $(EXTRA) $(VRW) $(SCRAP) $(SBAR) $(SDK)/lib/veranda.lib
 
 $(OUT)/Ask.cvt: $(OUT)/ask.bin icon.pbm tile.txt
-	python3 -I -B $(SDK)/tools/vpack.py --load 0x0801 -o $@ app.hdr $(OUT)/ask.bin $(OUT)/ask.bin.1 $(OUT)/ask.bin.2 $(OUT)/ask.bin.3 $(OUT)/ask.bin.4 $(OUT)/ask.bin.5 $(OUT)/ask.bin.6 $(OUT)/ask.bin.7 $(OUT)/ask.bin.8 $(OUT)/ask.bin.9 $(OUT)/ask.bin.10 $(OVL11)
+	python3 -I -B $(SDK)/tools/vpack.py --load 0x0801 -o $@ app.hdr $(OUT)/ask.bin $(OUT)/ask.bin.1 $(OUT)/ask.bin.2 $(OUT)/ask.bin.3 $(OUT)/ask.bin.4 $(OUT)/ask.bin.5 $(OUT)/ask.bin.6 $(OUT)/ask.bin.7 $(OUT)/ask.bin.8 $(OUT)/ask.bin.9 $(OUT)/ask.bin.10 $(OUT)/ask.bin.11 $(OVL12)
 
 test:
 	rm -f $(OUT)/ask.bin $(OUT)/sbar.o
-	$(MAKE) OUT=$(OUT) CFLAGS="-DCLAUDE_TEST $(TESTFLAGS)" EXTRA="$(TEST_SRC)" OVL11='$(OUT)/ask.bin.11' all
+	$(MAKE) OUT=$(OUT) CFLAGS="-DCLAUDE_TEST $(TESTFLAGS)" EXTRA="$(TEST_SRC)" OVL12='$(OUT)/ask.bin.12' all
 
 run: $(OUT)/Ask.cvt
 	$(SDK)/tools/vrun $(OUT)/Ask.cvt

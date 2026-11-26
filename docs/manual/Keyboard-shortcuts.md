@@ -77,6 +77,9 @@ The menus show these keys at the right of their items.
 | Ctrl+L, Ctrl+Shift+C, Ctrl+Shift+R, Ctrl+J | left, centre, right, justify |
 | Ctrl+F, Ctrl+H (Ctrl+R), Ctrl+G | Find, Replace, Find next |
 | Ctrl+Shift+G, Ctrl+Shift+D | Go to page, Insert date and time |
+| Ctrl+Return, Ctrl+Shift+P | Insert a page break, Export as PDF |
+| F7, F8 | Check spelling, the word's suggestions |
+| Tab, Shift+Tab (in a table) | the next cell (in the last: a new row), the one before |
 | Ctrl+Left, Ctrl+Right | a word |
 | Ctrl+PgUp (Ctrl+Home), Ctrl+End | start, end of the document |
 

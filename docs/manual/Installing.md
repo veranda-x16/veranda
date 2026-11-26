@@ -23,6 +23,8 @@ level** of the card:
 | `/VERANDA/APPS` | the programs and desk accessories |
 | `/VERANDA/FONTS` | the fonts: Gate Sans, Gate Mono 10 and 12 |
 | `/VERANDA/WALLPAPERS` | desktop pictures: Dusk, Still Water, Low Hills and Sunroom Tiles |
+| `/VERANDA/DICT` | Veranda Write's spelling code; its dictionaries go here too when you get them (Tools > Get dictionaries) |
+| `/VERANDA/TEMPLATES` | Veranda Write's templates, English (`EN`) and Polish (`PL`) |
 | `/VERANDA/HELP` | VeraBASIC's help, this manual in text form, the VeraBASIC reference card (PDF) |
 | `/DOCUMENTS` | your files. The desktop opens here and programs save here. The package puts the VeraBASIC examples here. |
 | `/PC` | small Python programs that run **on a PC**, not on the X16: helpers for Veranda Claude, Ask, Gemini and Update |

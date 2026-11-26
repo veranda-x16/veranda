@@ -25,6 +25,12 @@
               turn), the clock set to 1 January 2000 (not trusted: the turn
               goes, the 401 renews); ASK.LOG shown ("CL LOG ...")
      code     (V123; its own build, -DCODE_SESSION) tests/code_steps.h
+     q        (V199) a request (AI.REQ, AI.IN on the card: apps/ask/rq.c);
+              "m=" the mode: s Send then Use this (clicks), k the same by
+              keys (Return, Return), r Send, Try again, Use this, c Send then
+              Cancel, e Esc at once (nothing sent); a request refused at the
+              start (not set up, too long, ...): its box's OK clicked
+              (gt_box, before the first pass)
    The log lines "CL ..." on the console; screens as in claude_play.c.
 
    MIT licence (see LICENSE). */
@@ -34,8 +40,8 @@
 #include <vrser.h>
 #include <vrpath.h>
 #include "../apps/claude/claude.h"
-#pragma code-name ("OVERLAY11")
-#pragma rodata-name ("OVL11RO")
+#pragma code-name ("OVERLAY12")
+#pragma rodata-name ("OVL12RO")
 
 void __fastcall__ term_play(const unsigned int *script);
 void __fastcall__ t_ui(void (*f)(void));        /* (main.c: f in overlay 1) */
@@ -46,11 +52,12 @@ void term_dump(void);
 #define F_KEY 0x8000
 
 static unsigned int scr[3 * 64];       /* (main RAM: the player reads it from the interrupt) */
-static char tl[100];                    /* (main RAM: LogText, FOpen read it) */
-#pragma data-name (push, "OVL11DATA")
+extern char tlog[120];                  /* (main RAM: LogText, FOpen read it; main.c's, V199: room) */
+#define tl tlog
+#pragma data-name (push, "OVL12DATA")
 static unsigned char step = 0, ns = 0;  /* (in the overlay's file: its BSS is not cleared) */
 #pragma data-name (pop)
-#pragma bss-name (push, "OVL11BSS")
+#pragma bss-name (push, "OVL12BSS")
 static unsigned char nbox;
 static unsigned int tplay, tlen, plen;
 static unsigned char sess, plain, want;
@@ -234,6 +241,26 @@ static void msgs_log(void)
                 tl[i] = '|';
         LogText(tl);
         a = nx;
+    }
+}
+
+/* (V199: main.c's box_log, here for main RAM's room) a box's texts */
+extern char msga[52], msgb[52];
+static void CK(unsigned int f, unsigned int x, unsigned int y);
+static void go_(void);
+void gt_box(void)
+{
+    t_box = 1;
+    ++t_nbox;
+    strcpy(tl, "CL BOX ");
+    strcat(tl, msga);
+    strcat(tl, "|");
+    strcat(tl, msgb);
+    LogText(tl);
+    if (rqm) {                          /* (V199: a request refused: at the start, before the first pass; or at Send) */
+        ns = 0;
+        CK(60, 256, 272);
+        go_();
     }
 }
 
@@ -455,6 +482,69 @@ static void renew_steps(void)
     NEXT();
 }
 
+/* (V199) a request: the screen, Send (or Return, Esc), the answer
+   previewed, Use this (or Try again first, or Cancel); the program then
+   ends (rq.c's finish: CL RQ DONE) */
+#pragma bss-name (push, "OVL12BSS")
+static unsigned char rmode;
+#pragma bss-name (pop)
+#define TB (TOOLY + 7)
+static void rq_steps(void)
+{
+    switch (step) {
+    case 1:
+        if (!rqm || (net_state() != NET_READY && net_state() != NET_FAULT) || !idle())
+            return;                     /* (FAULT: the run nomodem, refused at Send) */
+        if (utc[0])                     /* (V201: utc= given: the X16's clock to trust) */
+            SetClock(100 + utc[0], utc[1], utc[2], utc[3], utc[4], utc[5], 1);
+        logn("CL TEST RQ READY ", rqm);
+        snap("RQ.RAW");
+        if (rmode == 'e')
+            typed(10, "\x1b");
+        else if (rmode == 'k')
+            typed(10, "\r");
+        else
+            CK(10, 36, TB);             /* (Send) */
+        go_();
+        want = t_turns + 1;
+        break;
+    case 2:                             /* the answer coming: the preview as it streams */
+        if (tstate == T_IDLE && t_turns < want && net_state() == NET_FAULT && idle()) {
+            logn("CL TEST RQ SEND AGAIN ", rqm);        /* (V201: the modem looked for again at the first Send) */
+            CK(10, 36, TB);
+            go_();
+            return;
+        }
+        if (tstate != T_RECV || p_text < 40) {
+            if (turned())
+                NEXT();
+            return;
+        }
+        snap("STREAM.RAW");
+        break;
+    case 3:
+        if (!turned())
+            return;
+        logn("CL TEST RQ ANSWER ", rqm);
+        msgs_log();
+        snap(rmode == 'r' && want == 1 ? "FIRST.RAW" : "PREVIEW.RAW");
+        if (rmode == 'r' && want == 1) {
+            CK(10, 140, TB);            /* (Try again) */
+            go_();
+            want = t_turns + 1;
+            step = 2;
+            return;
+        }
+        if (rmode == 'k')
+            typed(10, "\r");
+        else
+            CK(10, rmode == 'c' ? 220 : 44, TB);       /* (Cancel, or Use this) */
+        go_();
+        break;
+    }
+    NEXT();
+}
+
 static void main_steps(void)
 {
     unsigned int f;
@@ -636,6 +726,9 @@ void gt_tick(void)
         tl[FRead(h, tl, 60)] = 0;
         FClose(h);
         sess = tl[0];
+#ifndef CODE_SESSION
+        rmode = strstr(tl, "m=") ? strstr(tl, "m=")[2] : 's';
+#endif
         plain = strstr(tl, "plain") != 0;
         t_plain = plain;
         for (h = 0; tl[h] && tl[h] != ' '; ++h)
@@ -674,6 +767,12 @@ void gt_tick(void)
         step = 0xFF;
         return;
     }
+#ifndef CODE_SESSION
+    if (sess == 'q') {                  /* (V199) a request: rqm (rq.c) */
+        rq_steps();
+        return;
+    }
+#endif
     if (sess == 'n' || sess == 't') {
         switch (step) {
         case 1:

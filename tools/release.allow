@@ -68,6 +68,15 @@ VERANDA/APPS/Veranda Write.cvt
 # release dict-1 of veranda-x16/veranda-write, fetched on demand by Veranda
 # Update (Write's Tools > Get dictionaries) or copied by hand from its zip
 VERANDA/DICT/SPELL.OVL
+# Veranda Write's templates (commander-write's tools/templates.py)
+VERANDA/TEMPLATES/EN/CV.cwr
+VERANDA/TEMPLATES/EN/Letter.cwr
+VERANDA/TEMPLATES/EN/Meeting notes.cwr
+VERANDA/TEMPLATES/EN/Report.cwr
+VERANDA/TEMPLATES/PL/Curriculum vitae.cwr
+VERANDA/TEMPLATES/PL/List.cwr
+VERANDA/TEMPLATES/PL/Notatka ze spotkania.cwr
+VERANDA/TEMPLATES/PL/Raport.cwr
 
 # fonts, pictures, help (tools/fontcvt.py, gatemono.py, mkwall.py, wall_*.py, vbgen.py, vbmanual.py)
 VERANDA/FONTS/Gate Sans.cvt
@@ -89,6 +98,7 @@ VERANDA/HELP/Veranda manual 2 - Programs.txt
 VERANDA/HELP/Veranda manual 3 - Network.txt
 VERANDA/HELP/Veranda manual 4 - Music games and BASIC.txt
 VERANDA/HELP/Veranda manual 5 - Reference.txt
+VERANDA/HELP/Veranda manual 6 - Writing and numbers.txt
 
 # the PC helpers (this repository's tools/)
 PC/claude_bridge.py

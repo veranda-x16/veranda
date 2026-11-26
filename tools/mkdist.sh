@@ -233,6 +233,14 @@ copy_dict() {
 	mkdir -p "$V/DICT"
 	cp "$1/SPELL.OVL" "$V/DICT/"
 }
+# copy_templates <dir>: Veranda Write's templates (TEMPLATES/EN, TEMPLATES/PL:
+# tools/templates.py's, the program's build) into /VERANDA/TEMPLATES; the
+# user's own are in /DOCUMENTS/Templates, never written here
+copy_templates() {
+	[ -d "$1" ] || return 0
+	mkdir -p "$V/TEMPLATES"
+	cp -r "$1"/. "$V/TEMPLATES/"
+}
 port() {                # $1 the name, $2 the tree, $3 the refs (space separated), $4 the build, $5 its output, $6 the name on the card
 	local s
 	if [ ! -d "$2/.git" ] && [ ! -f "$2/.git" ]; then
@@ -244,6 +252,7 @@ port() {                # $1 the name, $2 the tree, $3 the refs (space separated
 	(cd "$s" && eval "$4") >"$WORK/b/$1.log" 2>&1 || { tail "$WORK/b/$1.log"; die "$1 does not build"; }
 	cp "$s/$5" "$V/APPS/$6"
 	copy_dict "$s/$(dirname "$5")/DICT"
+	copy_templates "$s/$(dirname "$5")/TEMPLATES"
 	say "$1: $(tail -1 "$WORK/refs.txt")"
 }
 # Inside veranda-x16 (MONO): its ../apps instead of the sibling repositories
@@ -262,6 +271,7 @@ local_app() {
 	(cd "$s" && eval "$3") >"$WORK/b/$1.log" 2>&1 || { tail "$WORK/b/$1.log"; die "$1 does not build"; }
 	cp "$s/$4" "$V/APPS/$5"
 	copy_dict "$s/$(dirname "$4")/DICT"
+	copy_templates "$s/$(dirname "$4")/TEMPLATES"
 	rev=$(git -C "$2" log -1 --format=%h -- . 2>/dev/null || true)
 	echo "$1 from apps/$(basename "$2")${rev:+ ($rev)}" >> "$WORK/refs.txt"
 	say "$1: apps/$(basename "$2")"
@@ -308,6 +318,9 @@ THE FOLDERS (DECISIONS V71)
                       Write fetches them (the Wi-Fi modem), or copy them
                       from Veranda-Write-dictionaries.zip (the release
                       dict-1 of github.com/veranda-x16/veranda-write)
+  /VERANDA/TEMPLATES  Veranda Write's templates (File > New from template),
+                      English in EN, Polish in PL; your own go in
+                      /DOCUMENTS/Templates
   /VERANDA/HELP       Veranda's manual as text (Veranda > Help in the
                       desktop opens it in View; Esc there lists its parts),
                       VeraBASIC's help files (F1 in the editor), the

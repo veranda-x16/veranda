@@ -15,6 +15,8 @@
               key=value (the file, the token endpoint's reply made lines,
               the sign-in helper's reply), the requests laid out (a turn,
               the renewal, the sign-in), the clock's minutes
+     rq.c     overlay 11 (V199): another program's request (AI.REQ,
+              AI.IN, AI.OUT, AI.RES: docs/AIREQ.md)
 
    MIT licence (see LICENSE). */
 #ifndef ASK_H
@@ -166,5 +168,26 @@ void ask_bar(void);             /* the toolbar's model, the plan's line */
 void notice_show(void);         /* the plan's first-time notice ("Got it") */
 void sys_fill(void);            /* the built-in system prompt into its bank */
 extern char right[64];
+
+/*--------------------------------------------------------------- (V199) a request (rq.c, overlay 11) */
+/* another program's "AI help on the selected text" (docs/AIREQ.md): rqm
+   0 none, 1 a request (no answer to use), 2 an answer to use; rqa what
+   ui.c does (rq_hit's, rq_key's, rq_do's) */
+extern unsigned char rqm, rqa;
+#define RA_PASS   0             /* (rq_key) the key is ui.c's own (scrolling) */
+#define RA_SEND   1             /* Send, Try again */
+#define RA_STOP   2
+#define RA_NONE   3
+#define RA_USE    4             /* (from here on m_quit's: rq_do ends the program) */
+#define RA_CANCEL 5
+extern unsigned int rq_sn;      /* rq_sys's length (main RAM: auth.c reads it) */
+extern const char rq_sys[];     /* the request's system prompt (overlay 11) */
+extern unsigned char bRq;       /* its bank */
+void __fastcall__ ovq(void (*f)(void));
+void rq_start(void);            /* ui_start's: AI.REQ read (rqm), the store filled; msg */
+void rq_bar(void);              /* toolbar()'s */
+void rq_hit(void);              /* a click on the toolbar (c_col; 0xFF the input box's button) */
+void rq_key(void);
+void rq_do(void);               /* rqa: RA_SEND (t_umsg; c_ui 1 not now), RA_USE, RA_CANCEL (never returns) */
 
 #endif

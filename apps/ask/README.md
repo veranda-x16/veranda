@@ -292,6 +292,24 @@ The page's settings are kept in `ASK.CFG`: `remember=all` (or `10`, `4`,
 `1`), `answers=normal` (`short`), `oldcode=short` (`full`),
 `compact=asked` (`auto`).
 
+## Help with another program's text
+
+Another program (Veranda Write first) can ask Veranda Ask to rewrite,
+shorten, correct, translate (English, Polish), summarise a text, or
+answer a question about it (DECISIONS V199; the files and their format:
+`docs/AIREQ.md`). The program writes `/VERANDA/.SYSTEM/AI.IN` (the text)
+and `AI.REQ` (the action, `back` its name), and `START.REQ`, and goes
+aside; the desktop starts Veranda Ask, which shows the request (the
+message exactly as it would go) with **Send** and **Cancel**: nothing
+leaves the X16 before Send. The answer streams into the window; then
+**Use this** (`AI.OUT`, `AI.RES` "ok"), **Try again** or **Cancel**
+(`AI.RES` "cancelled"), and the program comes back. Not signed in, or
+no key: a box, `AI.RES` "error not-set-up"; no network card, no RAM
+banks for it, the modem silent: a box, `AI.RES` "error network" (V201).
+An expired access token is renewed as for any turn. The request
+uses the sign-in or key of Settings, a system prompt of its own and its
+one message; it is not kept in Chats. `rq.c`, overlay 11.
+
 ## For developers
 
 A turn is `POST /v1/responses` (HTTP/1.1, `Connection: close`) with

@@ -76,7 +76,7 @@ def kind_of(path):
         return 'help'                   # (README.txt)
     if sub.startswith('.'):
         return None                     # (.SYSTEM: the user's)
-    return {'APPS': 'app', 'DICT': 'app', 'FONTS': 'font', 'HELP': 'help', 'WALLPAPERS': 'wallpaper'}.get(sub)
+    return {'APPS': 'app', 'DICT': 'app', 'TEMPLATES': 'app', 'FONTS': 'font', 'HELP': 'help', 'WALLPAPERS': 'wallpaper'}.get(sub)
 
 
 def crc32(data):

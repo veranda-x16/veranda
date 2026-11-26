@@ -10,10 +10,12 @@
 - [BASIC and back](BASIC-and-back.md)
 - [Help on the X16](Help-on-the-X16.md)
 
-**Programs**
+**Writing and numbers**
 - [Veranda Write](Veranda-Write.md)
 - [Veranda Edit](Veranda-Edit.md)
 - [Veranda Calc](Veranda-Calc.md)
+
+**Programs**
 - [Paint](Paint.md)
 - [Colour Paint](Colour-Paint.md)
 - [View](View.md)

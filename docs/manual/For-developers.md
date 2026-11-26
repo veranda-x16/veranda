@@ -17,6 +17,10 @@ build it, or change it, start here.
   tiles, colour icons, overlays): [docs/APPFORMAT.md](../APPFORMAT.md).
 - **The network** for programs (`vrnet`: TCP through the Wi-Fi modem):
   [docs/NET.md](../NET.md).
+- **AI help on a program's text** (ask Veranda Ask to rewrite,
+  shorten, correct, translate or summarise a text, or answer a question
+  about it, with the user's own sign-in): the request files in
+  [docs/AIREQ.md](../AIREQ.md).
 
 ## Build Veranda
 

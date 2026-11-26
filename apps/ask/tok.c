@@ -20,6 +20,8 @@ unsigned int lg_b, lg_h0;               /* (V131) the log: where the body's line
 unsigned char lg_ap, lg_hcut, t_ok;     /* (V131) the secret's part (0: none); the headers cut; tok_due's clock trusted */
 unsigned long t_exp;
 char r_txt[52];
+unsigned char rqm, rqa;                 /* (V199) a request (rq.c) */
+unsigned int rq_sn;
 
 unsigned int klen, slen;
 char sg_code[8], sg_addr[HOSTMAX + 8];

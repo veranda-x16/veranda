@@ -71,6 +71,7 @@ the letter, exactly where you were.
 ## What next
 
 - [Veranda Write](Veranda-Write.md): all of its features and keys.
-- Veranda Write cannot print yet. To keep a paper copy, copy the
-  text into [Veranda Edit](Veranda-Edit.md) and save it as a text
-  file, then print it on a PC.
+- To print the letter, choose **File > Export as PDF**, copy the PDF
+  to a PC and print it there.
+- **File > New from template...** has a ready-made letter, CV, report
+  and meeting notes.

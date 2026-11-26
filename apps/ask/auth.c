@@ -632,8 +632,11 @@ static void chat(void)
     text("{\"model\":\"");
     part(0, P_JSON, (unsigned int)g_slug, strlen(g_slug));     /* (V123: the cheapest for a compaction, Ctrl+Return) */
     text("\",\"instructions\":\"");
-    part(tbank, P_JSON, TB_SYS, slen);
-    if (C.shorta && !t_comp)
+    if (rqm)                            /* (V199: a request's own, rq.c's) */
+        part(bRq, P_JSON, (unsigned int)rq_sys - 0xA000, rq_sn);
+    else
+        part(tbank, P_JSON, TB_SYS, slen);
+    if (C.shorta && !t_comp && !rqm)
         part(0, P_RAW, (unsigned int)short_s, PZ);
     text("\",\"input\":[");
     part(PB_MSGS, 0, 0, 0);

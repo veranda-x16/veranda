@@ -108,7 +108,8 @@ Print**. The PDF is written beside the picture, with the same name and
 Paint can also print with more choices: see [Paint](Paint.md).
 
 Other documents need their own program's printing. Veranda Write
-cannot print yet.
+prints through PDF: **File > Export as PDF** (see
+[Veranda Write](Veranda-Write.md)), then print the PDF on a PC.
 
 ## The Mods folder
 

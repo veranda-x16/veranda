@@ -37,7 +37,9 @@ The endpoints, on one port:
 
 The access tokens are JWTs (V129: as the real ones; their exp read by the
 X16), about 2 KB. FAKE_SEED=1: a pair issued at the start, in
-<folder>/seed.json (gate ask's renew session starts signed in with it).
+<folder>/seed.json (gate ask's renew session starts signed in with it);
+FAKE_SEED=expired (V201): its access token expired an hour before (exp),
+refused with token_expired at its first turn.
 
 THE KEY BELOW IS A TEST KEY, MADE FOR THESE TESTS ONLY (openssl genrsa
 2048): it signs the fake id_tokens and nothing else.
@@ -186,9 +188,9 @@ class World:
                 self.log.write(json.dumps(rec) + '\n')
                 self.log.flush()
 
-    def tokens(self, client_id, nonce=None, style='', gen=0, size=None):
+    def tokens(self, client_id, nonce=None, style='', gen=0, size=None, life=None):
         now = int(time.time())
-        life = 60 if style == 'soon' else 3600
+        life = life if life is not None else 60 if style == 'soon' else 3600
         exact, size = size, size or {'big': 4200, 'toolong': 6000}.get(style, 2000)
         claims = {'iss': 'https://auth.openai.com', 'aud': [RESOURCE], 'sub': 'user-gate', 'iat': now,
                   'nbf': now, 'exp': now + life, 'scp': SCOPE.split(), 'session_id': secrets.token_hex(16),
@@ -520,9 +522,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
             bad.append('stream %r' % body.get('stream'))
         if plan and body.get('model') not in [m['slug'] for m in MODELS if m['visibility'] == 'list']:
             bad.append('model %r' % body.get('model'))
-        if not isinstance(body.get('instructions'), str) or 'plain ASCII' not in body['instructions']:
-            bad.append('instructions %r' % str(body.get('instructions'))[:40])
         inp = body.get('input')
+        rq = isinstance(inp, list) and inp and isinstance(inp[-1], dict) and \
+            str(inp[-1].get('content', '')).startswith('Task: ')
+        if not isinstance(body.get('instructions'), str) or \
+                ('Return only the result' if rq else 'plain ASCII') not in body['instructions']:
+            bad.append('instructions %r' % str(body.get('instructions'))[:40])
+        if rq and len(inp) != 1:            # (V199: a request sends its message alone)
+            bad.append('a request with %d messages' % len(inp))
         if not isinstance(inp, list) or not inp:
             return bad + ['no input']
         for i, m in enumerate(inp):
@@ -591,6 +598,28 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 'total_tokens': 366})})
         self.raw(b'0\r\n\r\n')
 
+    # (V199) a request from another program through Veranda Ask (apps/ask/rq.c):
+    # "Task: ..." (a line), for ask "Question: ...", a blank line, then the text
+    # between "<<<TEXT" and "TEXT>>>". The answer names the task and gives the
+    # text back (raw UTF-8); shorten's comes back between the markers and
+    # summarise's with blank lines around it (Veranda Ask leaves them out)
+    TAGS = (('rewrite', 'REWRITTEN'), ('shorten', 'SHORTER'), ('correct the grammar', 'CORRECTED'),
+            ('into English', 'ENGLISH'), ('into Polish', 'POLSKI'), ('summarise', 'SUMMARY'),
+            ('answer the question', 'ANSWER'))
+
+    @classmethod
+    def request_answer(cls, last):
+        task = last.split('\n', 1)[0]
+        tag = next((t for k, t in cls.TAGS if k in task), 'UNKNOWN')
+        inner = last.split('<<<TEXT\n', 1)[-1].rsplit('\nTEXT>>>', 1)[0]
+        q = re.search(r'\nQuestion: (.*)\n', last)
+        text = '%s: %s%s' % (tag, ('[%s] ' % q.group(1)) if q else '', inner)
+        if tag == 'SHORTER':
+            return '<<<TEXT\n' + text + '\nTEXT>>>'
+        if tag == 'SUMMARY':
+            return '\n\n' + text + '\n\n'
+        return text
+
     def api_responses(self, raw):
         W = self.W
         try:
@@ -657,6 +686,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             W.note(rec)
             return self.send(400, {'detail': 'Unsupported parameter.'})
         rec['reply'] = 200
+        if isinstance(last, str) and last.startswith('Task: '):
+            rec['text'] = self.request_answer(last)
+            return_ = self.stream(model, rec['text'], 6, 0.03)
+            rec['client_closed'] = bool(getattr(self, 'closed', False))
+            W.note(rec)
+            return return_
         if word == 'hello':
             rec['text'] = HELLO_A + HELLO_B
             self.stream(model, HELLO_A + HELLO_B, 6, 0.02, first_pause=1.0)
@@ -719,7 +754,11 @@ def main():
     closed = t.getsockname()[1]
     t.close()
     if os.environ.get('FAKE_SEED'):
-        t = w.tokens('oaiapp_gateseed0123456789', size=int(os.environ.get('FAKE_SEEDSIZE', '0')) or None)
+        old = os.environ['FAKE_SEED'] == 'expired'     # (V201: an access token expired an hour ago: refused, renewed)
+        t = w.tokens('oaiapp_gateseed0123456789', size=int(os.environ.get('FAKE_SEEDSIZE', '0')) or None,
+                     life=-3600 if old else None)
+        if old:
+            w.stale[t['access_token']] = 1
         with open(os.path.join(d, 'seed.json'), 'w') as f:
             json.dump({'client_id': 'oaiapp_gateseed0123456789', 'access': t['access_token'],
                        'refresh': t['refresh_token']}, f)

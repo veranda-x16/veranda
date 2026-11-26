@@ -40,10 +40,30 @@
 #    ASK.CFG: the fake receives it byte for byte (SHA-256), the request is
 #    byte for byte what chatgpt_signin.py --check builds, ASK.LOG gives its
 #    length and sum
-# 6. nomodem: an API key, no modem on the port: the box
+# 6. request (V199): another program's AI help on its text (apps/ask/rq.c,
+#    docs/AIREQ.md; tests/check_aireq.py prepares and checks each run):
+#    every action (one by keys, one with Try again, one with the ChatGPT
+#    plan's sign-in, the others an API key), Cancel after the answer, Esc
+#    before anything is sent, not signed in, a text over 8,192 bytes, an
+#    unknown action; the fake's requests (the system prompt, the one
+#    message), AI.OUT and AI.RES, AI.REQ and AI.IN deleted, no chat saved,
+#    ASK.CFG unchanged; then the hand-off: the real desktop starts a
+#    stand-in for Veranda Write (tests/ai_standin.c) from a START.REQ, it
+#    asks, goes aside, the desktop starts Veranda Ask, Send, Use this, the
+#    stand-in back with the answer; (V201) once each with Ask set up by an
+#    API key, the ChatGPT plan, an access token expired an hour before
+#    (the clock not set: a 401, renewed, sent again; the clock set:
+#    renewed before the turn; the new tokens in ASK.CFG), and in Fast mode
+#    with the stand-in holding all but 24 RAM banks (vrnet gets none:
+#    "error network", not "not-set-up"); RQ_HANDOFFS picks them; the
+#    nomodem run: the modem looked for again at the first Send, then
+#    "error network"
+# 7. nomodem: an API key, no modem on the port: the box
 # Screenshots: $OUT/first.png, settings.png, notice.png, midstream.png,
 # chat.png, limit.png, signedout.png, apikey.png, final.png, renew_clock.png,
-# renew_final.png.
+# renew_final.png; (V199) rq_<run>_rq.png (the request), _stream.png,
+# _preview.png (the answer), rq_handoff_preview.png; (V201)
+# rq_handoff_<kind>_rq.png, _preview.png.
 set -e
 cd "$(dirname "$0")/.."
 OUT=${OUT:-build/gate/ask}
@@ -94,9 +114,9 @@ te, to = sizes(sys.argv[2])
 cvt = len(open(sys.argv[1] + '/Ask.cvt', 'rb').read())
 print('ok    the sizes: Ask.cvt %d bytes; main RAM $0801-$%04X (%d bytes free below the C stack; the test build to '
       '$%04X, %d free); overlays %s (the test build %s; of 8192 each); RAM banks: 6 (the conversation, its rows, '
-      'the font), 2 (the credentials), vrnet 2, the overlays 10 (V123: code.c, file.c, conv.c, hist.c; V129: '
-      'log.c; V149: the scroll bar and the menus, sbar.c, beside it; 20 in all; the test build'"'"'s player '
-      'overlay 11, 21)'
+      'the font), 2 (the credentials), vrnet 2, the overlays 11 (V123: code.c, file.c, conv.c, hist.c; V129: '
+      'log.c; V149: the scroll bar and the menus, sbar.c, beside it; V199: rq.c, a request, overlay 11; 21 in all; '
+      'the test build'"'"'s player overlay 12, 22)'
       % (cvt, e, 0x8400 - e - 1, te, 0x8400 - te - 1, ', '.join('%d: %d' % kv for kv in sorted(o.items())),
          ', '.join('%d: %d' % kv for kv in sorted(to.items()))))
 if e >= 0x8400 or te >= 0x8400 or max(list(o.values()) + list(to.values())) > 8191:
@@ -124,7 +144,7 @@ run() {                 # folder, ASK.TST, seconds, the UART's back-end
 	echo "      ($(basename "$dir"): $(( $(date +%s) - t0 )) s)"
 }
 
-# (ONLY=main, code (with chats) or renew: that session alone)
+# (ONLY=main, code (with chats), renew, tokens or request: that session alone)
 # (V145) twice: the switcher in Roomy mode (Alt+Tab puts Ask onto the card
 # when RAM is short) and in Fast mode (RAM only); ASK_MODES to pick
 for SWNAME in ${ASK_MODES-roomy fast}; do
@@ -278,6 +298,111 @@ EOF
 	rm -f "$R"/*.RAW "$R/dump.bin"
 	grep -q "^CL END$" "$R/log.txt" || { grep "^CL" "$R/log.txt" | tail -30; fail "tokens $n: the test failed"; }
 	$PY tests/check_ask.py tokens "$R" "$SPORT" "$PLAIN" || fail "tokens $n"
+done
+
+fi
+if [ -z "${ONLY:-}" ] || [ "$ONLY" = request ]; then
+echo "== request (V199): another program's AI help on its text (AI.REQ, AI.IN; docs/AIREQ.md): each action, Try again, Cancel, Esc, not set up, too long, a bad request; the hand-off from a stand-in for Veranda Write"
+for s in ${RQ_RUNS:-$($PY tests/check_aireq.py runs)}; do
+	R=$OUT/rq/$s
+	mkdir -p "$R/srv" "$R/VERANDA/.SYSTEM" "$R/DOCUMENTS"
+	MODE=$($PY tests/check_aireq.py prep "$s" "$R") || fail "request $s: prep"
+	SEED=
+	[ "$s" = trans_pl ] && SEED=1           # (the ChatGPT plan, signed in: the fake's seed pair)
+	FAKE_SEED=$SEED $PY tests/fake_openai.py "$R/srv" > "$R/srv/server.log" 2>&1 &
+	SRVPID=$!
+	for _ in $(seq 50); do [ -f "$R/srv/ready" ] && break; sleep 0.1; done
+	[ -f "$R/srv/ready" ] || fail "the fake OpenAI does not start"
+	read -r SPORT CPORT < "$R/srv/ready"
+	if [ "$s" = notsetup ]; then
+		printf 'server=plan\r\napi=127.0.0.1:%s\r\nauth=127.0.0.1:%s\r\n' "$SPORT" "$SPORT" > "$R/VERANDA/.SYSTEM/ASK.CFG"
+	elif [ -n "$SEED" ]; then
+		$PY - "$R/srv/seed.json" "$SPORT" > "$R/VERANDA/.SYSTEM/ASK.CFG" <<'EOF2' || fail "the seed"
+import json, sys
+s = json.load(open(sys.argv[1]))
+p = sys.argv[2]
+sys.stdout.write('\r\n'.join(['server=plan', 'model=gpt-6.2-sol', 'host_id=urn:uuid:12345678-1234-4234-8234-123456789abc',
+    'client_id=' + s['client_id'], 'expires=3600', 'm=gpt-6.2-sol GPT-6.2 Sol', 'notice=1',
+    'api=127.0.0.1:' + p, 'auth=127.0.0.1:' + p, 'access=' + s['access'], 'refresh=' + s['refresh'], '']))
+EOF2
+	else
+		printf 'server=api\r\nkey=sk-gate-0000-openai-dummy-key-for-tests-ABCD\r\nanswers=short\r\napi=127.0.0.1:%s\r\nauth=127.0.0.1:%s\r\n' "$SPORT" "$SPORT" > "$R/VERANDA/.SYSTEM/ASK.CFG"
+	fi
+	cp "$R/VERANDA/.SYSTEM/ASK.CFG" "$R/ASK.CFG.before"
+	UART="modem:baud=57600,log=$R/modem.log"
+	[ "$s" = nomodem ] && UART="file:,$R/out.bin"      # (no modem on the port)
+	run "$R" "q $SPORT 9 $PLAIN m=$MODE" 300 "$UART"
+	kill "$SRVPID" 2>/dev/null || true
+	wait "$SRVPID" 2>/dev/null || true
+	for f in RQ STREAM FIRST PREVIEW FAIL; do
+		[ -f "$R/$f.RAW" ] && $PY tests/ftp_shot.py "$R/$f.RAW" "$OUT/rq_${s}_$(echo $f | tr A-Z a-z).png"
+	done
+	rm -f "$R"/*.RAW "$R/dump.bin"
+	grep -q "TEST STUCK\|TEST FAILED" "$R/log.txt" && { grep -a "^CL" "$R/log.txt" | tail -30; fail "request $s: the test stopped"; }
+	$PY tests/check_aireq.py check "$s" "$R" || { grep -a "^CL\|^TERMDESK" "$R/log.txt" | tail -30; fail "request $s"; }
+	cmp -s "$R/ASK.CFG.before" "$R/VERANDA/.SYSTEM/ASK.CFG" || fail "request $s: ASK.CFG changed"
+done
+ok "request: ASK.CFG as it was after every run (the user's settings, short answers on: not applied to a request)"
+
+echo "== request handoff: the real desktop, a stand-in for Veranda Write (tests/ai_standin.c), Veranda Ask's test build in /VERANDA/APPS; (V201) set up with an API key, the ChatGPT plan, an expired access token (renewed: after a 401, and before the turn by the clock), no RAM banks for vrnet"
+HS=$OUT/rq/shell
+mkdir -p "$OUT/rq"
+cp -r shell "$HS"
+rm -f "$HS"/*.cvt "$HS"/*.bin "$HS"/*.map "$HS"/*.o
+make -s -C "$HS" SDK="$SDK" > "$OUT/rq/shell.log" 2>&1 || { tail "$OUT/rq/shell.log"; fail "handoff: the shell does not build"; }
+for K in ${RQ_HANDOFFS:-$($PY tests/check_aireq.py handoffs)}; do
+R=$OUT/rq/handoff-$K
+H=$R/card
+mkdir -p "$R/srv" "$H/VERANDA/APPS" "$H/VERANDA/.SYSTEM" "$H/DOCUMENTS"
+printf 'name = Veranda Write\nclass = AiStandIn\nmode = 640x480\napi = 6\nicon = %s\n' "$SDK/template/c/icon.pbm" > "$R/standin.hdr"
+HOGF=
+[ "$K" = mem ] && HOGF=-DHOG=24         # (V201: the stand-in holds all but 24 banks, as a big Write does)
+cl65 -t none --cpu 65C02 -O $HOGF -I "$SDK/include" -C "$SDK/cfg/app-c.cfg" -o "$R/standin.bin" tests/ai_standin.c "$SDK/lib/veranda.lib" \
+	> "$R/standin.log" 2>&1 || { cat "$R/standin.log"; fail "handoff: the stand-in does not build"; }
+$PY "$SDK/tools/vpack.py" --load 0x0801 -o "$R/standin.cvt" "$R/standin.hdr" "$R/standin.bin" >/dev/null || fail "vpack the stand-in"
+cp "$HS/SHELL.cvt" "$H/VERANDA/SHELL.cvt"
+cp "$A/test/Ask.cvt" "$H/VERANDA/APPS/Veranda Ask.cvt"
+cp "$R/standin.cvt" "$H/VERANDA/APPS/Veranda Write.cvt"
+printf '/VERANDA/APPS/Veranda Write\r\n' > "$H/VERANDA/.SYSTEM/START.REQ"
+: > "$H/VERANDA/.SYSTEM/LAYOUT.LOG"
+# (V201: mem in Fast mode: the stand-in stays aside in RAM, nothing is put onto the card for Ask)
+[ "$K" = mem ] && $PY -c 'import sys; d=bytearray(open("tests/sound_prefs_v65.cvt","rb").read()); d[508+6] = (d[508+6] & ~0x30) | 16; open(sys.argv[1],"wb").write(d)' "$H/VERANDA/.SYSTEM/Veranda Prefs.cvt"
+SEED=
+case $K in plan) SEED=1 ;; renew*) SEED=expired ;; esac
+FAKE_SEED=$SEED $PY tests/fake_openai.py "$R/srv" > "$R/srv/server.log" 2>&1 &
+SRVPID=$!
+for _ in $(seq 50); do [ -f "$R/srv/ready" ] && break; sleep 0.1; done
+[ -f "$R/srv/ready" ] || fail "the fake OpenAI does not start"
+read -r SPORT CPORT < "$R/srv/ready"
+if [ -n "$SEED" ]; then
+	$PY - "$R/srv/seed.json" "$SPORT" > "$H/VERANDA/.SYSTEM/ASK.CFG" <<'EOF2' || fail "the seed"
+import json, sys
+s = json.load(open(sys.argv[1]))
+p = sys.argv[2]
+sys.stdout.write('\r\n'.join(['server=plan', 'model=gpt-6.2-sol', 'host_id=urn:uuid:12345678-1234-4234-8234-123456789abc',
+    'client_id=' + s['client_id'], 'login=gate@example.com', 'expires=3600', 'm=gpt-6.2-sol GPT-6.2 Sol', 'notice=1',
+    'api=127.0.0.1:' + p, 'auth=127.0.0.1:' + p, 'access=' + s['access'], 'refresh=' + s['refresh'], '']))
+EOF2
+else
+	printf 'server=api\r\nkey=sk-gate-0000-openai-dummy-key-for-tests-ABCD\r\napi=127.0.0.1:%s\r\nauth=127.0.0.1:%s\r\n' "$SPORT" "$SPORT" > "$H/VERANDA/.SYSTEM/ASK.CFG"
+fi
+UTC=
+[ "$K" = renewclk ] && UTC="utc=$(date -u +%y%m%d%H%M%S)"   # (the clock to trust: the token due by its exp)
+echo "q $SPORT 9 $PLAIN m=s $UTC" > "$H/ASK.TST"
+cp build/VERANDA.PRG build/VERANDA.SYS "$H/"
+(cd "$H" && SDL_VIDEODRIVER=dummy timeout -s INT 300 "$EMU_NET" -rom "$ROM" -prg VERANDA.PRG -run \
+	-warp -sound none -echo -dump V -uartclock 14.7456 -uart 9FE0 "modem:baud=57600,log=$R/modem.log" \
+	> "$R/console.txt" 2>&1) || true
+tr '\r' '\n' < "$R/console.txt" > "$R/log.txt"
+kill "$SRVPID" 2>/dev/null || true
+wait "$SRVPID" 2>/dev/null || true
+[ -f "$H/PREVIEW.RAW" ] && $PY tests/ftp_shot.py "$H/PREVIEW.RAW" "$OUT/rq_handoff_${K}_preview.png"
+[ -f "$H/RQ.RAW" ] && $PY tests/ftp_shot.py "$H/RQ.RAW" "$OUT/rq_handoff_${K}_rq.png"
+[ "$K" = api ] && [ -f "$OUT/rq_handoff_api_preview.png" ] && cp "$OUT/rq_handoff_api_preview.png" "$OUT/rq_handoff_preview.png"
+rm -f "$H"/*.RAW "$H/dump.bin"
+cp -r "$H/VERANDA" "$R/VERANDA"
+cp "$R/srv/requests.jsonl" "$R/srv/requests.jsonl" 2>/dev/null || true
+$PY tests/check_aireq.py handoff "$R" "$K" || { grep -a "^CL\|^STANDIN\|^SHELL" "$R/log.txt" | tail -30; fail "request handoff $K"; }
 done
 
 fi

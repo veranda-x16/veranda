@@ -109,6 +109,59 @@ with your card can use your plan** until the tokens expire or you sign
 in again. Keep the card to yourself. To remove them: delete the
 `access=` and `refresh=` lines, or the whole file.
 
+## Help with another program's text
+
+Another program can ask Veranda Ask to work on a piece of its text:
+**rewrite** it, **shorten** it, **fix its grammar and spelling**,
+**translate** it into English or Polish, **summarise** it, or **answer
+a question** about it. [Veranda Write](Veranda-Write.md) offers this
+in its **AI** menu, on the text you select (see its "AI help"). It
+uses your sign-in or API key from Veranda Ask: there is nothing else to
+set up, and the other program never sees them.
+
+When a program asks, it goes aside and Veranda Ask starts with the
+request on the screen:
+
+- The toolbar: **Send**, **Cancel**, and what is asked, with the model
+  ("Rewrite - GPT-6.2 Sol").
+- A note says who asks and what, and that the message goes to OpenAI
+  **only when you click Send**.
+- Below it, the message exactly as it will be sent: the task and the
+  text.
+
+![A request from another program](img/ask-request.png)
+
+**Send** (or Return) sends it. **Cancel** (or Esc) goes back to the
+program with no change; nothing has left the X16.
+
+The answer appears as it comes. Read it, then:
+
+- **Use this** (Return): the program gets the answer and comes back.
+- **Try again** (T): the same request again; the new answer replaces the
+  old one.
+- **Cancel**: back to the program with no change.
+
+![The answer, before Use this](img/ask-request-answer.png)
+
+Good to know:
+
+- Up to **8,192 characters** of text at a time. Select less if the
+  program says it is too long.
+- Polish letters go both ways.
+- A request is not kept in Chats, and nothing else of your conversation
+  goes with it. Your own system prompt and "short answers" do not apply
+  to it.
+- If Veranda Ask is not signed in (and has no API key), it says "Sign in
+  in Veranda Ask first" and goes back; the program tells you so. Start
+  Veranda Ask and sign in (above), then ask again. An access token that
+  has expired is renewed by itself, as for any message.
+- If the network card cannot be used, Veranda Ask says why and goes
+  back: "No network card was found.", "The modem does not answer.", or
+  "Not enough memory for the network card": a program put aside holds
+  the memory. Quit one (Alt+Tab, then its Quit), or choose **Roomy**
+  switching in Preferences, and ask again.
+- The answer is the model's: read it before you click Use this.
+
 ## Differences from Veranda Claude
 
 - Chats are kept in `/DOCUMENTS/Chats/Ask`.

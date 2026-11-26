@@ -112,6 +112,12 @@ void toolbar(void)
     dispBufferOn = ST_WR_FORE;
     SetPattern(0);
     WRectangle(0, TOOLY, 639, TOOLY + 14);
+#ifdef ASK
+    if (rqm) {
+        ovq(rq_bar);                    /* (V199: a request's Send, Cancel; Use this, Try again) */
+        return;
+    }
+#endif
     button(1, 6, TOOLY + 1, "New", 0);
     button(8, 6, TOOLY + 1, "Save", 0);
     button(15, 10, TOOLY + 1, "Settings", 0);
@@ -313,6 +319,7 @@ static unsigned char __fastcall__ line_len(unsigned char t)
 
 #ifdef ASK
 static const char hint[] = "Type your question here: Return sends, Shift+Return a new line.";
+static const char rhint[] = "Press Return to send (then to use the answer). Esc: cancel.";
 #else
 static const char hint[] = "Type to Claude here: Return sends, Shift+Return a new line.";
 #endif
@@ -332,7 +339,11 @@ static void input(void)
         n = 0;
         if (!in_len && !k) {
             strcpy(cs_txt, " ");
+#ifdef ASK
+            strcat(cs_txt, rqm ? rhint : hint);
+#else
             strcat(cs_txt, hint);
+#endif
             n = strlen(cs_txt);
         } else if (in_top + k < nls) {
             p = ls[in_top + k];
@@ -357,7 +368,11 @@ static void input_box(void)
     WRectangle(0, INY, 639, 463);
     WHorizontalLine(0xFF, 0, 639, INY);
     rframe(INTX * 8 - 5, INY + 5, (INTX + INTW) * 8 + 4, INY + 51);
+#ifdef ASK
+    button(SENDX, 7, INY + 19, BUSY() ? "Stop" : rqm == 2 ? "Use" : "Send", 0);
+#else
     button(SENDX, 7, INY + 19, BUSY() ? "Stop" : "Send", 0);
+#endif
     if (hl)
         theme_rect(0, 80, INY >> 3, 7, 0);
     input();
@@ -410,6 +425,17 @@ static void send(void)
         Beep();
         return;
     }
+#ifdef ASK
+    if (rqm) {                          /* (V199: a request's message, again: rq.c's) */
+        rqa = RA_SEND;
+        ovq(rq_do);
+        if (c_ui) {
+            ui_status(msg);
+            return;
+        }
+        goto go;
+    }
+#endif
     if (!C.key[0]) {
 #ifdef ASK
         ui_status(C.srv ? "There is no API key yet: Settings." : "Not signed in yet: Settings, Continue with ChatGPT.");
@@ -439,6 +465,9 @@ static void send(void)
         note("(The oldest turns were dropped to make room: Claude no longer sees them.)");
     st_prot = st_used;
     ovv(c_ask_user);                    /* (t_umsg: the question, the file attached after it) */
+#ifdef ASK
+go:
+#endif
     if (t_umsg == NOMSG || !st_open(K_CLAUDE)) {
         message("The conversation is full.", "Start a new one: File > New conversation.");
         return;
@@ -464,6 +493,10 @@ static void send(void)
     wasbusy = 1;
     tthink = 0;
     input_box();
+#ifdef ASK
+    if (rqm)
+        toolbar();                      /* (Stop) */
+#endif
 }
 /* the turn ended: what it left (overlay 4), drawn */
 static void done(void)
@@ -478,6 +511,9 @@ static void done(void)
     ovv(c_after);                       /* (the usage, the code blocks; a compaction's end: V123) */
     if (tstate != T_IDLE)
         return;                         /* (Ask: the turn sent again after a renewal) */
+#ifdef ASK
+    if (!rqm)                           /* (V199: a request's text is not kept) */
+#endif
     ovh(h_save);                        /* (the chat saved: /DOCUMENTS/Chats) */
     wasbusy = 0;
 #ifdef CLAUDE_TEST
@@ -595,6 +631,13 @@ void m_quit(void)
     if (BUSY() && !yesno("A reply is still coming.", "Quit anyway?"))
         return;
     turn_stop();
+#ifdef ASK
+    if (rqm) {                          /* (V199: AI.RES written, the program that asked back) */
+        if (rqa != RA_USE)
+            rqa = RA_CANCEL;
+        ovq(rq_do);
+    }
+#endif
     net_stop();
     EnterDeskTop();
 }
@@ -602,6 +645,10 @@ void m_quit(void)
 void m_new(void)
 {
     GotoFirstMenu();
+#ifdef ASK
+    if (rqm)
+        return;
+#endif
     if (BUSY()) {
         ui_status("A reply is coming: Stop it first (Esc).");
         return;
@@ -689,6 +736,10 @@ static void __fastcall__ c_run(unsigned char b, void (*f)(void))
 static void __fastcall__ code_do(unsigned char b, void (*f)(void))
 {
     GotoFirstMenu();
+#ifdef ASK
+    if (rqm)
+        return;
+#endif
     if (BUSY()) {
         ui_status(busy_s);
         return;
@@ -730,13 +781,26 @@ static void pg_done(void)
     }
 }
 
+#ifdef ASK
+/* (V199) a request's button or key (rqa) */
+static void r_act(void)
+{
+    if (rqa == RA_SEND)
+        send();
+    else if (rqa == RA_STOP)
+        turn_stop();
+    else if (rqa >= RA_USE)
+        m_quit();
+}
+#endif
+
 static void press(void)
 {
     unsigned int x = mouseXPos, y = mouseYPosW;
     unsigned char c = x >> 3;
     if (mouseData & 0x80)
         return;
-#ifdef CLAUDE_TEST
+#if defined(CLAUDE_TEST) && !defined(ASK)     /* (V199, Ask: overlay 1's room; no check reads it) */
     strcpy(line, "CL PRESS ");
     unum(line + 9, x);
     strcat(line, " ");
@@ -754,6 +818,14 @@ static void press(void)
         return;
     }
     if (y >= TOOLY && y < TOOLY + 15) {
+#ifdef ASK
+        if (rqm) {
+            c_col = c;
+            ovq(rq_hit);
+            r_act();
+            return;
+        }
+#endif
         if (c >= 1 && c < 7)
             m_new();
         else if (c >= 8 && c < 14)
@@ -771,6 +843,13 @@ static void press(void)
     if (y >= INY + 19 && y < INY + 33 && c >= SENDX && c < SENDX + 7) {
         if (BUSY())
             turn_stop();
+#ifdef ASK
+        else if (rqm) {
+            c_col = 0xFF;
+            ovq(rq_hit);
+            r_act();
+        }
+#endif
         else
             send();
         return;
@@ -817,6 +896,15 @@ static void key(void)
         pg_done();
         return;
     }
+#ifdef ASK
+    if (rqm) {                          /* (V199: a request's keys, rq.c's; the scrolling keys below) */
+        ovq(rq_key);
+        if (rqa != RA_PASS) {
+            r_act();
+            return;
+        }
+    }
+#endif
     if (m & 2) {                        /* Ctrl */
         switch (k) {
         case 22:                        /* V */
@@ -942,12 +1030,18 @@ void ui_start(void)
     strcpy(sv_name, "CLAUDE.TXT");
 #endif
     st_clear();
+#ifdef ASK
+    ovq(rq_start);                      /* (V199: another program's request, AI.REQ: rqm) */
+    if (!rqm)
+#endif
     ov4(turn_hello);
     page_all();
     otherPressVec = VR_FN(press);
     keyVector = VR_FN(key);
 #ifdef ASK
-    if (!C.key[0]) {
+    if (rqm)
+        ui_status(msg);
+    else if (!C.key[0]) {
         ui_status(C.srv ? "No API key yet: Settings." : "Not signed in yet: Settings.");
         ov4(pg_show);
     } else

@@ -271,8 +271,9 @@ void __fastcall__ ov3(void (*f)(void)) { ovb(bOv3, f); }
 void __fastcall__ ov4(void (*f)(void)) { ovb(bOv4, f); }
 #ifdef ASK
 void __fastcall__ ov5(void (*f)(void)) { ovb(bOv5, f); }
-unsigned char bLog;
+unsigned char bLog, bRq;
 void __fastcall__ ovl(void (*f)(void)) { ovb(bLog, f); }
+void __fastcall__ ovq(void (*f)(void)) { ovb(bRq, f); }
 #endif
 #ifdef CLAUDE_TEST
 static unsigned char bTest;     /* (the test's overlay: after code.c's and vrchoose's) */
@@ -336,7 +337,11 @@ static const struct msgdlg yesnobox = {
     0
 };
 
+#ifdef ASK
+char msga[52], msgb[52];                /* (Ask's test player logs them: tests/ask_play.c's gt_box) */
+#else
 static char msga[52], msgb[52];
+#endif
 
 /* (the boxes' font is the system's: characters 32-126 only) */
 static void __fastcall__ copy7(char *d, const char *s)
@@ -358,7 +363,7 @@ static void texts(const char *a, const char *b)
 #ifdef CLAUDE_TEST
 unsigned char t_box, t_aside, t_nbox, t_boxed, t_turns;
 unsigned int t_pages, t_fp, t_fb, t_reads;
-static char tlog[120];
+char tlog[120];                         /* (Ask's test player's buffer too: tests/ask_play.c) */
 
 void __fastcall__ gt_log(const char *s)
 {
@@ -376,6 +381,10 @@ void __fastcall__ t_ui(void (*f)(void))
     RAMBANK = bTest;
 }
 
+#ifdef ASK
+void gt_box(void);                      /* (V199: in the test player's overlay, for main RAM's room) */
+#define box_log() t_ov5(gt_box)
+#else
 static void box_log(void)
 {
     t_box = 1;
@@ -386,6 +395,7 @@ static void box_log(void)
     strcat(tlog, msgb);
     LogText(tlog);
 }
+#endif
 #define BOXED() (t_box = 0, t_boxed = 1)
 #else
 #define box_log()
@@ -490,8 +500,10 @@ int main(void)
 #ifdef ASK
     LoadOverlay(OVC + 4, 0);            /* (V129: ASK.LOG written, log.c; V149: the scroll bar, sbar.c) */
     bLog = r1L;
+    LoadOverlay(OVC + 5, 0);            /* (V199: another program's request, rq.c) */
+    bRq = r1L;
 #ifdef CLAUDE_TEST
-    LoadOverlay(OVC + 5, 0);            /* (V149: the test build's player, its own) */
+    LoadOverlay(OVC + 6, 0);            /* (V149: the test build's player, its own) */
     bTest = r1L;
 #endif
 #elif defined(CLAUDE_TEST)

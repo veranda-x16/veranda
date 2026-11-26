@@ -11,6 +11,8 @@ Files (the parts follow _Sidebar.md's groups):
                                                 move around, the contents
     Veranda manual 1 - Getting started.txt      ...
     Veranda manual 5 - Reference.txt
+    Veranda manual 6 - Writing and numbers.txt  (added last, so the
+                                                names before it stay)
 
 The text is ASCII (letters with accents lose them: View draws the X16's
 CP437 font, Latin-1 would show wrong), lines of 76 columns at most (View
@@ -38,6 +40,9 @@ PARTS = [
     ('Network', ['Network']),
     ('Music, games and BASIC', ['Music, games, BASIC']),
     ('Reference', ['Reference']),
+    # (a part of its own since Veranda Write's page grew: added last so
+    # that parts 1-5 keep their names on cards that have them; V202)
+    ('Writing and numbers', ['Writing and numbers']),
 ]
 
 errors = []
