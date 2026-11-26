@@ -58,7 +58,9 @@
 
 #define IROW    12              /* the icons' palette row (on the paper) */
 #define DROW    11              /* the same with entry 14 the desktop's colour */
-#define NSLOT   40
+#define NSLOT   44              /* (V209: 40 held 40 keys; the package's Apps, both pages,
+                                   the up icon and the desktop's three are 41: a page turned
+                                   read a page's icons again from the card) */
 #define NONE    0xFF            /* (V153) sN: a key with no colour icon (not looked for again) */
 #define FULL    0xFE            /* (V157) sN: a key with a colour icon, no tiles left for it */
 #define FREE    0xFD            /* (V165) sN: a slot given back (its key $FF) */
@@ -93,10 +95,12 @@ static unsigned char sUse[NSLOT];               /* (V165) what shows it: U_WIN <
 #define U_WIN   1
 #define U_DESK  4
 #define U_DOCK  8
+#define ONE     0x80            /* (V209) evict: one slot */
 static unsigned char retry = 0;                   /* (V165) a FULL key tried again (ic3_want: before a page is drawn) */
 #define tset(t, n, v) XCALL(bIc2, ic3_tset, void (*)(unsigned int, unsigned int, unsigned char))(t, n, v)
-#define WKEY    6144            /* (merge of V151-V153: the windows' GEOS files' classes in bInk,
-                                   2 x MAXICON x 13 bytes from here, for overlay 12's room; V165:
+#define WKEY    6400            /* (merge of V151-V153: the windows' GEOS files' classes in bInk,
+                                   2 x MAXICON x 13 bytes from here (V209: after NSLOT x SLOT),
+                                   for overlay 12's room; V165:
                                    the 13th its colour icon: 0 none, 1 the library's, 2 its own) */
 #define WREC    13
 extern char k3buf[13];                          /* (main.c: a class read back) */
@@ -200,7 +204,9 @@ static unsigned int talloc(unsigned char n)
 
 /* (V165) the slots nothing on the screen shows but what m says (m 0:
    sUse 0, not in a window's page since it was drawn whole, not the
-   desktop's, not the dock's) given back, their tiles freed; 0 none. The
+   desktop's, not the dock's) given back, their tiles freed; 0 none
+   (V209: m ONE, a slot wanted: only the first of them, so a page turned
+   back finds the rest of its icons still there). The
    cache holds what the screen shows: the windows' pages, the desktop, the
    dock, the sidebars' (the small icons), NSLOT keys at most */
 static unsigned char evict(unsigned char m)
@@ -217,6 +223,8 @@ static unsigned char evict(unsigned char m)
         sN[s] = FREE;
         memset(sKey[s], 0xFF, 12);
         any = 1;
+        if (m & ONE)
+            break;
     }
     return any;
 }
@@ -265,7 +273,7 @@ again:
             goto got;
     if (ns < NSLOT)
         goto got;
-    if (!noEv && !e++ && (evict(0) || back()))
+    if (!noEv && !e++ && (evict(ONE) || back()))
         goto again;
     return NSLOT;
 got:

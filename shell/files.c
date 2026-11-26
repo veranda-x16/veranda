@@ -68,16 +68,42 @@ static char line[100];
 
 unsigned char found_on;
 
-void files_init(void)
+/* (V209) the walks' 4 banks (the folders' stack, those seen, a folder's
+   names, the copy's buffer) taken while an operation runs and given back
+   after it; the find's results' bank while they are shown (files_lend
+   gives it back before a desk accessory, a find takes it again). Taken
+   at the start before V209 (5 banks held while the shell runs: a desk
+   accessory beside the desktop, the shell packed, then found too few at
+   512 KB, NO_BANKS); none now: copy, move, delete and find say so */
+static unsigned char take(void)
 {
-    unsigned char b = BankAlloc(5);
-    if (!b)
-        return;
-    bStack = b;
-    bSeen = b + 1;
-    bNames = b + 2;
-    bFound = b + 3;
-    bCopy = b + 4;
+    unsigned char b;
+    if (!bStack) {
+        if (!(b = BankAlloc(4))) {
+            shell_warn("No RAM banks for this.");
+            return 0;
+        }
+        bStack = b;
+        bSeen = b + 1;
+        bNames = b + 2;
+        bCopy = b + 3;
+    }
+    return 1;
+}
+
+static void give(void)
+{
+    if (bStack)
+        BankFree(bStack);
+    bStack = 0;
+}
+
+void files_lend(void)
+{
+    if (bFound && !found_on) {
+        BankFree(bFound);
+        bFound = 0;
+    }
 }
 
 /* (this code runs in its own bank at $A000: the other banks are reached
@@ -391,10 +417,8 @@ static void walk(void)
    dst's place (copy, move); the number of files done */
 static unsigned char run(unsigned char op, const char *title)
 {
-    if (!bStack) {
-        shell_warn("No RAM banks for this.");
+    if (!take())
         return 0;
-    }
     play_busy = 1;
     stop = werr = 0;
     total = done = 0;
@@ -425,6 +449,7 @@ static unsigned char run(unsigned char op, const char *title)
             ++done;
     }
 out:
+    give();
     ChDir(curDirName);
     showbox = 0;
     play_busy = 0;
@@ -698,10 +723,6 @@ void files_find(void)
 {
     unsigned char r;
     char *p;
-    if (!bStack) {
-        shell_warn("No RAM banks for this.");
-        return;
-    }
     r5 = (unsigned int)pat;
     r = DoDlgBox((void *)&findBox);
     if ((r != OK && r != DBGETSTRING) || !pat[0])
@@ -711,6 +732,12 @@ void files_find(void)
         pat[0] = '*';
         strcat(pat, "*");
     }
+    if (!bFound && !(bFound = BankAlloc(1))) {  /* (V209: the results' bank, the walk's) */
+        shell_warn("No RAM banks for this.");
+        return;
+    }
+    if (!take())
+        return;
     play_busy = 1;
     strcpy(froot, (char *)curDirName);
     strcpy(src, froot);
@@ -719,6 +746,7 @@ void files_find(void)
     showbox = 0;
     wop = W_FIND;
     walk();
+    give();
     ChDir(curDirName);
     p = line + 80;
     numi(nfound, p);

@@ -567,6 +567,38 @@ EOF
 		echo "      shipped $wp: $n tiles; pages 1 and 2, light and dark: every icon, the desktop's and the dock's six in colour"
 	done <<< "$ships"
 	ok "every wallpaper the package ships (tools/mkdist.sh) under 150 tiles and breaks no icon: $OUT/ship-*.png"
+	# (V209, gate tile's pix-prefs-plain: "Cannot start it: 00/19" with
+	# every package since V197's overlay 17 took one RAM bank more) desk
+	# accessories beside the desktop at 512 KB with the whole package: on
+	# the plain desktop and every wallpaper the package ships, the Apps
+	# window open, the Calculator (its test build: its session, then its
+	# close box) double-clicked on page 1, then Options > Preferences...
+	# (its test build: the desktop changed, closed) with the window on
+	# page 1 or 2; both start and close (NO_BANKS before: the shell held
+	# 5 banks for copy, move, delete and find from its start; now only
+	# while one runs)
+	mkdir -p "$OUT/calc"
+	make -s -C apps/calc test SDK="$SDK" OUT="$TOP/$OUT/calc" >"$OUT/calc/build.log" 2>&1 \
+		|| { cat "$OUT/calc/build.log"; fail "the Calculator's test build"; }
+	while IFS= read -r wp; do
+		for pg in 0 1; do
+			R="$OUT/run/da-${wp// /}-$pg"
+			folder "$R" probe "$([ "$wp" = none ] && echo "Still Water" || echo "$wp")"
+			cp "$W/Dusk.cvt" "$W/Still Water.cvt" "$R/VERANDA/WALLPAPERS/"
+			[ "$wp" != none ] || rm -f "$R/VERANDA/.SYSTEM/WALLPAPER.CFG"
+			mkdir -p "$R/VERANDA/APPS"
+			cp "$APPS"/*.cvt "$R/VERANDA/APPS/"
+			cp "$OUT/calc/Calculator.cvt" "$OUT/$([ "$wp" = none ] && echo wall2 || echo wall1)/Preferences.cvt" "$R/VERANDA/APPS/"
+			$PY tests/apps_icons.py script "$R" $pg --da Calculator --prefs after || fail "tests/apps_icons.py script (da $wp)"
+			run "$R" "$ROM" -ram 512
+			png "$R/dump.bin" "$OUT/da-${wp// /}-$pg.png"
+			got=$(tr -d '\r' < "$R/console.txt" | grep -a -o -E '(CALC|PREFS) (RUNNING|CLOSED)' | tr '\n' ,)
+			[ "$got" = "CALC RUNNING,CALC CLOSED,PREFS RUNNING,PREFS CLOSED," ] \
+				|| fail "a desk accessory beside the desktop ($wp, page $((pg + 1)), 512 KB): the console has $got: $OUT/da-${wp// /}-$pg.png"
+		done
+	done <<< "none
+$ships"
+	ok "desk accessories beside the desktop at 512 KB with the whole package (V209): the Calculator from page 1, Preferences from Options with Apps on page 1 and 2, on the plain desktop and $(echo "$ships" | tr '\n' ',' | sed 's/,$//; s/,/, /g'): each started and closed"
 	# (V157) the user's card: its root of about 60 entries, mostly folders, on
 	# Low Hills (V162: 145 tiles, the most of the three) and on Dusk, after both of the Apps window's pages (more
 	# icons than a picture's tiles hold): the folders the one colour folder

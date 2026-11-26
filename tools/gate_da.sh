@@ -298,6 +298,44 @@ run "$T/run" 120
 png "$T/run/dump.bin" "$OUT/theme.png"
 ok "a screenshot with Preferences' Theme page over the shell, Graphite previewed: $OUT/theme.png"
 
+# ---------------------------------------------------------------- the whole package
+# (V209) the theme's session over the shell as a user's card has it: the
+# card's layout (DECISIONS V71), a package's whole APPS folder (APPS=, else
+# the newest ~/Projects/veranda-dist/pkg-*/VERANDA/APPS, as gate tile),
+# Dusk, 512 KB; Preferences double-clicked in the Apps window: it starts
+# beside the desktop (it did not since V197: NO_BANKS), saves Graphite,
+# closes, the shell takes it
+APPS=${APPS:-$(ls -td "$HOME"/Projects/veranda-dist/pkg-*/VERANDA/APPS 2>/dev/null | head -1)}
+if [ -d "$APPS" ]; then
+	G=$OUT/run/package
+	rm -rf "$G"
+	mkdir -p "$G/VERANDA/APPS" "$G/VERANDA/WALLPAPERS" "$G/VERANDA/.SYSTEM" "$G/DOCUMENTS"
+	cp "$OUT/shell/SHELL.cvt" "$G/VERANDA/"
+	$PY "$SDK/tools/mkwall.py" -o "$G/VERANDA/WALLPAPERS/Dusk.cvt" --dusk 2>/dev/null || fail "mkwall --dusk"
+	$PY - "$G/VERANDA/.SYSTEM/WALLPAPER.CFG" <<'EOF'
+import sys
+c = bytearray(64)
+c[0:3] = b'WP\x01'
+c[8:12] = b'Dusk'
+d = b'/VERANDA/WALLPAPERS'
+c[32:32 + len(d)] = d
+open(sys.argv[1], 'wb').write(bytes(c))
+EOF
+	cp "$APPS"/*.cvt "$G/VERANDA/APPS/"
+	cp "$OUT/prefs3/Preferences.cvt" "$G/VERANDA/APPS/"
+	echo "a note" > "$G/DOCUMENTS/Note.txt"
+	$PY tests/apps_icons.py script "$G" 0 --prefs 1 || fail "tests/apps_icons.py script"
+	run "$G" 120 -ram 512
+	grep -a -q "SHELL DONE" "$G/console.txt" || fail "the whole package: the shell's script did not end"
+	png "$G/dump.bin" "$OUT/package.png"
+	got=$(tlog "$G/console.txt" 'SHELL THEME [0-9 ]*|PREFS (RUNNING|SAVED|CLOSED)[0-9 ]*')
+	want="SHELL THEME 3 14 5,PREFS RUNNING,PREFS SAVED 255 15 35 2 B 0 255 0 0 2 3 2 130 128 0,PREFS CLOSED,SHELL THEME 2 3 2,"
+	[ "$got" = "$want" ] || fail "the whole package ($(ls "$APPS"/*.cvt | wc -l) programs, 512 KB): the console has $got: $OUT/package.png"
+	ok "Preferences beside the desktop with the whole package ($(ls "$APPS"/*.cvt | wc -l) programs, $APPS), Dusk, 512 KB: started from the Apps window, Graphite saved, the shell takes it: $OUT/package.png"
+else
+	skip "no package's APPS folder: Preferences with the whole package not run (APPS=<folder>)"
+fi
+
 # ---------------------------------------------------------------- an SD card
 if [ "${DA_SD:-1}" != 0 ]; then
 	S=$OUT/sd/dex

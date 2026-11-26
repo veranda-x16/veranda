@@ -1184,6 +1184,8 @@ static unsigned char start(unsigned char opts, const char *doc)
     shell_keep();
     if (opts & ST_LD_DATA)              /* (a program, not a desk accessory: lend) */
         lend();
+    else                                /* (V209) a desk accessory: the find's */
+        XCALL(bFiles, files_lend, FV)();        /* results' bank, when none are shown */
     r = GetFile(tmp, opts, 0, (void *)doc, 0);
     if (r == NO_BANKS && XCALL(bWall, wall_drop, unsigned char (*)(void))())
         r = GetFile(tmp, opts, 0, (void *)doc, 0);      /* (the picture's banks lent: V78) */
@@ -1709,7 +1711,6 @@ int main(void)
     if (wins[0].view >= VIEWS)
         wins[0].view = V_ICON;
     deskPat = vb >> 4 & 7;
-    XCALL(bFiles, files_init, FV)();
     XCALL(bDir, test_hook, FV)();
     menus();
     XCALL(bDir, desk_load, RB)(0);

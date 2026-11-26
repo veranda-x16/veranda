@@ -2,7 +2,8 @@
 """Gate tile (DECISIONS V156): the icons of a package's whole APPS folder
 in the shell's Apps window, on the plain tile desktop and on a picture.
 
-usage: apps_icons.py script <run folder> [page] [--pins a,b] [--view name] [--prefs 1|menu] [--mode 640x240]
+usage: apps_icons.py script <run folder> [page] [--pins a,b] [--view name] [--prefs 1|menu|after] [--mode 640x240]
+                                [--da name]
        apps_icons.py check <dump> <APPS folder> plain|picture [page] [--all 1]
        apps_icons.py pixels <dump> <APPS folder> plain|picture [page] [--pins a,b] [--least n]
        apps_icons.py small <dump> <APPS folder>
@@ -35,10 +36,14 @@ in colour.
 (V161) script --pins: those programs pinned to the dock first, then
 Apps again; --view: View > that (name: the list); --prefs 1: a double
 click on Preferences.cvt (its test build plays its session, which
-changes the desktop, and closes) first. pixels: each program's cell
-pixel for pixel the colour icon it should show (the library's by its
-class, else its own I3 block, decoded as the shell reads it), as VERA
-shows the screen; on a picture Look 2's tile also (no tiles left), at
+changes the desktop, and closes) first. (V209) --prefs after: Options >
+Preferences... with the Apps window open on its page (after the page
+turns); --da name: a double click on name.cvt (a desk accessory's test
+build: it plays its session and closes) in the Apps window's first page
+(a desk accessory cannot be pinned: only from a window or a menu).
+pixels: each program's cell pixel for pixel the colour icon it should
+show (the library's by its class, else its own I3 block, decoded as the
+shell reads it), as VERA shows the screen; on a picture Look 2's tile also (no tiles left), at
 least --least in colour; the dock's pins pixel for pixel their colour
 icons (plain and picture). small: the list's first programs' small icons
 pixel for pixel. files: every program of the folder has a colour icon,
@@ -75,7 +80,7 @@ def names(apps):
     return ['..'] + ss.listing([], [n for n in os.listdir(apps) if n.lower().endswith('.cvt')])
 
 
-def script(d, page, pins=(), view=None, prefs=False, mode=None):
+def script(d, page, pins=(), view=None, prefs=False, mode=None, da=None):
     order = names(os.path.join(d, 'VERANDA', 'APPS'))
     p = ss.Part()
     p.wait(30)
@@ -84,20 +89,26 @@ def script(d, page, pins=(), view=None, prefs=False, mode=None):
         p.wait(1200)
     p.click(*ss.place(1))
     p.wait(60)
-    if prefs and prefs != 'menu':   # (V161) Preferences (a test build) changes the desktop
+    if prefs and prefs not in ('menu', 'after'):    # (V161) Preferences (a test build) changes the desktop
         p.dbl(*ss.cell(order.index('Preferences.cvt')))
+        p.wait(1200)
+    if da:                          # (V209) a desk accessory's test build beside the desktop
+        p.dbl(*ss.cell(order.index(da)))
         p.wait(1200)
     for n in pins:                  # (V161) pinned to the dock, then Select > none
         p.click(*ss.cell(order.index(n)))
         p.wait(10)
         p.menu('options', 'pin')
         p.wait(30)
-    if pins or prefs:               # (no selection: its ring)
+    if pins or prefs or da:         # (no selection: its ring)
         p.menu('select', 'none')
         p.wait(30)
     for _ in range(page):
         p.menu('page', 'next')
         p.wait(60)
+    if prefs == 'after':            # (V209) Options > Preferences... with Apps on that page
+        p.menu('options', 'prefs')
+        p.wait(1200)
     if view:
         p.menu('view', view)
         p.wait(60)
@@ -514,8 +525,8 @@ def main():
     pins = [n + '.cvt' for n in opt['pins'].split(',')] if opt.get('pins') else []
     if len(a) >= 2 and a[0] == 'script':
         pf = opt.get('prefs')
-        script(a[1], int(a[2]) if len(a) > 2 else 0, pins, opt.get('view'), pf if pf == 'menu' else pf == '1',
-               opt.get('mode'))
+        script(a[1], int(a[2]) if len(a) > 2 else 0, pins, opt.get('view'), pf if pf in ('menu', 'after') else pf == '1',
+               opt.get('mode'), opt.get('da') and opt['da'] + '.cvt')
     elif len(a) == 2 and a[0] == 'root':
         root(a[1])
     elif len(a) == 2 and a[0] == 'speed':

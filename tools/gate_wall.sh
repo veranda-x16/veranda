@@ -248,19 +248,22 @@ ok "options > 640 x 240: the plain tile desktop (a picture only at 640 x 480, V1
 # puts the shell aside in do not fit with the fonts: the picture's are lent
 # to it and read again after it, nothing drawn again; at 2 MB they stay.
 # V168: at 512 KB with ten kernel banks the accessory's room, ST_DA_ROOM,
-# has the picture's banks lent again: DROPPED)
+# has the picture's banks lent again: DROPPED. V209: the shell no
+# longer holds the file walks' 5 banks while it runs; the accessory fits
+# at the first try, the picture keeps its banks: no DROPPED; the lending
+# stays for a screen that packs into more)
 plog() { tr -d '\r' < "$1" | grep -a -o -E 'PREFS (DESKTOP|PICTURE) [A-Za-z]+( colour)? ?[A-Za-z]* ?[0-9]*|SHELL WALLPAPER ([A-Z]{3,}|[A-Za-z]+\.cvt)' | sed 's/ *$//' | tr '\n' ',' ; }
 R=$OUT/run/prefs
 folder "$R" desk "Dusk.cvt Test.cvt" "" "$OUT/wall1"
 run "$R" "$ROM"
 got=$(plog "$R/console.txt")
-[ "$got" = "SHELL WALLPAPER Dusk.cvt,SHELL WALLPAPER SHOWN,SHELL WALLPAPER DROPPED,PREFS DESKTOP PAGE,PREFS DESKTOP Plain colour Dusk 0,SHELL WALLPAPER PLAIN," ] \
+[ "$got" = "SHELL WALLPAPER Dusk.cvt,SHELL WALLPAPER SHOWN,PREFS DESKTOP PAGE,PREFS DESKTOP Plain colour Dusk 0,SHELL WALLPAPER PLAIN," ] \
 	|| fail "Preferences, plain: $got"
 [ -f "$R/VERANDA/.SYSTEM/WALLPAPER.CFG" ] || fail "no WALLPAPER.CFG"
 [ "$(od -An -tu1 -N5 "$R/VERANDA/.SYSTEM/WALLPAPER.CFG" | tr -s ' ')" = " 87 80 1 1 0" ] || fail "WALLPAPER.CFG: $(od -An -tu1 -N5 "$R/VERANDA/.SYSTEM/WALLPAPER.CFG")"
 $CHK plain "$R/dump.bin" 14 --skip $WIN0 || fail "the plain desktop"
 png "$R/dump.bin" "$OUT/plain.png"
-ok "Preferences' Desktop page over the shell (512 KB: the picture's banks lent for the accessory's room, V168): Plain colour, Save: WALLPAPER.CFG (kind 1); the shell at once: the theme's desktop colour, no ink: $OUT/plain.png"
+ok "Preferences' Desktop page over the shell (512 KB: the accessory and its room fit beside the picture, V209): Plain colour, Save: WALLPAPER.CFG (kind 1); the shell at once: the theme's desktop colour, no ink: $OUT/plain.png"
 folder "$R" desk "Dusk.cvt Test.cvt" "" "$OUT/wall1"
 run "$R" "$ROM" -ram 2048
 got=$(plog "$R/console.txt")
@@ -271,7 +274,7 @@ ok "the same at 2 MB: the picture keeps its banks"
 folder "$R" desk "Dusk.cvt Test.cvt" "" "$OUT/wall2"
 run "$R" "$ROM"
 got=$(plog "$R/console.txt")
-[ "$got" = "SHELL WALLPAPER Dusk.cvt,SHELL WALLPAPER SHOWN,SHELL WALLPAPER DROPPED,PREFS DESKTOP PAGE,PREFS PICTURE Test,PREFS DESKTOP Picture Test 0,SHELL WALLPAPER Test.cvt,SHELL WALLPAPER SHOWN," ] \
+[ "$got" = "SHELL WALLPAPER Dusk.cvt,SHELL WALLPAPER SHOWN,PREFS DESKTOP PAGE,PREFS PICTURE Test,PREFS DESKTOP Picture Test 0,SHELL WALLPAPER Test.cvt,SHELL WALLPAPER SHOWN," ] \
 	|| fail "Preferences, Choose: $got"
 $CHK picture "$R/dump.bin" "$W/Test.cvt" 0 --skip $WIN0 || fail "the chosen picture"
 png "$R/dump.bin" "$OUT/chosen.png"

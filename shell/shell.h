@@ -225,7 +225,7 @@ void mods_set(void);                              /* the front window's folder: 
 void mods_load(void);                             /* MODS.CFG read (V84) */
 
 /* files.c (overlay 4): find, copy and move (whole folders), the trash, get info */
-void files_init(void);
+void files_lend(void);
 extern unsigned char found_on;                    /* the find results are shown */
 void found_draw(void);
 void found_press(unsigned int x, unsigned int y);
