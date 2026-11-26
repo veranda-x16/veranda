@@ -587,7 +587,7 @@ ok "Classic in dark mode: no colour map, the dark paper and ink"
 echo "== the tiles (Veranda Look 2, DECISIONS V77)"
 # shell/tiles.h is tools/mktiles.py's from shell/tiles.txt; an application
 # with a tile of its own (vpack's "tile": Paint's), a port known by its
-# class (geoWrite's: the shell's tile, the title colour), one with only
+# class (the shell's library: V207 VIDKIT Player's, was geoWrite's tile), one with only
 # its GEOS icon (a chrome tile), a folder (yellow) and a plain file (the
 # sidebar colour); their tiles' cards, and the own tile's pixels
 $PY tools/mktiles.py shell/tiles.txt "$OUT/tiles.h" || fail "mktiles"
@@ -597,7 +597,7 @@ TL=$OUT/tiles/card
 rm -rf "$OUT/tiles"
 mkdir -p "$TL/Docs"
 for n in Tile Write Icon; do
-	cls=$([ $n = Tile ] && echo TestTile || ([ $n = Icon ] && echo TestIcon) || echo geoWrite)
+	cls=$([ $n = Tile ] && echo TestTile || ([ $n = Icon ] && echo TestIcon) || echo VIDKITPlay)   # (V207: VIDKIT Player's class; was geoWrite's)
 	printf 'name = App%s\nclass = %s\nmode = 640x480\napi = 1\nicon = %s\n' $n $cls "$SDK/template/c/icon.pbm" > "$A/app$n.hdr"
 	[ $n = Tile ] && echo "tile = $PWD/apps/paint/tile.txt" >> "$A/app$n.hdr"
 	[ $n = Icon ] && echo "icon3 = $PWD/apps/paint/icon.txt" >> "$A/app$n.hdr"
@@ -617,20 +617,24 @@ $PY -c "import sys; sys.path.insert(0, 'tests'); import shell_subst as s
 open(sys.argv[1], 'wb').write(s.cvt('Page', 'Write Image V2.1', 'geoWrite    V2.1', {0: b'x'}))" "$TL/Page.cvt" \
 	|| fail "Page.cvt"
 echo "CWR" > "$TL/Page.cwr"
+# (V207) a MIDI file and an SPV video: the library's music and video documents (prg.c's ic3_ext)
+echo "MThd" > "$TL/Page.mid"
+echo "SPV" > "$TL/Page.spv"
 $PY tests/shell_script.py --probe "$TL/SHELL.TST" || fail "the script (tiles)"
 (cd "$TL" && SDL_VIDEODRIVER=dummy timeout -s INT 60 "$EMU" -rom "$ROM" -prg VERANDA.PRG -run \
 	-warp -sound none -echo -dump RV > console.txt 2>&1) || true
 [ -f "$TL/dump.bin" ] || { tail -5 "$TL/console.txt"; fail "tiles: the session did not end"; }
-# the top folder: Docs, AppIcon, AppTile, AppTwo, AppWrite, console.txt, Note.txt, Page.cvt, Page.cwr ...
+# the top folder: Docs, AppIcon, AppTile, AppTwo, AppWrite, console.txt, Note.txt, Page.cvt, Page.cwr, Page.mid, Page.spv ...
 # (V133: on the plain tile desktop: c a colour icon in palette row 12, its ink the source's 'K';
 # V156: a file with no colour icon, AppTile's Look 2 tile and AppTwo's GEOS icon, its picture
 # alone on the paper, no frame)
-$PY tests/check_theme.py tiles "$TL/dump.bin" 0:c,1:c,2:0,3:0,4:c,6:c,7:c,8:c 2:-apps/paint/tile.txt 1:apps/paint/icon.txt \
-	0:Folder@shell/icons3.txt 4:geoWrite@shell/icons3.txt 6:Document@shell/icons3.txt \
-	"7:Veranda Write document@shell/icons3.txt" "8:Veranda Write document@shell/icons3.txt" || fail "the tiles"
+$PY tests/check_theme.py tiles "$TL/dump.bin" 0:c,1:c,2:0,3:0,4:c,6:c,7:c,8:c,9:c,10:c 2:-apps/paint/tile.txt 1:apps/paint/icon.txt \
+	0:Folder@shell/icons3.txt "4:VIDKIT Player@shell/icons3.txt" 6:Document@shell/icons3.txt \
+	"7:Veranda Write document@shell/icons3.txt" "8:Veranda Write document@shell/icons3.txt" \
+	"9:Music document@shell/icons3.txt" "10:Video document@shell/icons3.txt" || fail "the tiles"
 $PY tests/check_theme.py bars "$TL/dump.bin" 3 14 5 || fail "the tiles: the colour map"
 $PY tools/vram2png.py --color "$TL/dump.bin" "$OUT/tiles.png" || fail "vram2png"
-ok "the tiles on the plain tile desktop (V133): Docs the library's folder, AppIcon its own colour icon (Paint's, from its file's end), AppTile its own Look 2 tile's pixels alone on the paper and AppTwo its GEOS icon so (V156: no colour icon, no frame), AppWrite the library's geoWrite, Note.txt the library's document, Page.cvt (geoWrite's class) and Page.cwr the library's Veranda Write document (V156): $OUT/tiles.png"
+ok "the tiles on the plain tile desktop (V133): Docs the library's folder, AppIcon its own colour icon (Paint's, from its file's end), AppTile its own Look 2 tile's pixels alone on the paper and AppTwo its GEOS icon so (V156: no colour icon, no frame), AppWrite the library's VIDKIT Player (V207), Note.txt the library's document, Page.cvt (geoWrite's class) and Page.cwr the library's Veranda Write document (V156), Page.mid and Page.spv the library's music and video documents (V207: past its records, after overlay 17): $OUT/tiles.png"
 # the folder's sort (DECISIONS V80): a folder of 59 files whose names are
 # alike for 5 characters, in the reverse of their order; the shell logs
 # the sort's time (TIME SORT <entries> <cycles>); cc65's qsort took

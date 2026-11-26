@@ -43,7 +43,8 @@ least --least in colour; the dock's pins pixel for pixel their colour
 icons (plain and picture). small: the list's first programs' small icons
 pixel for pixel. files: every program of the folder has a colour icon,
 its own I3 block sound (the flags, "I3", its offset, version 3, 16 tiles
-at most, its map's tiles given).
+at most, its map's tiles given); (V207) and its class in the small
+library (shell/icons3s.txt), not the generic program's.
 
 root (V157, the user's card: a root of about 60 entries, mostly folders,
 on a picture): the Apps window's two pages first (34 programs: more than
@@ -445,9 +446,15 @@ def pixels(dump, apps, kind, page, pins=(), least=0, every=False):
         sys.exit(1)
 
 
+# (V207) a plain file's library key by its extension (shell/prg.c's ic3_ext)
+EXT = {e: b'*Music      ' for e in ('mid', 'midi', 'zsm', 'zcm', 'wav', 'mod', 'sid')}
+EXT['spv'] = b'*Video      '
+
+
 def small(dump, apps, first=12):
     """the list view (View > name): the first programs' small icons pixel
-    for pixel (shell/icons3s.txt by class), each in the window's body"""
+    for pixel (shell/icons3s.txt by class), each in the window's body;
+    (V207) and the folder's music and video files' (by their extension)"""
     import check_theme as ct
     import vram2png as vp
     v = ct.section(dump)
@@ -455,8 +462,13 @@ def small(dump, apps, first=12):
     cols = colours(v)
     big, sm = libs()
     bad, n = [], 0
-    for nm in names(apps)[1:first + 1]:
-        g, _ = want(os.path.join(apps, nm), big, True, sm)
+    # (V207) the players' plain documents, by their extension (shell/prg.c's ic3_ext)
+    docs = sorted(n for n in os.listdir(apps) if '.' in n and n.rsplit('.', 1)[-1].lower() in EXT)
+    for nm in names(apps)[1:first + 1] + docs:
+        if nm in docs:
+            g = decode(sm[EXT[nm.rsplit('.', 1)[-1].lower()]], 16)
+        else:
+            g, _ = want(os.path.join(apps, nm), big, True, sm)
         c0 = g[0][0]
         w0 = cols[1] if c0 == 'K' else cols[0] if c0 == 0 else cols[2][c0]
         hit = any(img[y][x] == w0 and same(img, x, y, g, cols) == 0
@@ -465,7 +477,8 @@ def small(dump, apps, first=12):
             n += 1
         else:
             bad.append('%s: its small icon not in the list' % nm)
-    print('      the list: %d programs\' small icons pixel for pixel' % n)
+    print('      the list: %d small icons pixel for pixel (%d programs\', %d music and video files\')'
+          % (n, len(names(apps)[1:first + 1]), len(docs)))
     if bad:
         print('\n'.join('FAIL  ' + b for b in bad))
         sys.exit(1)
@@ -479,11 +492,14 @@ def files(apps):
     for nm in names(apps)[1:]:
         g, why = want(os.path.join(apps, nm), big)
         o = own_icon(os.path.join(apps, nm))
+        cls = open(os.path.join(apps, nm), 'rb').read()[254 + 75:254 + 87]
         if g is None:
             bad.append('%s: %s' % (nm, why))
         elif o is not None and (not o or decode(o, 32) is None):
             bad.append('%s: a broken I3 block (the library has its class)' % nm)
-    print('      %d programs, each with a colour icon' % (len(names(apps)) - 1 - len(bad)))
+        elif cls not in sm:         # (V207: MIDI Player's list icon was the generic program's)
+            bad.append('%s: no small icon of its own (class %r not in shell/icons3s.txt)' % (nm, cls.decode('latin-1')))
+    print('      %d programs, each with a colour icon and a small one of its own' % (len(names(apps)) - 1 - len(bad)))
     if bad:
         print('\n'.join('FAIL  ' + b for b in bad))
         sys.exit(1)

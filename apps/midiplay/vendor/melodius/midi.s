@@ -38,6 +38,9 @@
 .export midi_trk_curL := miditracks + MIDITrack::curoffsetL
 .export midi_trk_curH := miditracks + MIDITrack::curoffsetH
 .export midi_trk_playable := miditracks + MIDITrack::playable
+; Veranda (MIDI Player's keyboard and meters, V206): each YM channel's
+; calls since its note changed (a note struck again shows as a new one)
+.export midi_ym_callcnt := ymchannels + YMChannel::callcnt
 .ifdef MP_TEST
 .export midi_note_iter := note_iter
 .import t_ym_playnote, t_ym_playdrum, t_ym_release

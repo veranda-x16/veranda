@@ -1,7 +1,7 @@
 # Veranda application header (tools/vpack.py)
 name        = MIDI Player
 class       = VerandaMIDI
-version     = 1.0
+version     = 1.1
 author      = Veranda
 description = MIDI and ZSM music on the YM2151 and PSG: Melodius's MIDI engine and ZSMKit, by MooingLemur.
 mode        = 640x480

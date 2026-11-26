@@ -485,6 +485,45 @@ EOF
 		echo "      after $n: $(sed 's/^ *//' "$R/check.txt")"
 	done
 	ok "the dock after Preferences changed the desktop and after a program: every pin its colour icon (V180)"
+	# (V207) the players: MIDI Player (its own colour icon; its small one
+	# was the generic program's) and VIDKIT Player (none: the library's),
+	# with MOD Player, SID Player and View, and their plain documents (the
+	# library's past its records, after overlay 17's code; shell/prg.c's
+	# ic3_ext: music and sound, video): the list
+	# on the plain desktop, every small icon pixel for pixel (the players'
+	# and the documents' after overlay 17's code); both
+	# players pinned on Still Water, dark: the window's icons and the
+	# dock's pins pixel for pixel
+	PL="MIDI Player.cvt|VIDKIT Player.cvt|MOD Player.cvt|SID Player.cvt|View.cvt"
+	if [ -f "$APPS/MIDI Player.cvt" ] && [ -f "$APPS/VIDKIT Player.cvt" ]; then
+		for c in "players-list:none::name" "players-dock:Still Water:d:"; do
+			IFS=: read n wp dk view <<< "$c"
+			R=$OUT/run/$n
+			folder "$R" probe "Still Water" "${dk:+$DARK}"
+			[ "$wp" != none ] || rm -f "$R/VERANDA/.SYSTEM/WALLPAPER.CFG"
+			mkdir -p "$R/VERANDA/APPS"
+			(IFS='|'; for f in $PL; do cp "$APPS/$f" "$R/VERANDA/APPS/"; done)
+			[ -z "$view" ] || for f in Song.mid Long.midi Tune.zsm Beep.zcm Hello.wav Track.mod Tune.sid Clip.spv; do
+				echo x > "$R/VERANDA/APPS/$f"      # (the list only: the icons' checks go by the programs' order)
+			done
+			if [ -n "$view" ]; then
+				$PY tests/apps_icons.py script "$R" 0 --view "$view" || fail "tests/apps_icons.py script ($n)"
+			else
+				$PY tests/apps_icons.py script "$R" 0 --pins "MIDI Player,VIDKIT Player" || fail "tests/apps_icons.py script ($n)"
+			fi
+			run "$R" "$ROM"
+			png "$R/dump.bin" "$OUT/$n.png"
+			if [ -n "$view" ]; then
+				$PY tests/apps_icons.py small "$R/dump.bin" "$R/VERANDA/APPS" > "$R/check.txt"
+			else
+				$PY tests/apps_icons.py pixels "$R/dump.bin" "$R/VERANDA/APPS" picture 0 --pins "MIDI Player,VIDKIT Player" \
+					--all 1 > "$R/check.txt" && $PY tests/apps_icons.py dock "$R/dump.bin" "$R/VERANDA/APPS" \
+					--pins "MIDI Player,VIDKIT Player" --mode 640x480 >> "$R/check.txt"
+			fi || { cat "$R/check.txt"; fail "the players' icons ($n): $OUT/$n.png"; }
+			echo "      $n: $(sed 's/^ *//' "$R/check.txt" | tr '\n' ' ')"
+		done
+		ok "MIDI Player and VIDKIT Player (V207): their small icons and their documents' in the list, their colour icons in the window and the dock: $OUT/players-*.png"
+	fi
 	# (V176) no saved choice: the list (LIST.DEF: the gates' scripts keep
 	# the icons without it), its small icons pixel for pixel
 	R=$OUT/run/listdef

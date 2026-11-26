@@ -31,7 +31,6 @@
 .import midi_is_playing, midi_stop, midi_set_master
 .import midi_ntracks, midi_trk_startbank, midi_trk_startL, midi_trk_startH
 .import midi_trk_curbank, midi_trk_curL, midi_trk_curH
-.import ymnote
 .import lyrics, midi_format, midi_tempo, midibeat, midimeasure
 .import midi_timesig_numerator, midi_timesig_denominator
 ; (Melodius's state, by C's names)
@@ -45,6 +44,19 @@ _midi_timesig_numerator = midi_timesig_numerator
 _midi_timesig_denominator = midi_timesig_denominator
 .export _lyrics, _midi_format, _midi_ntracks, _midi_tempo, _midibeat, _midimeasure
 .export _midi_timesig_numerator, _midi_timesig_denominator
+; (V206: what the keyboard and the meters read: each YM channel's note, 0
+; released; its patch, $FF a drum; its MIDI channel; its attenuation; its
+; calls since the note changed; each MIDI channel's program and its note-on
+; mark, which the window clears)
+.import ymnote, yminst, ymmidi, ymatten, midiinst, midi_msg_sent, midi_ym_callcnt
+_ymnote = ymnote
+_yminst = yminst
+_ymmidi = ymmidi
+_ymatten = ymatten
+_midiinst = midiinst
+_midi_msg_sent = midi_msg_sent
+_midi_ym_callcnt = midi_ym_callcnt
+.export _ymnote, _yminst, _ymmidi, _ymatten, _midiinst, _midi_msg_sent, _midi_ym_callcnt
 .ifdef MP_TEST
 .import midi_note_iter
 .endif
@@ -55,7 +67,8 @@ _midi_timesig_denominator = midi_timesig_denominator
 .export _eng_midi_load, _eng_zsm_load, _eng_go, _eng_pause, _eng_stop, _eng_rewind
 .export _eng_silence, _eng_zsm_state, _eng_midi_playing, _eng_volume, _eng_voices
 .export _eng_zsm_pos, _eng_midi_pos
-.importzp sreg, ptr1
+.export _far_call, _far_bank, _eng_peek, _peek_bank, _peek_src, _peek_n, _eng_zsm_ym, _eng_psg
+.importzp sreg, ptr1, ptr2
 
 .ifdef MP_TEST
 .export _t_cyc_max, _t_cyc_sum, _t_ticks, _t_gap_max, _t_log, _t_log_head
@@ -86,6 +99,11 @@ _zsm_bank:	.res 1
 _eng_loops:	.res 2
 lowram:		.res 256        ; ZSMKit's low RAM (its trampolines, PCM feeding)
 ksptr:		.res 2          ; ZSMKit's key-on shadow (priority 0), in its bank
+osptr:		.res 2          ; its YM2151 register shadow (V206: the notes shown)
+_far_bank:	.res 1          ; far: the bank to map
+_peek_bank:	.res 1          ; eng_peek: from this bank ...
+_peek_src:	.res 2          ; ... this address ...
+_peek_n:	.res 1          ; ... this many bytes
 bankkeep:	.res 1
 songbank:	.res 1
 .ifdef MP_TEST
@@ -238,6 +256,10 @@ _eng_zsm_load:
 	jsr zsm_getksptr
 	stx ksptr
 	sty ksptr+1
+	ldx #0
+	jsr zsm_getosptr
+	stx osptr
+	sty osptr+1
 .ifdef MP_TEST
 	ldx #7
 @k:	stz t_kon,x
@@ -681,6 +703,125 @@ ZBack:	lda zkeep
 .segment "BSS"
 zkeep:	.res 1
 .segment "CODE"
+
+;---------------------------------------------------------------- the window's (V206)
+; void far_call(void (*f)(void)): f called with RAM bank far_bank mapped (an
+; overlay's routine, from another overlay or main RAM), the caller's bank
+; back after
+_far_call:
+	sta @j+1
+	stx @j+2
+	lda RAMB
+	pha
+	lda _far_bank
+	sta RAMB
+	jsr @j
+	pla
+	sta RAMB
+	rts
+@j:	jmp $FFFF
+
+; void eng_peek(unsigned char *dst): peek_n bytes (1-255) from peek_src in
+; RAM bank peek_bank to dst (below $A000), the caller's bank back after
+_eng_peek:
+	sta ptr1
+	stx ptr1+1
+	lda _peek_src
+	sta ptr2
+	lda _peek_src+1
+	sta ptr2+1
+	lda RAMB
+	pha
+	lda _peek_bank
+	sta RAMB
+	ldy #0
+@l:	lda (ptr2),y
+	sta (ptr1),y
+	iny
+	cpy _peek_n
+	bne @l
+	pla
+	sta RAMB
+	rts
+
+; void eng_zsm_ym(unsigned char *buf): a ZSM's YM2151 as ZSMKit last wrote
+; it: buf[0-7] each channel's key-on shadow (bits 3-6 its operators keyed),
+; buf[8-23] registers $20-$2F (pan and connection, the notes' key codes)
+_eng_zsm_ym:
+	sta ptr1
+	stx ptr1+1
+	lda RAMB
+	pha
+	lda _zsm_bank
+	sta RAMB
+	lda ksptr
+	sta ptr2
+	lda ksptr+1
+	sta ptr2+1
+	ldy #7
+@k:	lda (ptr2),y
+	sta (ptr1),y
+	dey
+	bpl @k
+	clc
+	lda osptr
+	adc #$20-8
+	sta ptr2
+	lda osptr+1
+	adc #0
+	sta ptr2+1
+	ldy #8
+@o:	lda (ptr2),y
+	sta (ptr1),y
+	iny
+	cpy #24
+	bne @o
+	pla
+	sta RAMB
+	rts
+
+; void eng_psg(unsigned char *buf): the PSG's 64 registers from VERA
+; ($1F9C0: each voice's frequency, low and high, its volume and sides, its
+; wave), with the interrupt off (its handler moves VERA's address; the
+; window's reading is short: a C loop took 5,000 cycles), VERA's port 0
+; put back
+_eng_psg:
+	sta ptr1
+	stx ptr1+1
+	php
+	sei
+	lda VERA_CTRL
+	pha
+	and #$FE
+	sta VERA_CTRL
+	lda VERA_ADDR_L
+	pha
+	lda VERA_ADDR_M
+	pha
+	lda VERA_ADDR_H
+	pha
+	lda #$C0
+	sta VERA_ADDR_L
+	lda #$F9
+	sta VERA_ADDR_M
+	lda #$11                ; (step 1)
+	sta VERA_ADDR_H
+	ldy #0
+@r:	lda VERA_DATA0
+	sta (ptr1),y
+	iny
+	cpy #64
+	bne @r
+	pla
+	sta VERA_ADDR_H
+	pla
+	sta VERA_ADDR_M
+	pla
+	sta VERA_ADDR_L
+	pla
+	sta VERA_CTRL
+	plp
+	rts
 
 ;---------------------------------------------------------------- the test build
 .ifdef MP_TEST

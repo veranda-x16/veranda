@@ -16,7 +16,11 @@ usage:
   mkicons3.py lib <icons3.txt> <out> [<out2> ...]
                                 the shell's library as overlay records
                                 (12 icons a record; a source of small
-                                icons: one record, SM_AT, SM_LEN)
+                                icons: one record, SM_AT, SM_LEN, 46)
+  mkicons3.py ovf <shell.bin.17> <shell.map> <icons3.txt> <icons3s.txt> <out>
+                                (V207) the shell's overlay 17 with the
+                                icons past those records after its code
+                                (OVF_SM, OVF_BIG)
   mkicons3.py sheet <out.png> [files...]   a picture of them, 1x and 3x,
                                 on the paper and on the sage
 
@@ -582,14 +586,6 @@ def subjects():
     ic.s(R(1, 21, 30, 9), 'blue', outline=True, shade='flat')
     ic.d(pix(['.##.....##.....##.', '#..#...#..#...#..#'], 3, 24), 'white')
 
-    ic = new('geoWrite', 'geoWrite', 'lib')            # a page and a pencil
-    ic.s(P((5, 3), (19, 3), (25, 9), (25, 29), (5, 29)), 'paper')
-    for y, w in ((10, 15), (13, 12), (16, 15), (19, 10), (22, 13)):
-        ic.d(R(8, y, w, 1), 'grey')
-    ic.s(L(29, 12, 17, 28, 3.6), 'yellow')
-    ic.s(L(29, 12, 27, 14.7, 3.6), 'red')
-    ic.s(P((17.6, 25.8), (19.9, 27.6), (15.5, 30.5)), 'orange')
-
     # (V156) a Veranda Write document (geoWrite's documents' class: Veranda
     # Write opens them, V135; the shell also gives it to its .cwr files): the
     # document's page with Veranda Write's navy heading and its blue pen
@@ -636,6 +632,37 @@ def subjects():
     ic.d(E(7, 13, 1.3, 1.3), 'grey')
     ic.d(R(6, 21, 9, 1), 'grey')
     ic.s(U(E(18.5, 22.5, 4.2, 3.2), R(20.8, 9, 2.2, 13.5), P((20.8, 9), (28.5, 12), (28.5, 16.5), (20.8, 13.5))), 'yellow', shade='round')
+
+    # (V207) VIDKIT Player (class VIDKITPlay: another repository's, its file
+    # carries no colour icon): a clapperboard, its clapper raised, a play
+    # mark on the slate. geoWrite's (not in the package since 2026-11-21;
+    # Veranda Write opens its documents: their icon stays) gave the room
+    ic = new('VIDKIT Player', 'VIDKITPlay', 'lib')
+    clap = rot(R(3, 7, 26, 5), 3, 12, 14)
+    ic.s(clap, 'paper', shade='flat')
+    ic.d(I(clap, U(*(rot(P((x, 7), (x + 4, 7), (x + 1, 12), (x - 3, 12)), 3, 12, 14) for x in (6, 13, 20, 27)))), 'dark')
+    ic.s(RR(3, 13, 26, 16, 1.5), 'dark', shade='round')
+    ic.d(I(R(3, 13, 26, 3), U(*(P((x, 13), (x + 4, 13), (x + 1, 16), (x - 3, 16)) for x in (6, 13, 20, 27)))), 'white')
+    ic.s(P((12.5, 18), (22, 23), (12.5, 28)), 'red', shade='round')
+
+    # (V207) the documents of the players, plain files the shell knows by
+    # their extension (prg.c's ic3_ext): music and sound (.MID .MIDI .ZSM
+    # .ZCM .WAV .MOD .SID: a page with two notes) and video (.SPV: a page
+    # with a film frame and a play mark)
+    ic = new('Music document', '*Music', 'lib')
+    ic.s(P((5, 2), (18, 2), (25, 9), (25, 30), (5, 30)), 'paper')
+    ic.s(P((18, 2), (18, 9), (25, 9)), 'pale')
+    ic.s(U(E(10.5, 24.5, 3.2, 2.4), E(19, 22.5, 3.2, 2.4), R(11.9, 12, 1.8, 12.5), R(20.4, 10, 1.8, 12.5),
+           P((11.9, 12), (22.2, 10), (22.2, 13), (11.9, 15))), 'blue', shade='round')
+
+    ic = new('Video document', '*Video', 'lib')
+    ic.s(P((5, 2), (18, 2), (25, 9), (25, 30), (5, 30)), 'paper')
+    ic.s(P((18, 2), (18, 9), (25, 9)), 'pale')
+    ic.s(R(8, 12, 15, 14), 'dark', shade='flat')
+    for x in (9, 12, 15, 18, 21):
+        ic.d(R(x, 13, 1, 1), 'pale')
+        ic.d(R(x, 24, 1, 1), 'pale')
+    ic.s(P((13, 15.5), (19, 19), (13, 22.5)), 'red', outline=False, shade='flat')
     return out
 
 
@@ -920,9 +947,6 @@ def small_subjects():
             ic.d(R(x, y - 2, 1, 2), 'brown')
     ic.s(R(1, 10, 14, 5), 'blue')
     ic.d(pix(['.#..#..#.', '#.##.##.#'], 3, 11), 'white')
-    ic = new('geoWrite', 'geoWrite')
-    page(ic, ((5, 5), (5, 7), (5, 9)), 4)
-    ic.s(L(14.5, 5, 8.5, 13, 1.8), 'yellow')
     ic = new('Veranda Write document', 'Write Image')   # (V156)
     page(ic, ((5, 7), (5, 9), (5, 11)), 4)
     ic.d(R(5, 4, 4, 1), 'navy')
@@ -944,6 +968,29 @@ def small_subjects():
         ic.d(R(x, 3, 1, 1), 'pale')
         ic.d(R(x, 12, 1, 1), 'pale')
     ic.s(U(E(7.5, 9.8, 2.8, 2.1), R(8.6, 3, 2, 6.5), P((8.6, 3), (13, 4.6), (13, 7), (8.6, 5.6))), 'yellow', shade='flat')
+    # (V207) MIDI Player's (V205's socket and note drawn for 16 pixels),
+    # VIDKIT Player's, the players' documents (music, video); past the
+    # record's 46 they go after overlay 17's code (ovf)
+    ic = new('MIDI Player', 'VerandaMIDI')
+    ic.s(E(6.5, 6.5, 5.6, 5.6), 'metal', shade='flat')
+    ic.s(E(6.5, 6.5, 4, 4), 'dark', outline=False, shade='flat')
+    ic.d(pix(['..#..', '#...#', '.....', '#...#'], 4, 4), 'white')
+    ic.d(R(6, 9, 1, 1), 'pale')
+    ic.s(U(E(11.6, 13.4, 2.3, 1.7), R(12.7, 4.5, 1.3, 8.8), P((12.7, 4.5), (15.6, 6.3), (15.6, 8.6), (12.7, 6.8))), 'green', shade='flat')
+    ic = new('VIDKIT Player', 'VIDKITPlay')
+    clap = rot(R(1, 3, 14, 3), 1, 6, 14)
+    ic.s(clap, 'paper', shade='flat')
+    ic.d(I(clap, U(*(rot(P((x, 3), (x + 2, 3), (x, 6), (x - 2, 6)), 1, 6, 14) for x in (4, 8, 12)))), 'dark')
+    ic.s(R(1, 7, 14, 8), 'dark', shade='flat')
+    ic.s(P((6, 8.5), (11, 11), (6, 13.5)), 'red', outline=False, shade='flat')
+    ic = new('Music document', '*Music')
+    page(ic, ())
+    ic.s(U(E(6, 12, 1.8, 1.3), E(10.5, 11, 1.8, 1.3), R(6.8, 6, 1, 6), R(11.3, 5, 1, 6),
+           P((6.8, 6), (12.3, 5), (12.3, 6.6), (6.8, 7.6))), 'blue', outline=False, shade='flat')
+    ic = new('Video document', '*Video')
+    page(ic, ())
+    ic.s(R(5, 6, 7, 7), 'dark', outline=False, shade='flat')
+    ic.s(P((7, 7.5), (10.5, 9.5), (7, 11.5)), 'red', outline=False, shade='flat')
     return out
 
 
@@ -1108,7 +1155,8 @@ def write():
          "# the ports of GEOS programs and the programs of other repositories\n"
          "# (Veranda Write, Veranda Calc, Solitaire, the MOD and SID players,\n"
          "# the games), which carry no icon of their own; packed by\n"
-         "# tools/mkicons3.py lib into the shell's overlay records 13 and up.\n"
+         "# tools/mkicons3.py lib into the shell's overlay records 13 and 14\n"
+         "# (past 24: ovf, after overlay 17's code; V207).\n"
          "# Written by tools/mkicons3.py write (the geometry is the source).\n"
          "# A program of another repository can carry its own instead: its\n"
          "# app.hdr's \"icon3 = icon.txt\" (tools/vpack.py) with its block copied\n"
@@ -1120,7 +1168,8 @@ def write():
          "# DECISIONS V151), by class as icons3.txt: the list, the small icons'\n"
          "# view and the sidebar; each drawn for 16 pixels (not reduced from its\n"
          "# 32 x 32 one); \"app\" any other program. Packed by tools/mkicons3.py lib\n"
-         "# into the shell's overlay record 15. Written by tools/mkicons3.py write\n"
+         "# into the shell's overlay record 15 (past 46: ovf, after overlay 17's\n"
+         "# code; V207). Written by tools/mkicons3.py write\n"
          "# (the geometry is the source). 16 rows: '.' none, 'K' the ink, 'a'-'o'\n"
          "# entries 1-15 of the icons' palette row.\n\n")
     s += '\n'.join(block(ic) for ic in sm)
@@ -1189,38 +1238,82 @@ def key(what):
 
 
 PER = 12            # icons a library record: [count, 12-byte keys ...] at 0, icon i at 160 + 658 i
+# (V207) the icons past the records (24 large, SM_MAX small) go in the
+# shell's overlay 17 (prg.c, record 17: its code, data and BSS below
+# OVF_CODE), after its code: the small ones at OVF_SM ([count, 12-byte
+# keys ...], icon j at OVF_SM_AT + SM_LEN j, OVF_SMN at most), the large
+# ones at OVF_BIG (a record as above, OVF_BIGN at most)
+OVF_CODE = 0x1000
+OVF_SMN = 8
+OVF_SM = OVF_CODE
+OVF_SM_AT = OVF_SM + 1 + OVF_SMN * 12
+OVF_BIG = 0x1600
+OVF_BIGN = (8192 - OVF_BIG - 160) // ICON_LEN
+
+
+def record(icons):
+    b = bytearray(160)
+    b[0] = len(icons)
+    for i, (n, kv, g) in enumerate(icons):
+        b[1 + 12 * i:13 + 12 * i] = key(kv['for'])
+    for n, kv, g in icons:
+        b += pack(g)[0]
+    return bytes(b)
 
 
 def lib(src, outs):
+    """the large icons: a record of PER for each out; the small ones: one
+    record of SM_MAX; the rest (V207) for ovf"""
     icons = read(src)
+    for n, kv, g in icons:
+        if 'for' not in kv:
+            raise SystemExit('mkicons3: %s has no "for"' % n)
     if icons and len(icons[0][2]) == NS:        # the small icons: one record
-        if len(icons) > SM_MAX:
-            raise SystemExit('mkicons3: %d small icons, %d at most' % (len(icons), SM_MAX))
+        main = icons[:SM_MAX]
         b = bytearray(SM_AT)
-        b[0] = len(icons)
-        for i, (n, kv, g) in enumerate(icons):
-            if 'for' not in kv:
-                raise SystemExit('mkicons3: %s has no "for"' % n)
+        b[0] = len(main)
+        for i, (n, kv, g) in enumerate(main):
             b[1 + 12 * i:13 + 12 * i] = key(kv['for'])
             b += pack(g)[0]
         open(outs[0], 'wb').write(bytes(b))
-        return len(icons), 1
-    recs = [icons[i:i + PER] for i in range(0, len(icons), PER)]
-    if len(recs) > len(outs):
-        raise SystemExit('mkicons3: %d records needed, %d named' % (len(recs), len(outs)))
+        return len(main), 1
+    recs = [icons[i:i + PER] for i in range(0, min(len(icons), PER * len(outs)), PER)]
     for r, o in zip(recs, outs):
-        b = bytearray(160)
-        b[0] = len(r)
-        for i, (n, kv, g) in enumerate(r):
-            if 'for' not in kv:
-                raise SystemExit('mkicons3: %s has no "for"' % n)
-            b[1 + 12 * i:13 + 12 * i] = key(kv['for'])
-        for n, kv, g in r:
-            b += pack(g)[0]
-        open(o, 'wb').write(bytes(b))
+        open(o, 'wb').write(record(r))
     for o in outs[len(recs):]:
         open(o, 'wb').write(bytes([0]))
-    return len(icons), len(recs)
+    return sum(len(r) for r in recs), len(recs)
+
+
+def ovf(code, mapf, big, small, out, nbig=2 * PER):
+    """(V207) overlay 17's record (code) with the icons past the records
+    after it: the large ones of big past nbig, the small ones of small
+    past SM_MAX; its code, data and BSS (mapf: the linker's map) below
+    OVF_CODE"""
+    import re
+    end = 0
+    for ln in open(mapf):
+        m = re.match(r'(OVERLAY17|OVL17\w*)\s+([0-9A-F]{6})\s+([0-9A-F]{6})\s+([0-9A-F]{6})', ln)
+        if m and int(m.group(4), 16):
+            end = max(end, int(m.group(3), 16) + 1 - 0xA000)
+    c = open(code, 'rb').read()
+    if max(end, len(c)) > OVF_CODE:
+        raise SystemExit('mkicons3: overlay 17 ends at %d, past %d (its icons)' % (max(end, len(c)), OVF_CODE))
+    bi, sm = read(big)[nbig:], read(small)[SM_MAX:]
+    if len(bi) > OVF_BIGN or len(sm) > OVF_SMN:
+        raise SystemExit('mkicons3: %d large and %d small icons past the records, %d and %d at most'
+                         % (len(bi), len(sm), OVF_BIGN, OVF_SMN))
+    b = bytearray(c) + bytes(OVF_SM - len(c))
+    b.append(len(sm))
+    for n, kv, g in sm:
+        b += key(kv['for'])
+    b += bytes(OVF_SM_AT - len(b))
+    for n, kv, g in sm:
+        b += pack(g)[0]
+    b += bytes(OVF_BIG - len(b))
+    b += record(bi)
+    open(out, 'wb').write(bytes(b))
+    return len(bi), len(sm)
 
 
 def all_sources():
@@ -1285,6 +1378,9 @@ def main():
     elif a[0] == 'lib':
         n, r = lib(a[1], a[2:])
         print('mkicons3: %d icons in %d records' % (n, r))
+    elif a[0] == 'ovf' and len(a) == 6:
+        nb, ns = ovf(*a[1:])
+        print('mkicons3: overlay 17 with %d large and %d small icons after it' % (nb, ns))
     elif a[0] == 'sheet':
         sheet(a[1], a[2:] or all_sources())
     else:

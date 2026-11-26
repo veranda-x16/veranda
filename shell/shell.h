@@ -22,6 +22,9 @@
     16 look3b.c (V165; records 13-15 are look3.c's libraries) the labels
                 in Gate Sans 9, the colour icons kept in RAM, a GEOS
                 file listed in one open, a page's icons loaded first
+    17 prg.c    (V197) a plain .PRG run in BASIC; (V207) the colour
+                icons' library lookup and a plain file's icon by its
+                extension, the icons past records 13-15 after its code
    Code in one overlay calls another's through the resident trampoline
    (XCALL: ovl_go maps the bank and makes it appBank, so the kernel's
    callbacks find it, and maps the caller's back). Strings, tables and
@@ -168,6 +171,8 @@ void shell_go(const char *dir, const char *name, unsigned char open);
 void shell_open(unsigned char w, unsigned char idx);  /* a double click on an entry */
 unsigned char prg_run(unsigned char w);           /* prg.c: a plain .PRG run in BASIC, Veranda kept (V197); 0: not one */
 void prg_log(void);                               /* prg.c: (gates) the windows the shell kept, logged */
+unsigned char ic3_ext(unsigned char w, unsigned char kind);  /* prg.c: a plain file's icon by its extension (V207) */
+unsigned int ic3_lib(const char *k);              /* prg.c: key k in the colour icons' library: its offset, its bank in k3buf[12] (V207) */
 unsigned char prg_req(unsigned char u);           /* prg.c: START.REQ read and deleted: 1, the folder in str, the name in tmp (V198) */
 void shell_front(unsigned char w);                /* curDirName = window w's path */
 void shell_pin_start(unsigned char p);            /* a pinned application started */

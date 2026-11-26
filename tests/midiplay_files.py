@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""gate midiplay (DECISIONS V205): the test songs, made here, and what the
+"""gate midiplay (DECISIONS V205, V206): the test songs, made here, and what the
 player should do with them.
 
 usage: midiplay_files.py <folder>   writes FMT0.MID, FMT1.MID, SONG.ZSM,
@@ -15,9 +15,22 @@ FMT1.MID  format 1, 120 ticks a quarter, three tracks: the conductor (3/4,
           drums on channel 10 (36, 38, 42) with running status
 SONG.ZSM  ZSM version 1, 60 Hz, no loop: YM2151 channel 0 keyed on at tick
           0 and off at 30, channel 1 on at 60 and off at 90; PSG voice 0
-          sounding from tick 0 to 30; the end at 120
+          sounding from tick 0 to 30 (and voices 1-3, E5 G4 C3, softer:
+          the window's PSG meters and keys); the end at 120
 BAD.MID   not a MIDI file ("MThd" missing)
 More/LOOP.ZSM  SONG.ZSM looping from its start
+More/DEMO.MID  (V206: the window's keyboard, meters, lyrics, title) format
+          1, 96 ticks a quarter, 120 BPM, 4/4, four bars: the first
+          track's name "Veranda Demo", a copyright, lyrics ("Ve", "ran",
+          "da " at ticks 48, 96, 144, more in bar 2); a piano (channel 1)
+          in chords, a finger bass (2), a flute (3), drums (10); from tick
+          96 to 756 (frames 30-236) exactly C2, C4, E4, G4 and E5 sound
+          (DEMO_KEYS in expect.json)
+More/DESERT.MID  (V208: the now-playing panel after a song with a title)
+          format 0, one track, no track name, no copyright, no lyrics,
+          119 BPM, 4/4, 3:10 long: channel 1 silent, channels 2-6 named
+          (Tinkle Bell, Trumpet, Trumpet, Alto Sax, Taiko Drum) and
+          playing; Play next brings it after DEMO.MID
 
 expect.json: per song the engine's events as the player's log shows them
 (kind, channel or note, the frame: 60 a second of the song's time, from
@@ -134,8 +147,11 @@ def zsm():
     d = b''
     d += ym(voice(0, 0x4A) + [(0x08, 0x78 | 0)])
     d += bytes([0x00, 0x30, 0x01, 0x0A, 0x02, 0xC0 | 63, 0x03, 0x3F])     # PSG voice 0: frequency, volume, a pulse
+    for v, (w, vol) in enumerate(((0x06E9, 45), (0x041C, 30), (0x015F, 20))):   # voices 1-3: E5, G4, C3
+        r = 4 * (v + 1)
+        d += bytes([r, w & 255, r + 1, w >> 8, r + 2, 0xC0 | vol, r + 3, 0x80])
     d += bytes([0x80 | 30])
-    d += ym([(0x08, 0x00)]) + bytes([0x02, 0xC0])
+    d += ym([(0x08, 0x00)]) + bytes([0x02, 0xC0, 0x06, 0xC0, 0x0A, 0xC0, 0x0E, 0xC0])
     d += bytes([0x80 | 30])
     d += ym(voice(1, 0x3E) + [(0x08, 0x78 | 1)])
     d += bytes([0x80 | 30])
@@ -145,6 +161,58 @@ def zsm():
     exp = [('kon', 0, 0x78, 0), ('psg', 0, 63, 0), ('kon', 0, 0, 30), ('psg', 0, 0, 30),
            ('kon', 1, 0x78, 60), ('kon', 1, 0, 90)]
     return hdr + d, exp
+
+
+def demo():
+    """More/DEMO.MID: what the window shows of a song (V206)"""
+    div = 96
+    bar = 4 * div
+    meta = lambda k, w: b'\xFF' + bytes([k, len(w)]) + w
+    cond = [(0, meta(3, b'Veranda Demo')), (0, meta(2, b'MIDI Player gate, CC0')),
+            (0, b'\xFF\x58\x04\x04\x02\x18\x08'), (0, b'\xFF\x51\x03' + (500000).to_bytes(3, 'big'))]
+    for t, w in ((48, b'Ve'), (96, b'ran'), (144, b'da '), (bar, b'plays '), (bar + 96, b'MI'), (bar + 144, b'DI')):
+        cond.append((t, b'\xFF\x05' + bytes([len(w)]) + w))
+    piano = [(0, b'\xC0\x00')]
+    for t, l, chord in ((0, 2 * bar, (60, 64, 67)), (2 * bar, bar, (65, 69, 72)), (3 * bar, bar, (67, 71, 74))):
+        for n in chord:
+            piano.append((t, bytes([0x90, n, 90])))
+            piano.append((t + l - 12, bytes([0x80, n, 64])))
+    bass = [(0, b'\xC1\x21')]
+    for t, l, n in ((0, 2 * bar, 36), (2 * bar, bar, 41), (3 * bar, bar, 43)):
+        bass.append((t, bytes([0x91, n, 110])))
+        bass.append((t + l - 12, bytes([0x81, n, 64])))
+    flute = [(0, b'\xC2\x49')]
+    for t, n, l in ((0, 79, 90), (96, 76, 2 * bar - 108), (2 * bar, 77, 180), (2 * bar + 192, 81, 180),
+                    (3 * bar, 79, 372)):
+        flute.append((t, bytes([0x92, n, 100])))
+        flute.append((t + l, bytes([0x82, n, 64])))
+    drums = []
+    for b in range(16):
+        t = b * div
+        drums.append((t, bytes([0x99, 36 if b % 2 == 0 else 38, 110])))
+        drums.append((t + 20, bytes([0x99, 36 if b % 2 == 0 else 38, 0])))
+        drums.append((t + 48, bytes([0x99, 42, 80])))
+        drums.append((t + 60, bytes([0x99, 42, 0])))
+    data = header(1, 5, div) + track(cond) + track(piano) + track(bass) + track(flute) + track(drums)
+    return data, [36, 60, 64, 67, 76]
+
+
+def desert():
+    """More/DESERT.MID: no name, no text, no lyrics, 3:10 (V208)"""
+    div = 96
+    us = 504202                         # (119 BPM)
+    ev = [(0, b'\xFF\x58\x04\x04\x02\x18\x08'), (0, b'\xFF\x51\x03' + us.to_bytes(3, 'big'))]
+    for ch, prog in ((1, 112), (2, 56), (3, 56), (4, 65), (5, 116)):
+        ev.append((0, bytes([0xC0 | ch, prog])))
+    beats = 377                         # (3:10 at 119 BPM: 376.8 beats)
+    for b in range(beats):
+        t = b * div
+        ch = 1 + b % 5
+        n = (48, 60, 64, 67, 72)[b % 5] + (b // 20) % 5
+        ev.append((t, bytes([0x90 | ch, n, 100])))
+        ev.append((t + div - 8, bytes([0x80 | ch, n, 64])))
+    data = header(0, 1, div) + track(ev)
+    return data, round((beats * div - 8) * us / div / 1e6)
 
 
 def main():
@@ -161,6 +229,12 @@ def main():
     os.makedirs(os.path.join(out, 'More'), exist_ok=True)
     open(os.path.join(out, 'More', 'LOOP.ZSM'), 'wb').write(data[:3] + bytes([16, 0, 0]) + data[6:])
     exp['LOOP.ZSM'] = e
+    data, keys = demo()
+    open(os.path.join(out, 'More', 'DEMO.MID'), 'wb').write(data)
+    exp['DEMO_KEYS'] = keys
+    data, secs = desert()
+    open(os.path.join(out, 'More', 'DESERT.MID'), 'wb').write(data)
+    exp['DESERT_SECS'] = secs
     open(os.path.join(out, 'BAD.MID'), 'wb').write(b'RIFF' + bytes(60))
     json.dump(exp, open(os.path.join(out, 'expect.json'), 'w'), indent=1)
 

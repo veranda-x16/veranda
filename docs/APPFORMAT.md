@@ -136,14 +136,21 @@ the program's start clears. `vpack.py` writes it from `icon3 = icon.txt`
 (32 rows of `.`, `K` and `a`-`o`: `tools/mkicons3.py`), or adds it to a
 built file: `vpack.py -o out.cvt --icon3 icon.txt file.cvt` (the way for
 programs of other repositories). Programs that carry none are known by
-their class from the shell's library (`shell/icons3.txt`, records 13 and
-14 of `SHELL.cvt`: the shell's own, the ports, Veranda Write, Veranda
+their class from the shell's library (`shell/icons3.txt`, records 13 to
+15 of `SHELL.cvt`: the shell's own, the ports, Veranda Write, Veranda
 Calc, Solitaire, the players and the games); else the Look 2 tile.
 
 The small icons (16 x 16: the list, the small icons' view and the
 sidebar; DECISIONS V151) are the shell's own, by the same class: its
-library `shell/icons3s.txt` (record 15 of `SHELL.cvt`; `app` for a
-program not in it). A file carries none.
+library `shell/icons3s.txt` (record 16 of `SHELL.cvt`, 46 icons; the
+rest, 8 at most, in record 15 from byte 4096: DECISIONS V207; `app` for
+a program not in it). A file carries none.
+
+Plain files (not GEOS files) get a library icon by their extension
+(DECISIONS V156, V197, V207): `.cwr` Veranda Write's document, `.prg`
+the X16 program, `.mid`, `.midi`, `.zsm`, `.zcm`, `.wav`, `.mod` and
+`.sid` the music document, `.spv` the video document; any other the
+document.
 
 ## Desk accessories
 

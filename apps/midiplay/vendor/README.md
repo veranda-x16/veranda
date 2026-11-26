@@ -17,7 +17,8 @@ marked "Veranda" in the files:
 - `midi.s`: the player's volume (`midi_master`, `add_master`,
   `midi_set_master`: an attenuation added to every YM channel's); the
   exports the window reads (the file's type and tracks, the tracks'
-  places for the progress bar); `debug_byte` kept in the file (it was
+  places for the progress bar; V206: each YM channel's calls since its
+  note changed, `midi_ym_callcnt`, for the meters); `debug_byte` kept in the file (it was
   `visualizations.s`'s); the test build's audio calls (`../audio_t.inc`).
 - `macros.inc`: the border-colour macros do nothing (VERA's `$9F2C` is
   another register when DCSEL is not 0, as Veranda may have it).

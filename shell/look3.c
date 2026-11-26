@@ -21,7 +21,8 @@
    under its outline in the ink. Where it comes from (by the file's
    class, 12 bytes of its info block):
    - the shell's library (tools/mkicons3.py lib shell/icons3.txt: overlay
-     records 13 and 14, banks bLook3 + 1 and + 2): the shell's own
+     records 13 and 14, banks bLook3 + 1 and + 2; V207: past 24 after
+     overlay 17's code, bank bPrg from OVF_BIG): the shell's own
      (folder, up, document, card, printer, trash), the ports, the
      programs of other repositories;
    - else the file's own colour icon (vpack.py's "icon3": 658 bytes at
@@ -361,19 +362,17 @@ static void keep(const char *k, unsigned char v)
 static unsigned char libB;
 static unsigned int libO;
 
+/* (V207) prg.c's ic3_lib (overlay 17, for this one's room; its third
+   record after its code) */
+typedef unsigned int (*FLIB)(const char *);
+
 static unsigned char inLib(const char *k)
 {
-    unsigned char i, c;
-    for (libB = bLook3 + 1; libB <= bLook3 + 2; ++libB) {
-        bget(libB, 0, buf, 1 + 12 * 12);
-        c = buf[0] > 12 ? 0 : buf[0];
-        for (i = 0; i < c; ++i)
-            if (!memcmp(buf + 1 + 12 * i, k, 12)) {
-                libO = 160 + i * IC_LEN;
-                return 1;
-            }
-    }
-    return 0;
+    memcpy(k3buf, k, 12);               /* (the other overlay sees main RAM alone: bkeys) */
+    if (!(libO = XCALL(bPrg, ic3_lib, FLIB)(k3buf)))
+        return 0;
+    libB = k3buf[12];
+    return 1;
 }
 
 /* key k from the library: its slot, or NSLOT (kept as NONE or FULL) */
@@ -479,20 +478,12 @@ got:
    them: V135), and its own .cwr files (not GEOS files: E, a window's
    entry, ends in ".cwr") shown with it too; (V197) a plain ".prg", an
    X16 program BASIC runs (prg.c), with the library's "X16 program" (the
-   small icons: a program's) */
-static const char kWrite[] = "Write Image ";
-static const char kPrg[] = "*Prg        ";
-
-/* E's: 1 ".cwr", 2 ".prg", 0 neither (or not a window's plain file) */
-static unsigned char cwr(unsigned char w)
-{
-    const char *e = E.name + strlen(E.name) - 4;
-    if (w >= 2 || E.geos || e < E.name || e[0] != '.')
-        return 0;
-    if ((e[1] | 32) == 'c' && (e[2] | 32) == 'w' && (e[3] | 32) == 'r')
-        return 1;
-    return (e[1] | 32) == 'p' && (e[2] | 32) == 'r' && (e[3] | 32) == 'g' ? 2 : 0;
-}
+   small icons: a program's); (V207) the players' music and video files.
+   prg.c's ic3_ext (overlay 18, for this one's room): E's kind (1 ".cwr",
+   2 ".prg", 3 music, 4 video; 0 none, or not a window's plain file) or
+   kind's, its library key in k3buf */
+typedef unsigned char (*FEXT)(unsigned char, unsigned char);
+#define ext(w, kind) XCALL(bPrg, ic3_ext, FEXT)(w, kind)
 
 /* the slot of window w's (2: the desk's) tile t, its GEOS file's icon i
    (w 0, 1); NSLOT: none */
@@ -507,8 +498,8 @@ static unsigned char slotOf(unsigned char w, unsigned char t, unsigned char i)
         if (t >= 13)
             return NSLOT;
         k = bkeys[t];
-        if (t == 9 && (s = cwr(w)) != 0)        /* (9: tiles.h's T_DOCUMENT) */
-            k = s == 1 ? kWrite : kPrg;
+        if (t == 9 && ext(w, 0))                /* (9: tiles.h's T_DOCUMENT) */
+            k = k3buf;
     } else if (w < 2 && i < MAXICON) {
         bget(bInk, WKEY + (w * MAXICON + i) * WREC, k3buf, WREC);
         k = k3buf;
@@ -714,7 +705,7 @@ static void shTiles(void)
    (Look 3, V151) 16 x 16 colour icons in the list, the small icons' view
    and the sidebar, 2 x 2 cards in row IROW under their ink: the shell's
    library of them (tools/mkicons3.py lib icons3s.txt: overlay record 15,
-   bank bLook3 + 3; by class as the large ones, "*App" any other
+   bank bLook3 + 3; V207: past NSM after overlay 17's code, bank bPrg; by class as the large ones, "*App" any other
    program); their tiles to VRAM when first drawn (the large ones'
    allocator). None (no room, Look 2): the caller draws Look 2's badge */
 
@@ -722,18 +713,24 @@ static void shTiles(void)
 #define SM_LEN  165             /* ... icon i at SM_AT + SM_LEN i: tiles n, the map (4), the ink (32), the tiles */
 #define NSM     46
 #define bSm     (bLook3 + 3)
+#define NOVF    8                       /* (V207) icons NSM and up: after prg.c's code (bank bPrg, */
+#define OVF     0x1000                  /* tools/mkicons3.py ovf: [count, keys] at OVF, icon j at */
+#define OVF_AT  (OVF + 1 + NOVF * 12)   /* OVF_AT + SM_LEN j) */
 
-static unsigned int smT[NSM];                   /* icon i's tiles in VRAM (0: not yet) */
+static unsigned int smT[NSM + NOVF];            /* icon i's tiles in VRAM (0: not yet) */
 static unsigned char smN;                       /* the library's icons */
 static unsigned char smB[13];                   /* the shell's own tiles' (tiles.h's order) */
 static unsigned char smApp;
-static unsigned char smCwr;                     /* (V156) a .cwr file's: Veranda Write's documents' */
+static unsigned char smB2;                      /* (V207) ic3_small's icon's bank */
+static unsigned char smX[5];                    /* (V156, V207) a plain file's by its extension (ext's kind) */
 
-/* the library's keys into buf; their count */
+/* the library's keys into buf (V207: the overflow's from buf + 1 +
+   NSM * 12, its count first); their count */
 static void smKeys(void)
 {
     bget(bSm, 0, buf, 1 + NSM * 12);
-    smN = buf[0] > NSM ? 0 : buf[0];
+    bget(bPrg, OVF, buf + 1 + NSM * 12, 1 + NOVF * 12);
+    smN = buf[0] + buf[1 + NSM * 12];   /* (tools/mkicons3.py lib: NSM, then the overflow's) */
 }
 
 /* key k's icon (smKeys first), $FF none */
@@ -741,7 +738,7 @@ static unsigned char smFind(const char *k)
 {
     unsigned char i;
     for (i = 0; i < smN; ++i)
-        if (!memcmp(buf + 1 + 12 * i, k, 12))
+        if (!memcmp(buf + 1 + 12 * i + (i >= NSM), k, 12))
             return i;
     return 0xFF;
 }
@@ -757,7 +754,11 @@ static void smInit(void)
     for (t = 0; t < 13; ++t)
         smB[t] = smFind(bkeys[t]);
     smApp = smFind("*App        ");
-    smCwr = smFind(kWrite);
+    for (t = 1; t < 5; ++t) {
+        ext(0, t);
+        smX[t] = smFind(k3buf);
+    }
+    smX[2] = smApp;
 }
 
 /* window w's (2: the sidebar's) tile t (E's, its GEOS file's i): the
@@ -768,8 +769,8 @@ static unsigned char smOf(unsigned char w, unsigned char t)
     if (t & TL_BUILT) {
         if ((t &= 0x1F) >= 13)
             return 0xFF;
-        if (t == 9 && (i = cwr(w)) != 0)
-            return i == 1 ? smCwr : smApp;
+        if (t == 9 && (i = ext(w, 0)) != 0)
+            return smX[i];
         return smB[t];
     }
     if (w < 2 && i < MAXICON && (i = wSm[w][i]) != 0xFF)
@@ -784,11 +785,17 @@ unsigned char ic3_small(unsigned char cx, unsigned int y, unsigned char w, unsig
 {
     unsigned char s, k, m, lo, hi;
     unsigned int b, o;
-    if (!on || (s = smOf(w, t)) >= NSM)
+    if (!on || (s = smOf(w, t)) >= NSM + NOVF)
         return 0;
+    k = bSm;
     o = SM_AT + s * SM_LEN;
+    if (s >= NSM) {
+        k = bPrg;
+        o += OVF_AT - SM_AT - NSM * SM_LEN;     /* (OVF_AT + (s - NSM) SM_LEN, modulo 2^16) */
+    }
+    smB2 = k;
     if (!(b = smT[s])) {
-        bget(bSm, o, buf, SM_LEN);
+        bget(k, o, buf, SM_LEN);
         if (buf[0] > 4 || !(b = talloc(buf[0])))
             return 0;
         tileAt(b);
@@ -797,11 +804,11 @@ unsigned char ic3_small(unsigned char cx, unsigned int y, unsigned char w, unsig
         smT[s] = b;
     }
     if (ink) {
-        bget(bSm, o + 5, tileBuf, 32);
+        bget(smB2, o + 5, tileBuf, 32);
         WBitmapUp(tileBuf, cx, 2, y, 0x8000 | 16);
         return 1;
     }
-    bget(bSm, o + 1, tileBuf, 4);
+    bget(smB2, o + 1, tileBuf, 4);
     y >>= 3;
     for (k = 0; k < 4; ++k) {
         m = tileBuf[k];

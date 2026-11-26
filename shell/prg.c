@@ -250,3 +250,71 @@ void prg_log(void)
             LogText(msg);
         }
 }
+
+/* (V207) the colour icon of a window's plain file by its extension (here
+   for overlay 12's room; look3.c's cwr): kind 0: E's (window w's entry),
+   by its name; else that kind. Its library key (tools/mkicons3.py) into
+   k3buf; the kind: 1 ".cwr" (Veranda Write's documents, V156), 2 ".prg"
+   (an X16 program, V197), 3 music and sound (".mid", ".midi", ".zsm",
+   ".zcm", ".wav", ".mod", ".sid"), 4 video (".spv"); 0 none (not a
+   window's plain file, another extension) */
+extern char k3buf[13];
+static const char extKey[4][13] = { "Write Image ", "*Prg        ", "*Music      ", "*Video      " };
+static const char exts[] = "cwrprgmidzsmzcmwavmodsidspv";
+static const unsigned char extK[] = { 1, 2, 3, 3, 3, 3, 3, 3, 4 };
+
+unsigned char ic3_ext(unsigned char w, unsigned char kind)
+{
+    char x[5];
+    const char *e;
+    unsigned char i, n;
+    if (!kind) {
+        if (w >= 2 || E.geos || (e = strrchr(E.name, '.')) == 0)
+            return 0;
+        n = strlen(++e);
+        if (n < 3 || n > 4)
+            return 0;
+        for (i = 0; i <= n; ++i)
+            x[i] = e[i] | (e[i] >= 'A' && e[i] <= 'Z' ? 32 : 0);
+        if (n == 4)
+            kind = memcmp(x, "midi", 4) ? 0 : 3;
+        else
+            for (i = 0; i < sizeof extK; ++i)
+                if (!memcmp(x, exts + 3 * i, 3)) {
+                    kind = extK[i];
+                    break;
+                }
+        if (!kind)
+            return 0;
+    }
+    memcpy(k3buf, extKey[kind - 1], 12);
+    return kind;
+}
+
+/* (V207) key k in the shell's library of colour icons (look3.c's inLib,
+   here for overlay 12's room): records 13 and 14 (banks bLook3 + 1 and
+   + 2), then the icons past them after this overlay's code (OVF_BIG,
+   tools/mkicons3.py ovf); its icon's offset in its bank (0: none), the
+   bank in k3buf[12] */
+#define OVF_BIG 0x1600
+#define IC_LEN  658
+
+unsigned int ic3_lib(const char *k)
+{
+    unsigned char i, c, n;
+    unsigned int o;
+    for (n = 0; n < 3; ++n) {
+        o = 0;
+        k3buf[12] = bLook3 + 1 + n;
+        if (n == 2) {
+            k3buf[12] = bPrg;
+            o = OVF_BIG;
+        }
+        bget(k3buf[12], o, buf, 1 + 12 * 12);
+        c = buf[0] > 12 ? 0 : buf[0];
+        for (i = 0; i < c; ++i)
+            if (!memcmp(buf + 1 + 12 * i, k, 12))
+                return o + 160 + i * IC_LEN;
+    }
+    return 0;
+}

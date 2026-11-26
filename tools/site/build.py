@@ -334,7 +334,8 @@ FEATURES = [
                          ('manual/img/midi-player.png', 'MIDI-Player', 'MIDI Player'),
                          ('manual/img/vidkit-player.png', 'VIDKIT-Player', 'VIDKIT Player')], 'MOD-Player',
      'MOD Player for Amiga modules, SID Player for C64 tunes on a SID card, MIDI Player for MIDI and ZSM songs on '
-     'the YM2151, and VIDKIT Player for SPV videos and WAV and ZCM audio from the SD card.',
+     'the YM2151 (a keyboard lit in each voice\'s colour, a meter a voice, the lyrics as they come), and VIDKIT '
+     'Player for SPV videos and WAV and ZCM audio from the SD card.',
      'MIDI Player plays with Melodius and ZSMKit by MooingLemur; VIDKIT Player is by Anthony W. Henry.'),
     ('Games', [('img/game-pinball.png', 'Lighthouse-Pinball', 'Lighthouse Pinball'),
                ('img/game-harbour-walls.png', 'Harbour-Walls', 'Harbour Walls'),

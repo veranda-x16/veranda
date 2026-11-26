@@ -167,7 +167,13 @@ unsigned char playing_ent = 0xFF;      /* the list entry playing */
 unsigned char loaded, paused, kind, volume = 10, repeat, play_next = 1;
 unsigned long song_size;
 unsigned char err;
-static unsigned char song_bank;
+unsigned char song_bank;
+unsigned char song_no;                  /* (V206) counts the songs started and stopped */
+unsigned char hilite;
+struct songinfo info;
+char gm[24];
+unsigned char info_buf[64];             /* (info.c's reader: below $A000) */
+unsigned char gm_prog;
 
 static void song_free(void)
 {
@@ -236,6 +242,8 @@ void stop(void)
 {
     unsigned char b = BANK;
     eng_stop();
+    if (loaded)
+        ++song_no;
     loaded = 0;
     paused = 0;
     song_free();
@@ -295,6 +303,8 @@ unsigned char play_entry(unsigned char e)
         return r;
     }
     eng_frames = 0;
+    ++song_no;
+    memset(midi_msg_sent, 0, 16);      /* (V206: the window's channel marks: the song's own) */
     eng_volume(volume);
     eng_go();
     playing_ent = e;
@@ -322,7 +332,7 @@ unsigned char music_dir(void)
 /*---------------------------------------------------------------
   the start
  ---------------------------------------------------------------*/
-unsigned char ui_bank;
+unsigned char ui_bank, vis_bank, info_bank, now_bank;
 
 /* an overlay record's RAM bank (overlays = banked: run in place there) */
 static unsigned char overlay_bank(unsigned char n)
@@ -341,7 +351,10 @@ int main(void)
     ent_bank = BankAlloc(ENT_BANKS);
     ui_bank = overlay_bank(1);
     zsm_bank = overlay_bank(2);
-    if (!ent_bank || !ui_bank || !zsm_bank || overlay_bank(3) != zsm_bank + 1) {
+    vis_bank = overlay_bank(4);
+    info_bank = overlay_bank(5);
+    now_bank = overlay_bank(6);
+    if (!ent_bank || !ui_bank || !zsm_bank || overlay_bank(3) != zsm_bank + 1 || !vis_bank || !info_bank || !now_bank) {
         LogText("MP NO BANKS");
         EnterDeskTop();
     }

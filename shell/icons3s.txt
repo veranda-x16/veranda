@@ -2,7 +2,8 @@
 # DECISIONS V151), by class as icons3.txt: the list, the small icons'
 # view and the sidebar; each drawn for 16 pixels (not reduced from its
 # 32 x 32 one); "app" any other program. Packed by tools/mkicons3.py lib
-# into the shell's overlay record 15. Written by tools/mkicons3.py write
+# into the shell's overlay record 16, past 46 into record 15's overflow
+# block (V207). Written by tools/mkicons3.py write
 # (the geometry is the source). 16 rows: '.' none, 'K' the ink, 'a'-'o'
 # entries 1-15 of the icons' palette row.
 
@@ -785,25 +786,6 @@ KeffffffffffffgK
 KegggggggggggggK
 .KKKKKKKKKKKKKKc
 
-icon geoWrite
-for class geoWrite
-...KKKKKKK......
-..KaaaaaaaK.....
-..KaaaaaabKK....
-..KaaaaaabKKK.K.
-..KaaaaaaaaaaKaK
-..KaaccccaaabKiK
-..KaaaaaaaabKhiK
-..KaaccccabKhiKc
-..KaaaaaaabKKKcc
-..KaaccccbKKaKc.
-..KaaaaabKhKaKc.
-..KaaaabKhKabKc.
-..KaaaabKKaabKc.
-..KaaaabKaaabKc.
-..KabbbbabbbbKc.
-...KKKKKKKKKKcc.
-
 icon Veranda Write document
 for class Write Image
 ...KKKKKKK......
@@ -879,3 +861,79 @@ KcbggbccbggbggbK
 .KKKKKKKKKKKKKKc
 ..cccccccccccccc
 ................
+
+icon MIDI Player
+for class VerandaMIDI
+....KKKKK.......
+...KcccccK......
+..KcccdcccK.....
+.KccdddddccK.K..
+KccdddadddccKmK.
+KccdadddadccKmKK
+KcdddddddddcKmmm
+KccdadddadccKmmm
+KccdddddddccKmKm
+.KccddbddccKKmKK
+..KcccdcccKcKmKc
+...KcccccKKKKmKc
+....KKKKKKmmmmKc
+.....cccKmmmmmKc
+.........KmmmKcc
+..........KKKcc.
+
+icon VIDKIT Player
+for class VIDKITPlay
+................
+................
+..K.............
+.KaKKKK.........
+KaaaddaKKKK.....
+KaaddaaaddaKKKK.
+.KKdaaaddaaaddaK
+KddKKKKdKKdddKKK
+KddddddddddddddK
+KdddddkkdddddddK
+KdddddkkkkdddddK
+KdddddkkkkdddddK
+KdddddkkdddddddK
+KddddddddddddddK
+KddddddddddddddK
+.KKKKKKKKKKKKKKc
+
+icon Music document
+for music
+...KKKKKKK......
+..KaaaaaaaK.....
+..KaaaaaabKK....
+..KaaaaaabKKK...
+..KaaaaaaaaaaK..
+..KaaaabbbffaKc.
+..KaaabfffffaKc.
+..KaaabfaaafaKc.
+..KaaabfaabfaKc.
+..KaaabfabbfaKc.
+..KabbbfafffaKc.
+..KaffffafffaKc.
+..KaffffaaaabKc.
+..KaaaaaaaaabKc.
+..KabbbbbbbbbKc.
+...KKKKKKKKKKcc.
+
+icon Video document
+for video
+...KKKKKKK......
+..KaaaaaaaK.....
+..KaaaaaabKK....
+..KaaaaaabKKK...
+..KaaaaaaaaaaK..
+..KaabbbbbbbbKc.
+..KabdddddddaKc.
+..KabdddddddaKc.
+..KabddkkdddaKc.
+..KabddkkkddaKc.
+..KabddkkdddaKc.
+..KabdddddddaKc.
+..KabdddddddaKc.
+..KaaaaaaaaabKc.
+..KabbbbbbbbbKc.
+...KKKKKKKKKKcc.

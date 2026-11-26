@@ -24,10 +24,16 @@ icons3a.bin icons3b.bin: icons3.txt $(SDK)/tools/mkicons3.py
 icons3c.bin: icons3s.txt $(SDK)/tools/mkicons3.py
 	python3 -I -B $(SDK)/tools/mkicons3.py lib icons3s.txt icons3c.bin
 
-SHELL.cvt: shell.bin app.hdr icon.pbm icons3a.bin icons3b.bin icons3c.bin
-	python3 -I -B $(SDK)/tools/vpack.py --load 0x0801 -o SHELL.cvt app.hdr shell.bin $(OVLS) icons3a.bin icons3b.bin icons3c.bin shell.bin.16 shell.bin.17
+# (V207) the icons past those records (VIDKIT Player's, the players'
+# documents, MIDI Player's small one) after overlay 17's code (prg.c):
+# no RAM bank more
+shell.ovf.17: shell.bin icons3.txt icons3s.txt $(SDK)/tools/mkicons3.py
+	python3 -I -B $(SDK)/tools/mkicons3.py ovf shell.bin.17 shell.map icons3.txt icons3s.txt shell.ovf.17
+
+SHELL.cvt: shell.bin app.hdr icon.pbm icons3a.bin icons3b.bin icons3c.bin shell.ovf.17
+	python3 -I -B $(SDK)/tools/vpack.py --load 0x0801 -o SHELL.cvt app.hdr shell.bin $(OVLS) icons3a.bin icons3b.bin icons3c.bin shell.bin.16 shell.ovf.17
 
 clean:
-	rm -f *.o shell.bin shell.bin.* shell.map SHELL.cvt icons3a.bin icons3b.bin icons3c.bin
+	rm -f *.o shell.bin shell.bin.* shell.ovf.17 shell.map SHELL.cvt icons3a.bin icons3b.bin icons3c.bin
 
 .PHONY: all clean
