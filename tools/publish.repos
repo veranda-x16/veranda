@@ -11,7 +11,12 @@
 #             a test publish; a release uses the commit its BUILT FROM names
 #   mode      export: git archive of that commit, minus tools/publish.private,
 #             one commit a publish ("Veranda <version>"); history: the
-#             branch pushed with its history (upstream authors' commits kept)
+#             branch pushed with its history (upstream authors' commits kept);
+#             own: kept by its own maintainers in the organisation (changes
+#             go to them as patches; their own CI workflow): tools/publish.sh
+#             never pushes it (publish.py repos leaves it out), but the
+#             release builds it as a sibling at the release's tag
+#             (.github/workflows/release.yml, test.yml; DECISIONS V203)
 #   branch    the organisation's branch it goes to
 #   licence   what its LICENSE / COPYING says (read: docs/PUBLISHING.md)
 #   build     its CI build against Veranda's SDK ($SDK), from its top
@@ -33,3 +38,5 @@ veranda-solitaire  | veranda-solitaire | veranda-solitaire | main           | ex
 mod-player         | x16-mod           | x16-mod           | layout veranda | export  | main    | MIT; vendor/micromod-c BSD-3    | make veranda VSDK=$SDK                     | build/veranda/MOD Player.cvt
 geochess           | veranda-geochess  | veranda-geochess  | veranda        | history | veranda | Scott Hutter's permission       | make -C veranda SDK=$SDK                   | build/veranda/geoChess.cvt
 x16-emulator       | x16-emulator-modem | x16-emulator-modem | modem         | history | modem   | BSD-2-Clause (x16emu's)         | -                                          | -
+veranda-prog8      | veranda-prog8     | veranda-prog8     | main           | own     | main    | MIT (Anthony W. Henry; Veranda's parts Marcin Spoczynski) | make VSDK=$SDK PROG8C="$PROG8C"           | template/app.cvt
+vidkit-player      | vidkit-player     | vidkit-player     | main           | own     | main    | MIT (Anthony W. Henry; VIDKIT inside, his, MIT) | make P8KIT=$P8KIT VSDK=$SDK PROG8C="$PROG8C" | build/VIDKIT Player.cvt

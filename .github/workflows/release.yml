@@ -37,22 +37,23 @@ jobs:
       - name: The siblings at the same tag
         run: |
           mkdir sibs
-          for r in veranda-write commander-calc lighthouse-pinball harbour-walls veranda-sidplay veranda-solitaire mod-player geochess; do
+          for r in veranda-write commander-calc lighthouse-pinball harbour-walls veranda-sidplay veranda-solitaire mod-player geochess veranda-prog8 vidkit-player; do
             git clone -q --branch "$TAG" --depth 1 "https://github.com/veranda-x16/$r.git" "sibs/$r" 2>/dev/null ||
               echo "::warning::$r has no tag $TAG: left out of the package"
           done
           ls sibs
-      - name: The tools' cache (cc65, x16emu)
+      - name: The tools' cache (cc65, x16emu, Prog8)
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
           path: ~/ci-tools
-          key: ci-tools-cc65-547d923-x16emu-r49-modem-97ffc0e
+          key: ci-tools-cc65-547d923-x16emu-r49-modem-97ffc0e-prog8-12.3.5
       - name: Tools (pinned)
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq python3-pil libsdl2-2.0-0 libsdl2-dev cmake zip >/dev/null
           veranda/tools/ci/setup.sh all
           veranda/tools/ci/setup.sh modem
+          veranda/tools/ci/setup.sh prog8
       - name: Build, gates, package, release files
         working-directory: veranda
         env:

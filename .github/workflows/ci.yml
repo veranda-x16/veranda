@@ -29,7 +29,7 @@ jobs:
       - name: The package (this tree only)
         run: |
           GEOWRITE=/none CALC=/none GEOCHESS=/none X16MOD=/none SOLITAIRE=/none CWRITE=/none \
-            PINBALL=/none HWALLS=/none SIDPLAY=/none MKDIST_SIBLINGS=1 \
+            PINBALL=/none HWALLS=/none SIDPLAY=/none VIDKIT=/none P8KIT=/none MKDIST_SIBLINGS=1 \
             tools/mkdist.sh "$RUNNER_TEMP/pkg" | grep -v '^mkdist: WARNING: no '
       - name: The release tooling's host tests
         run: |

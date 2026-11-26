@@ -4,7 +4,9 @@ release's notes and BUILT FROM, the commit messages, the private list.
 
     publish.py repos [--map FILE]
         the map (tools/publish.repos), one repository a line, tab separated:
-        repo tree key refs mode branch; refuses a port that is never published
+        repo tree key refs mode branch; refuses a port that is never published;
+        leaves out the repositories of mode own (their maintainers push
+        them: tools/publish.sh never does; DECISIONS V203)
     publish.py notes <tag> -o FILE
         the release's notes (the "- " points of the tag's message, before
         BUILT FROM) of this tree's tag veranda-<version>
@@ -50,7 +52,7 @@ def read_map(path=MAP):
         for n in NEVER:
             if n in low:
                 sys.exit('publish: %s names %s: never published (docs/PUBLISHING.md)' % (path, n))
-        if row['mode'] not in ('export', 'history'):
+        if row['mode'] not in ('export', 'history', 'own'):
             sys.exit('publish: %s: mode %s' % (row['repo'], row['mode']))
         rows.append(row)
     return rows
@@ -73,6 +75,8 @@ def clean(s):
 
 def cmd_repos(a):
     for r in read_map(a.map):
+        if r['mode'] == 'own':
+            continue
         print('\t'.join((r['repo'], r['tree'], r['key'], r['refs'].replace(' ', ','), r['mode'], r['branch'])))
 
 

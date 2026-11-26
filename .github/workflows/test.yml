@@ -61,7 +61,7 @@ jobs:
         if: steps.moved.outputs.skip != '1'
         run: |
           mkdir sibs
-          for r in veranda-write commander-calc lighthouse-pinball harbour-walls veranda-sidplay veranda-solitaire mod-player geochess; do
+          for r in veranda-write commander-calc lighthouse-pinball harbour-walls veranda-sidplay veranda-solitaire mod-player geochess veranda-prog8 vidkit-player; do
             git clone -q --branch next --depth 1 "https://github.com/veranda-x16/$r.git" "sibs/$r" 2>/dev/null ||
               git clone -q --branch veranda --depth 1 "https://github.com/veranda-x16/$r.git" "sibs/$r" 2>/dev/null ||
               git clone -q --depth 1 "https://github.com/veranda-x16/$r.git" "sibs/$r" 2>/dev/null ||
@@ -71,7 +71,7 @@ jobs:
         if: steps.moved.outputs.skip != '1'
         with:
           path: ~/ci-tools
-          key: ci-tools-cc65-547d923-x16emu-r49-modem-97ffc0e
+          key: ci-tools-cc65-547d923-x16emu-r49-modem-97ffc0e-prog8-12.3.5
       - name: Tools (pinned)
         if: steps.moved.outputs.skip != '1'
         run: |
@@ -79,6 +79,7 @@ jobs:
           sudo apt-get install -y -qq python3-pil libsdl2-2.0-0 libsdl2-dev cmake zip >/dev/null
           veranda/tools/ci/setup.sh all
           veranda/tools/ci/setup.sh modem
+          veranda/tools/ci/setup.sh prog8
       - name: Build, gates, package, release files (the Test channel)
         if: steps.moved.outputs.skip != '1'
         working-directory: veranda

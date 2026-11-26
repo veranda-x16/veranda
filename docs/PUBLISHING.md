@@ -21,6 +21,8 @@ pushes or publishes by itself, and no script calls GitHub's API to write.
 | `mod-player` | `~/Projects/x16-mod` | MIT; `vendor/micromod-c` is Martin Cameron's micromod, **BSD 3-Clause**, a test oracle only (not compiled into the player) | one commit a release |
 | `geochess` | `~/Projects/veranda-geochess` (branch `veranda`) | **no licence file**: Scott Hutter's informal permission in the source ("free to modify ... as long as original author credit is mentioned"); the engine BMCP by Maksim Korzh (WTFPL 2) | **with its history** (Scott Hutter's and the other authors' commits kept), branch `veranda`; best made as a fork of `geos64128/geochess` |
 | `x16-emulator` | `~/Projects/x16-emulator-modem` (branch `modem`) | BSD 2-Clause (x16emu's, Michael Steil and the X16 community) | **with its history**, branch `modem`: a fork of X16Community/x16-emulator plus your Zimodem back-end commits; the release workflow builds it to check that Veranda Update installs each release |
+| `veranda-prog8` | `~/Projects/veranda-prog8` (a clone) | MIT, Anthony W. Henry (Veranda's parts: Marcin Spoczynski) | **its own** (mode `own`, V203): Prog8 for Veranda, kept by its author in the organisation; changes go to it as patches, `publish.sh` never pushes it; its own `ci.yml`; tag `v<version>` with each release (the player's `TOOLKIT` pins its own tag, `v0.1.0`) |
+| `vidkit-player` | `~/Projects/vidkit-player` (a clone) | MIT, Anthony W. Henry; VIDKIT inside (`vendor/vidkit/`, his, MIT) | **its own** (mode `own`, V203), as veranda-prog8; built into the release as `VIDKIT Player.cvt` |
 | `veranda-x16.github.io` | `tools/publish/site/` | MIT | the website's workflow only; the site is built by it |
 | `veranda.wiki` | `docs/manual` | MIT | `tools/mkwiki.sh`; also kept in sync by veranda's wiki workflow |
 
@@ -36,8 +38,9 @@ The GitHub release (Veranda Update's files and the SD-card zip) holds
 only what `tools/release.allow` names: Veranda, the author's own MIT
 programs (Veranda Write, Veranda Calc, MOD Player, Lighthouse Pinball,
 Harbour Walls), Solitaire and SID Player (GPL-3.0-or-later, their source
-in the organisation) and geoChess (Scott Hutter's, with credit, under the
-permission in its source). The port guard of `tools/mkrelease.py` still
+in the organisation), geoChess (Scott Hutter's, with credit, under the
+permission in its source) and VIDKIT Player (Anthony W. Henry's, MIT, his
+VIDKIT inside it: V203). The port guard of `tools/mkrelease.py` still
 refuses geoWrite and TopDesk by name, class and author, even if listed.
 
 ### What stays private
@@ -141,12 +144,14 @@ All in the repositories themselves; every action pinned to a commit
 
 | Repository | Workflow | When | What |
 |---|---|---|---|
-| veranda | `.github/workflows/release.yml` | a tag `v*` (or by hand, a tag again) | `tools/ci/setup.sh` (cc65 at commit 547d923, built and cached; x16emu R49 and the R49 ROM from the official releases, SHA-256 checked); the siblings cloned at the same tag; `tools/ci/build.sh`: the fast gates, `mkdist.sh`, `mkmanifest.py`, `mkrelease.py --tag v<version>` (the allowlist and the port guard), `mkpubzip.py`, SHA256SUMS; then `gh release create` with GITHUB_TOKEN (UPDATE.LST, the `<crc32>.bin` assets, `veranda-<version>-sdcard.zip`, SHA256SUMS), marked latest; then a `repository_dispatch` to the site if `SITE_DISPATCH_TOKEN` is set |
+| veranda | `.github/workflows/release.yml` | a tag `v*` (or by hand, a tag again) | `tools/ci/setup.sh` (cc65 at commit 547d923, built and cached; x16emu R49 and the R49 ROM from the official releases, SHA-256 checked; `setup.sh prog8`: Prog8 12.3.5's official jar, SHA-256 checked and cached, the runner's Java 17, Ubuntu's 64tass, for VIDKIT Player); the siblings cloned at the same tag (veranda-prog8 and vidkit-player too); `tools/ci/build.sh`: the fast gates, `mkdist.sh`, `mkmanifest.py`, `mkrelease.py --tag v<version>` (the allowlist and the port guard), `mkpubzip.py`, SHA256SUMS; then `gh release create` with GITHUB_TOKEN (UPDATE.LST, the `<crc32>.bin` assets, `veranda-<version>-sdcard.zip`, SHA256SUMS), marked latest; then a `repository_dispatch` to the site if `SITE_DISPATCH_TOKEN` is set |
 | veranda | (in release.yml and test.yml) | after the build | **Veranda Update installs the release** (`tools/ci/updcheck.sh`): the x16emu with the Zimodem back-end (`tools/ci/setup.sh modem`: veranda-x16/x16-emulator at commit 97ffc0e), GitHub played on localhost (`tests/update_fake.py`: `latest/download/UPDATE.LST` or `download/test/UPDATE.LST`, each file at `download/<the list's tag>/<asset>`, 302s to another host), a card with no Veranda files, Veranda Update's test build: Check and Update with its default repository; it fails unless every file was fetched, verified by its CRC-32 and put in place, under the list's tag. The release is not made otherwise |
 | veranda | `.github/workflows/test.yml` | a push to `next`, by hand, or nightly (skipped when `next` has not moved) | the same build with `--test`, assets replaced on the pre-release `test` (`--clobber`, never latest) |
 | veranda | `.github/workflows/wiki.yml` | a push to main touching `docs/manual` | `tools/mkwiki.sh` into the wiki, committed and pushed with GITHUB_TOKEN |
 | veranda | `.github/workflows/ci.yml` | every push to main/next, pull requests | the package (this tree only), the host tests (`test_mkrelease.py`, `test_tocard.sh`, `test_publish.sh`), the fast gates |
 | each sibling | `.github/workflows/veranda-ci.yml` | pushes, tags, pull requests | Veranda's SDK from `veranda-x16/veranda` (the same tag or branch, else main), then its own build against it |
+| veranda-prog8 | `.github/workflows/ci.yml` (its own) | pushes, tags, pull requests, weekly | Veranda at the same tag, else main; `setup.sh all` and `prog8`; Veranda's SDK; `make check-api` (`lib/vr.p8` as Veranda's `api/veranda.api`), the build, `make test` headless |
+| vidkit-player | `.github/workflows/ci.yml` (its own) | pushes, tags, pull requests, weekly | the same, plus the kit at its `TOOLKIT` version (`make toolkit`); `VIDKIT Player.cvt` as an artifact; `make test` headless (AUTOTEST, WAV files it makes) |
 | veranda-write | `.github/workflows/dictionaries.yml` (its own, kept by the export) | by hand only (Actions > Dictionaries > Run workflow) | (V198) Veranda Write's spelling dictionaries as their own release, `dict-1`: `tools/mkdict.py` from `dict/` (EN.DIC, PL.DIC, their licences, DICT.LST for Veranda Update, `Veranda-Write-dictionaries.zip`); made the first time, its assets replaced after (`--clobber`), never latest. Locally: `make dict-release` in commander-write prints the same `gh` commands |
 | veranda-x16.github.io | `.github/workflows/pages.yml` | the dispatch, daily at 04:41 UTC, a push, by hand | `tools/site/build.py --api` from veranda's main, deployed to Pages |
 

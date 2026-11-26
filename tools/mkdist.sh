@@ -52,6 +52,16 @@
 #   PINBALL   ~/Projects/veranda-pinball   ref master    Lighthouse Pinball
 #   HWALLS    ~/Projects/harbour-walls     ref master    Harbour Walls
 #   SIDPLAY   ~/Projects/veranda-sidplay   ref main      SID Player
+#   VIDKIT    ~/Projects/vidkit-player     ref main      VIDKIT Player (DECISIONS V203:
+#             Anthony W. Henry's, MIT, VIDKIT inside it; a clone of
+#             github.com/veranda-x16/vidkit-player), in Prog8, built against
+#   P8KIT     ~/Projects/veranda-prog8     ref: the one the player's TOOLKIT
+#             file names (else main)        Prog8 for Veranda (a clone of
+#             github.com/veranda-x16/veranda-prog8), exported too;
+#             with PROG8C (Prog8 12.3.5: prog8c, else the jar in
+#             ~/.local/share/prog8 with java) and 64tass. Without them, or
+#             with a vidkit-player whose ref has no vendor/vidkit/VIDKIT-A000.BIN
+#             (before the public repository's), it is left out with a warning
 # (each: <NAME>=<tree>, <NAME>_REF=<ref>; a missing tree is left out with a
 # warning). No test builds, scripts or fixtures go in.
 #
@@ -88,6 +98,8 @@ CWRITE=${CWRITE:-$P/commander-write}
 PINBALL=${PINBALL:-$P/veranda-pinball}
 HWALLS=${HWALLS:-$P/harbour-walls}
 SIDPLAY=${SIDPLAY:-$P/veranda-sidplay}
+VIDKIT=${VIDKIT:-$P/vidkit-player}
+P8KIT=${P8KIT:-$P/veranda-prog8}
 VERSION=${VERANDA_VERSION:-$(cat VERSION 2>/dev/null || echo 0.0.0)}
 # the build id and date (UPDATE.LST, the README, About this X16): this
 # tree's short hash and today; the release workflow passes the source's
@@ -295,6 +307,35 @@ sibling Solitaire "$SOLITAIRE" "${SOLITAIRE_REF:-main}" solitaire "make -C veran
 sibling "Lighthouse Pinball" "$PINBALL" "${PINBALL_REF:-master}" pinball "make -C veranda SDK='$SDK'" "build/veranda/Lighthouse Pinball.cvt" "Lighthouse Pinball.cvt"
 sibling "Harbour Walls" "$HWALLS" "${HWALLS_REF:-master}" harbour-walls "make SDK='$SDK'" "build/app/Harbour Walls.cvt" "Harbour Walls.cvt"
 sibling "SID Player" "$SIDPLAY" "${SIDPLAY_REF:-main}" sidplay "make build/app/app.cvt VSDK='$SDK'" build/app/app.cvt "SID Player.cvt"
+# VIDKIT Player (DECISIONS V203): Prog8, so its own tools; not in veranda-x16's ../apps
+vidkit_player() {
+	local ref k kref pc
+	[ -e "$VIDKIT/.git" ] || { say "WARNING: no VIDKIT Player ($VIDKIT): left out"; return; }
+	[ -e "$P8KIT/.git" ] || { say "WARNING: VIDKIT Player: no Prog8 for Veranda ($P8KIT): left out"; return; }
+	ref=${VIDKIT_REF:-main}
+	git -C "$VIDKIT" cat-file -e "$ref:vendor/vidkit/VIDKIT-A000.BIN" 2>/dev/null ||
+		{ say "WARNING: VIDKIT Player: $VIDKIT at $ref has no vendor/vidkit/VIDKIT-A000.BIN: left out"; return; }
+	pc=$PROG8C
+	if [ -z "$pc" ]; then
+		if command -v prog8c >/dev/null; then
+			pc=prog8c
+		elif [ -f "$HOME/.local/share/prog8/prog8c-12.3.5-all.jar" ] && command -v java >/dev/null; then
+			pc="java -jar $HOME/.local/share/prog8/prog8c-12.3.5-all.jar"
+		fi
+	fi
+	if [ -z "$pc" ] || ! $pc -version 2>&1 | grep -q 'v12\.3\.5' || ! command -v 64tass >/dev/null; then
+		say "WARNING: VIDKIT Player: no Prog8 12.3.5 or no 64tass (PROG8C=${pc:-none}): left out"
+		return
+	fi
+	# the kit at the version the player's TOOLKIT names (else main), exported as the player is
+	kref=$(git -C "$VIDKIT" show "$ref:TOOLKIT" 2>/dev/null | sed -n 's/^ref  *//p')
+	# shellcheck disable=SC2086
+	k=$(export_tree "$P8KIT" ${P8KIT_REF:-$kref main}) ||
+		{ say "WARNING: VIDKIT Player: Prog8 for Veranda has none of the refs ${P8KIT_REF:-$kref main}: left out"; return; }
+	say "VIDKIT Player's toolkit: $(tail -1 "$WORK/refs.txt")"
+	port "VIDKIT Player" "$VIDKIT" "$ref" "make P8KIT='$k' VSDK='$SDK' PROG8C='$pc'" "build/VIDKIT Player.cvt" "VIDKIT Player.cvt"
+}
+if [ $MONO = 0 ]; then vidkit_player; fi
 
 # ---------------------------------------------------------------- README
 {

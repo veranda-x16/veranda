@@ -18,6 +18,8 @@
 #   MOD Player (x16-mod, MIT; vendor/micromod-c BSD-3 is only a test
 #   oracle); Solitaire and SID Player (GPL-3.0-or-later: their source is
 #   published at github.com/veranda-x16).
+# Other people's work released with their permission (2026-11-26): VIDKIT
+#   Player by Anthony W. Henry, MIT, with his VIDKIT inside it (V203).
 #
 # To add one: put its path here after reading its repository's LICENSE.
 
@@ -129,3 +131,9 @@ VERANDA/APPS/SID Player.cvt
 VERANDA/APPS/Lighthouse Pinball.cvt
 VERANDA/APPS/Harbour Walls.cvt
 VERANDA/APPS/geoChess.cvt
+# VIDKIT Player (vidkit-player, MIT, Copyright (c) 2026 Anthony W. Henry;
+# DECISIONS V203): built with Prog8 for Veranda (veranda-prog8, MIT, the
+# same author; its Veranda parts MIT, Marcin Spoczynski) and Prog8 (GPL 3.0,
+# its output excluded from the GPL); VIDKIT is packed inside it, the same
+# author's, MIT (vidkit-player's vendor/vidkit/)
+VERANDA/APPS/VIDKIT Player.cvt

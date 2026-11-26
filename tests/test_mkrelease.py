@@ -170,10 +170,13 @@ for p in mkrelease.read_allow(mkrelease.DEFAULT_ALLOW):
         fail('tools/release.allow names %s' % p)
     if p.startswith('VERANDA/DICT/') and p != 'VERANDA/DICT/SPELL.OVL':
         fail('tools/release.allow names %s: the dictionaries have their own release (V198)' % p)
+# and names VIDKIT Player (V203: vidkit-player, MIT, Anthony W. Henry)
+if 'VERANDA/APPS/VIDKIT Player.cvt' not in mkrelease.read_allow(mkrelease.DEFAULT_ALLOW):
+    fail('tools/release.allow does not name VIDKIT Player (V203)')
 n += 1
 print('ok    mkrelease: %d cases: the ports (geoWrite, TopDesk) never in a release; geoChess, MOD Player and Solitaire in it: by name, by a .cvt\'s '
       'class, parent class or author under another name, nor when the allowlist names them (refused); README.txt, '
-      'the Meadow (V162: Dusk, Still Water, Low Hills, Sunroom Tiles in), Write\'s dictionaries and their licences (V198: SPELL.OVL in), MOD Player, Solitaire and files outside the allowlist left out; one asset a distinct file; the gh command printed' % n)
+      'the Meadow (V162: Dusk, Still Water, Low Hills, Sunroom Tiles in), Write\'s dictionaries and their licences (V198: SPELL.OVL in), MOD Player, Solitaire and files outside the allowlist left out; one asset a distinct file; the gh command printed; the allowlist names VIDKIT Player' % n)
 
 # 5. the manifest: what may be listed, the round trip, a cut-short one
 try:

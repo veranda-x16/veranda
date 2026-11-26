@@ -82,6 +82,8 @@ def main():
     r = rows.get(sys.argv[1])
     if not r or r['build'] == '-':
         sys.exit('publish_ci: %s has no build in tools/publish.repos' % sys.argv[1])
+    if r['mode'] == 'own':
+        sys.exit('publish_ci: %s keeps its own workflow (mode own in tools/publish.repos)' % sys.argv[1])
     sys.stdout.write(TEMPLATE.format(repo=r['repo'], build=r['build'].replace('$SDK', '"$SDK"').replace('$VSDK', '"$VSDK"'),
                                      output=r['output'], **ACT))
 
