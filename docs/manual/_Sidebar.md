@@ -46,6 +46,7 @@
 **Music, games, BASIC**
 - [MOD Player](MOD-Player.md)
 - [SID Player](SID-Player.md)
+- [VIDKIT Player](VIDKIT-Player.md)
 - [Solitaire](Solitaire.md)
 - [Lighthouse Pinball](Lighthouse-Pinball.md)
 - [Harbour Walls](Harbour-Walls.md)

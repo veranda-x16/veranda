@@ -183,6 +183,7 @@ PgUp/PgDn scroll, End or Esc newest, Ctrl+V paste, Ctrl+Q quit.
 | Program | Keys |
 |---|---|
 | [MOD Player](MOD-Player.md) | Space play/pause, Left/Right previous/next, Esc stop, Alt+O open, Alt+Q quit, Backspace up a folder |
+| [VIDKIT Player](VIDKIT-Player.md) | Return or Space play, Left/Right previous/next, Backspace up a folder, Alt+Q quit; while it plays: Esc stop, Space pause, Up/Down volume, F5 again |
 | [SID Player](SID-Player.md) | Space, Left/P, Right/N, Esc/S, +/-, 1-9 song, A auto-advance, R repeat, T tracker, Alt+O, Q |
 | [Solitaire](Solitaire.md) | Alt+N new deal, Alt+R restart, Alt+D deal number, Alt+Z undo, Alt+Y redo |
 | [Lighthouse Pinball](Lighthouse-Pinball.md) | Z or left Shift, / or right Shift: flippers; Space or Down: plunger; Left/Right/Up: nudge; Enter: new game |

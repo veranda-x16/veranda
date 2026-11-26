@@ -22,6 +22,27 @@ build it, or change it, start here.
   about it, with the user's own sign-in): the request files in
   [docs/AIREQ.md](../AIREQ.md).
 
+## Programs in Prog8
+
+Veranda programs can also be written in
+[Prog8](https://github.com/irmen/prog8), with the kit **Prog8 for
+Veranda**: [github.com/veranda-x16/veranda-prog8](https://github.com/veranda-x16/veranda-prog8).
+It holds a Prog8 compilation target for Veranda, Veranda's API as a
+Prog8 library, the window and theme helpers, VIDKIT's wrapper (video
+and audio) and a template.
+
+- You need Prog8 **12.3.5** (or its jar with Java 17 or later), 64tass,
+  Python 3 and Veranda's SDK (`make sdk` in a Veranda checkout).
+- Start from its `template/` folder (a window, a menu bar, About and
+  Quit): `make VSDK=<the SDK>` there builds `Prog8 Template.cvt`. Copy
+  it to the SD card and open it from the desktop.
+- Its [README](https://github.com/veranda-x16/veranda-prog8#readme)
+  explains how a Veranda program runs in Prog8, the tables and the API
+  calls.
+
+[VIDKIT Player](VIDKIT-Player.md) is the example: its source is at
+[github.com/veranda-x16/vidkit-player](https://github.com/veranda-x16/vidkit-player).
+
 ## Build Veranda
 
 You need cc65 and Python 3. The emulator tests need x16emu and the X16

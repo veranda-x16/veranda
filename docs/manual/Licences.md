@@ -35,6 +35,8 @@ licences:
 | Veranda Write (Commander Write) | MIT | Copyright (c) 2026 Marcin Spoczynski. Its spelling dictionaries are a separate download with their own licences: EN.DIC from SCOWL (its permissive notice, EN.DIC.txt), PL.DIC from Morfologik (BSD 2-clause) chosen by FrequencyWords (CC BY-SA 4.0), PL.DIC.txt. |
 | Veranda Calc (Commander Calc) | MIT | Copyright (c) 2026 Marcin Spoczynski |
 | MOD Player (x16-mod) | MIT | Copyright (c) 2026 Marcin Spoczynski. Its own replay engine. Martin Cameron's micromod (BSD 3-Clause) is used only as a test reference and is not in the player. |
+| VIDKIT Player | MIT | Copyright (c) 2026 Anthony W. Henry. The parts of its window ported from MOD Player keep their notice (Copyright (c) 2026 Marcin Spoczynski, MIT). Built with Prog8 and Prog8 for Veranda (below). |
+| VIDKIT | MIT | Copyright (c) 2026 Anthony W. Henry: the banked-RAM video and audio streaming library, packed inside VIDKIT Player. |
 | Lighthouse Pinball | MIT | Copyright (c) 2026 Marcin Spoczynski; an original game |
 | Harbour Walls | MIT | Copyright (c) 2026 Marcin Spoczynski; an original game |
 | SID Player | GPL-3.0-or-later | a port of the CommanderSID project's player, Copyright (C) 2026 Marcin Spoczynski. No C64 ROMs and no tunes are included. |
@@ -57,6 +59,21 @@ WTFPL, version 2).
 
 The Veranda port of geoChess is kept with geoChess, not in Veranda's
 MIT tree.
+
+### Prog8 and Prog8 for Veranda
+
+VIDKIT Player is written in **Prog8**
+([github.com/irmen/prog8](https://github.com/irmen/prog8), Irmen de
+Jong). The Prog8 compiler is under the **GPL-3.0**; the programs it
+builds are not covered by it (its README: the files the compiler
+creates "are excluded from the GPL and are free to use in whatever way
+desired").
+
+**Prog8 for Veranda** ([github.com/veranda-x16/veranda-prog8](https://github.com/veranda-x16/veranda-prog8)),
+the kit the player is built with, is under the **MIT licence**,
+Copyright (c) 2026 Anthony W. Henry. Its parts taken from Veranda (the
+API library made from Veranda's API list, the look ported from the SDK)
+keep Veranda's notice: MIT, Copyright (c) 2026 Marcin Spoczynski.
 
 ## Other GEOS programs
 

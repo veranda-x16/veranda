@@ -37,7 +37,7 @@ Veranda.
 | Pictures | [Paint](Paint.md), [Colour Paint](Colour-Paint.md), [View](View.md) |
 | Organising | [Calendar](Calendar.md), [Dex](Dex.md) (addresses), [Note Pad](Note-Pad.md), [Photo and Text Manager](Photo-and-Text-Manager.md) |
 | System | [Preferences](Preferences.md), [Disk Tools](Disk-Tools.md), [About this X16](About-this-X16.md), [Veranda Update](Veranda-Update.md), [Archive](Archive.md) (C64 GEOS disk images), [FontEd](FontEd.md) |
-| Music | [MOD Player](MOD-Player.md), [SID Player](SID-Player.md) |
+| Music and video | [MOD Player](MOD-Player.md), [SID Player](SID-Player.md), [VIDKIT Player](VIDKIT-Player.md) (SPV video, WAV and ZCM audio) |
 | Games | [Solitaire](Solitaire.md), [Lighthouse Pinball](Lighthouse-Pinball.md), [Harbour Walls](Harbour-Walls.md), [geoChess](geoChess.md) |
 | Programming | [VeraBASIC](VeraBASIC.md) |
 

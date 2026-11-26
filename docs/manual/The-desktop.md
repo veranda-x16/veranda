@@ -127,6 +127,7 @@ column's header is bold, with a small triangle.
 | `.BMP` | View |
 | `.MOD` | MOD Player |
 | `.SID` | SID Player |
+| `.SPV`, `.WAV`, `.ZCM` | VIDKIT Player |
 | `.D64`, `.D71`, `.D81` | Archive |
 | `.TEL` | Term |
 | `.BAS` | VeraBASIC |
