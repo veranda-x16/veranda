@@ -1,0 +1,7 @@
+# Veranda 1.0.4: what is new since 1.0.3.
+# One "- " line a point; the part before the first "; " goes into
+# Veranda Update's short list (UPDATE.LST). Plain words, no testing claims.
+- MIDI Player; MIDI and ZSM songs on the YM2151 and PSG, with a keyboard and meters that show every voice, the instruments, bar, beat and tempo, and lyrics, using Melodius and ZSMKit by MooingLemur
+- Colour icons for MIDI Player and VIDKIT Player, and music and video icons for their files
+- Preferences, the Calculator and other desk accessories open from the desktop again on a 512 KB X16 with the Apps window open
+- The Apps window turns its pages faster
