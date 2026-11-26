@@ -18,7 +18,8 @@
 # 1. the kernel and the SDK; Veranda Update built against it (Update.cvt:
 #    an application, class VerandaUpd, banked overlays, its tile) and its
 #    test build; the sizes
-# 2. host: tests/test_mkrelease.py (the allowlist: no geoWrite, TopDesk or
+# 2. host: (V198) mkdist's copy_dict: only SPELL.OVL of Write's DICT;
+#    tests/test_mkrelease.py (the allowlist: no geoWrite, TopDesk or
 #    geoChess file can enter a release; the manifest; update_server.py's
 #    answers and its LAN-only rule); the fixtures (tests/check_update.py:
 #    three builds of a made-up Veranda, A, B1, B2; releases A (its own
@@ -44,6 +45,25 @@
 #      lan       the PC source, package B2 (system files, new files, a
 #                doc-sample): the system files swapped last, Restart to finish
 #      undo2     Undo: at A again, Restart to finish
+#    (V198) Veranda Write's dictionaries (their own release, dict-1 of
+#    veranda-x16/veranda-write, served beside release A; the card has an
+#    older PL.DIC, as a package before V198 put there):
+#      dcrc      UPDATE.REQ ("dict", "back Veranda Write") read and deleted
+#                at the start, the dictionaries' list checked at once;
+#                EN.DIC's asset with a byte changed: refused, the card
+#                unchanged
+#      dspace    Dictionaries for Write with 100 KB free (the test's
+#                CalcBlksFree): refused before anything is fetched
+#      dict      English chosen, Polish not: EN.DIC and EN.DIC.txt in
+#                /VERANDA/DICT, the older PL.DIC as it was, Veranda's
+#                UPDATE.LST unchanged; screenshots dict.png, dictdone.png
+#      dundo     Undo: the card as it was
+#      handoff   on a copy of the card with the real desktop, which
+#                starts a stand-in (tests/dict_standin.c) as
+#                /VERANDA/APPS/Veranda Write from a START.REQ; it writes
+#                START.REQ and UPDATE.REQ as Write does and puts itself
+#                aside; the shell starts Veranda Update from START.REQ;
+#                English fetched; Quit brings the stand-in back
 #    after each: the user's files (/DOCUMENTS, .SYSTEM's settings, an
 #    application of the user's own, README.txt) checksummed against the start
 # Screenshots: $OUT/check.png, progress.png, done.png, lan.png.
@@ -110,6 +130,15 @@ $PY tests/test_mkrelease.py "$OUT/host" || fail "tests/test_mkrelease.py"
 TMPDIR="$OUT" tests/test_tocard.sh "$OUT/tocard" | grep "^ok\|^FAIL\|^TEST" || fail "tests/test_tocard.sh"
 tests/test_publish.sh "$OUT/publish" > "$OUT/publish.log" 2>&1 || { tail -20 "$OUT/publish.log"; fail "tests/test_publish.sh"; }
 grep "^ok\|^TEST" "$OUT/publish.log"
+# (V198) mkdist's copy_dict (the function itself, from tools/mkdist.sh): of
+# a Write build's DICT (as a build before W61 filled it) only SPELL.OVL
+# goes into the package
+T=$OUT/copydict
+mkdir -p "$T/src" "$T/pkg"
+for f in SPELL.OVL PL.DIC PL.DIC.txt EN.DIC EN.DIC.txt; do echo "$f" > "$T/src/$f"; done
+(V=$T/pkg; eval "$(sed -n '/^copy_dict() {/,/^}/p' tools/mkdist.sh)"; copy_dict "$T/src") || fail "mkdist's copy_dict"
+[ "$(ls "$T/pkg/DICT" | tr '\n' ' ')" = "SPELL.OVL " ] || fail "mkdist's copy_dict put $(ls "$T/pkg/DICT" | tr '\n' ' ')in the package"
+ok "mkdist: of a Write build's DICT only SPELL.OVL goes into the package; the dictionaries and their licences do not (V198)"
 FX=$OUT/fx
 $PY tests/check_update.py fixture "$FX" "$A/SHELL.cvt" || fail "the fixtures"
 CARD=$OUT/card
@@ -198,12 +227,65 @@ grep -q "UPDATE.LST" "$OUT/$s/srv/server.log" || fail "lan: update_server.py log
 s=undo2
 run $s "undo" "source=pc\r\nrepo=veranda-x16/veranda\r\npc=127.0.0.1:1\r\n"
 $PY tests/check_update.py check $s "$FX" "$CARD" "$OUT/$s/log.txt" "$OUT/$s/none.log" || { grep -a "^UP\|^BOX" "$OUT/$s/log.txt" | tail -30; fail "$s"; }
+
+echo "== (V198) Veranda Write's dictionaries: requested, a CRC mismatch, no room, English chosen, undo, the hand-off"
+REQ='dict\r\nback Veranda Write\r\n'
+DREPO=', "repos": {"veranda-x16/veranda-write": "'$FX/relD'"}'
+for s in dcrc dspace dict dundo; do
+	case $s in
+	dcrc) printf "$REQ" > "$CARD/VERANDA/.SYSTEM/UPDATE.REQ"; fake "$OUT/$s/srv" "$FX/relA" "$DREPO"', "corrupt": ["EN.DIC"]'; steps="update" ;;
+	dspace) fake "$OUT/$s/srv" "$FX/relA" "$DREPO"; steps="dict free:100 update" ;;
+	dict) fake "$OUT/$s/srv" "$FX/relA" "$DREPO"; steps="dict snap:DCK nos:2 update snap:DDN" ;;
+	dundo) fake "$OUT/$s/srv" "$FX/relA" "$DREPO"; steps="undo" ;;
+	esac
+	run $s "$steps" "$(printf "$GH" "$GPORT")"
+	server_end
+	$PY tests/check_update.py check $s "$FX" "$CARD" "$OUT/$s/log.txt" "$OUT/$s/srv/requests.log" || { grep -a "^UP\|^BOX" "$OUT/$s/log.txt" | tail -30; fail "$s"; }
+done
+# the hand-off: the real shell (from a copy of shell/), the stand-in, on a copy of the card
+s=handoff
+R=$OUT/$s
+mkdir -p "$R"
+cp -r shell "$R/shell"
+rm -f "$R/shell"/*.cvt "$R/shell"/*.bin "$R/shell"/*.map "$R/shell"/*.o
+make -s -C "$R/shell" SDK="$SDK" > "$R/shell.log" 2>&1 || { tail "$R/shell.log"; fail "handoff: the shell does not build"; }
+printf 'name = Veranda Write\nclass = DictStandIn\nmode = 640x480\napi = 6\nicon = %s\n' "$SDK/template/c/icon.pbm" > "$R/standin.hdr"
+cl65 -t none --cpu 65C02 -O -I "$SDK/include" -C "$SDK/cfg/app-c.cfg" -o "$R/standin.bin" tests/dict_standin.c "$SDK/lib/veranda.lib" \
+	> "$R/standin.log" 2>&1 || { cat "$R/standin.log"; fail "handoff: the stand-in does not build"; }
+$PY "$SDK/tools/vpack.py" --load 0x0801 -o "$R/standin.cvt" "$R/standin.hdr" "$R/standin.bin" >/dev/null || fail "vpack the stand-in"
+H=$OUT/card_h
+cp -r "$CARD" "$H"
+cp "$R/shell/SHELL.cvt" "$H/VERANDA/SHELL.cvt"
+cp "$A/test/Update.cvt" "$H/VERANDA/APPS/Veranda Update.cvt"
+cp "$R/standin.cvt" "$H/VERANDA/APPS/Veranda Write.cvt"
+# (the desktop starts the stand-in from a START.REQ too: a program put
+# aside is known by the name it was started by, as Write is by the shell)
+printf '/VERANDA/APPS/Veranda Write\r\n' > "$H/VERANDA/.SYSTEM/START.REQ"
+: > "$H/VERANDA/.SYSTEM/LAYOUT.LOG"
+fake "$R/srv2" "$FX/relA" "$DREPO"
+printf '%b' "$(printf "$GH" "$GPORT")" > "$H/VERANDA/.SYSTEM/UPDATE.CFG"
+echo "run nos:2 update quit" > "$H/UPDATE.TST"
+cp build/VERANDA.PRG build/VERANDA.SYS "$H/"
+(cd "$H" && SDL_VIDEODRIVER=dummy timeout -s INT 180 "$EMU_NET" -rom "$ROM" -prg VERANDA.PRG -run \
+	-warp -sound none -echo -dump V -uartclock 14.7456 -uart 9FE0 "modem:baud=57600,log=$R/modem.log" \
+	> "$R/console.txt" 2>&1) || true
+tr '\r' '\n' < "$R/console.txt" > "$R/log.txt"
+server_end
+# (the card's own files back as they were, for the check: the shell, Update, the stand-in, the test's)
+cp "$CARD/VERANDA/SHELL.cvt" "$H/VERANDA/SHELL.cvt"
+rm -f "$H/VERANDA/APPS/Veranda Update.cvt" "$H/VERANDA/APPS/Veranda Write.cvt" "$H/UPDATE.TST" "$H/VERANDA.PRG" "$H/VERANDA.SYS" "$H/dump.bin"
+for f in $(cd "$H/VERANDA/.SYSTEM" && ls -A); do
+	[ -e "$CARD/VERANDA/.SYSTEM/$f" ] || case $f in OLD | UPD | START.REQ | UPDATE.REQ) ;; *) rm -rf "${H:?}/VERANDA/.SYSTEM/$f" ;; esac
+done
+$PY tests/check_update.py check $s "$FX" "$H" "$R/log.txt" "$R/srv2/requests.log" || { grep -a "^UP\|^BOX\|^STANDIN\|^SHELL" "$R/log.txt" | tail -30; fail "$s"; }
 grep -q "SECURE" "$OUT/resume/modem.log" || fail "resume: the modem's log has no ATCS connection"
 
 $PY tests/ftp_shot.py "$OUT/resume/CK.RAW" "$OUT/check.png" || fail "check.png"
 $PY tests/ftp_shot.py "$OUT/resume/PROG.RAW" "$OUT/progress.png" || fail "progress.png"
 $PY tests/ftp_shot.py "$OUT/resume/DN.RAW" "$OUT/done.png" || fail "done.png"
 $PY tests/ftp_shot.py "$OUT/lan/LAN.RAW" "$OUT/lan.png" || fail "lan.png"
+$PY tests/ftp_shot.py "$OUT/dict/DCK.RAW" "$OUT/dict.png" || fail "dict.png"
+$PY tests/ftp_shot.py "$OUT/dict/DDN.RAW" "$OUT/dictdone.png" || fail "dictdone.png"
 rm -f "$OUT"/*/dump.bin
-echo "screenshots: $OUT/check.png progress.png done.png lan.png"
+echo "screenshots: $OUT/check.png progress.png done.png lan.png dict.png dictdone.png"
 echo "GATE update: PASS"

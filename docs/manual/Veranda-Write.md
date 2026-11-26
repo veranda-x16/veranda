@@ -90,6 +90,31 @@ characters at most.
   plain text.
 - **Alt+Tab** puts Veranda Write aside with its document.
 
+### Spelling
+
+**Tools > Check spelling** (F7) goes through the text from the cursor;
+**F8** or a right click shows a word's suggestions; misspelt words get a
+dotted line as you type. English and Polish: **Tools > English** or
+**Polish** sets the document's language.
+
+The dictionaries are **not in Veranda's package**: they are a separate
+download of 1.9 MB (English 0.7 MB, Polish 1.1 MB). To get them:
+
+- **Tools > Get dictionaries**: Veranda Write goes aside and
+  [Veranda Update](Veranda-Update.md) starts and checks the
+  dictionaries' list. Choose English, Polish or both; Update fetches them
+  over the Wi-Fi modem into `/VERANDA/DICT`. Its **Quit** brings Veranda
+  Write back, and the next Check spelling uses them.
+- Or **by hand**: download `Veranda-Write-dictionaries.zip` from the
+  release **dict-1** at
+  [github.com/veranda-x16/veranda-write/releases](https://github.com/veranda-x16/veranda-write/releases)
+  and copy its `VERANDA` folder to the card. Each dictionary has its
+  licence beside it (`EN.DIC.txt`, `PL.DIC.txt`).
+
+Without a dictionary, Check spelling says how to get it; while you type
+nothing asks and no words are marked. Dictionaries already on a card
+from an earlier package keep working.
+
 ## Menus
 
 | Menu | Items |

@@ -41,6 +41,21 @@ removes what it added. The replaced files are kept in
 `/VERANDA/.SYSTEM/OLD/<build>/`. One undo is kept: the backup of the
 update before is deleted when a new one is made.
 
+## Dictionaries for Write
+
+**Dictionaries** (D, also in the Update menu) checks the list of
+[Veranda Write](Veranda-Write.md)'s spelling dictionaries instead of
+Veranda's: they are not part of Veranda's updates. They come from their
+own release, **dict-1** of `veranda-x16/veranda-write` on GitHub,
+whatever Source... says. The window lists the dictionaries that are new
+or changed; **Update** then asks for each one (English, Polish), checks
+that the card has room, fetches the ones you chose, checks each file and
+puts them in `/VERANDA/DICT`. **Undo last update** removes them again.
+Veranda's own files and its build do not change.
+
+Veranda Write's **Tools > Get dictionaries** opens Veranda Update this
+way by itself; when you **Quit**, Veranda Write comes back.
+
 ## What it never touches
 
 - `/DOCUMENTS` (your files).

@@ -6,6 +6,11 @@
      update          Update (its box answered OK)
      undo            Undo last update
      no              the next box answered Cancel
+     nos:N           (V198) the boxes to come answered by N's bits: bit 0
+                     the next, bit 1 the one after ...: 1 Cancel, 0 OK
+     dict            Dictionaries for Write (V198: the dictionaries' list)
+     free:KB         (V198) the card's free space taken as KB
+     quit            Quit (UPDATE.REQ's back: that program brought back)
      snap:NAME       the screen to NAME.RAW
      aside:KB        Alt+Tab (TaskCtl TASK_ASIDE) when a file has KB
                      kilobytes (the test desktop brings it back)
@@ -27,7 +32,9 @@ void __fastcall__ snap(const char *name);
 void __fastcall__ t_end(const char *pfx);
 
 extern unsigned char t_no, t_restarted;
+void up_quit(void);
 unsigned char t_aside_at;
+unsigned int t_free;
 static unsigned int t_prog;
 static unsigned char pos, wait_;
 static char w[24];
@@ -98,6 +105,17 @@ void up_test_tick(void)
         wait_ = 1;
     } else if (!strcmp(w, "no"))
         t_no = 1;
+    else if (!memcmp(w, "nos:", 4))
+        t_no = (unsigned char)num(w + 4);
+    else if (!strcmp(w, "dict")) {
+        job_dict();
+        wait_ = 1;
+    } else if (!memcmp(w, "free:", 5))
+        t_free = num(w + 5);
+    else if (!strcmp(w, "quit")) {
+        t_say("UP END");                /* (the session's log ends here: the program it goes back to goes on) */
+        up_quit();
+    }
     else if (!memcmp(w, "snap:", 5)) {
         strcat(w, ".RAW");
         snap(w + 5);

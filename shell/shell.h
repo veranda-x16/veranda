@@ -106,7 +106,7 @@ extern unsigned char front;             /* the window in front ($FF: none) */
 extern unsigned char bIcons;            /* the GEOS icons: window w's at w * 4096 */
 extern unsigned char bDesk;             /* the pinned applications' icons; at 1024 their tiles */
 extern unsigned char bTiles;            /* the applications' own tiles: window w's at w * 4096 */
-extern unsigned char bWin, bView, bDir, bFiles, bPrint, bMouse, bOps, bChrome, bBars, bTile, bWall, bDock, bLook3, bIc2;   /* the overlays' banks */
+extern unsigned char bWin, bView, bDir, bFiles, bPrint, bMouse, bOps, bChrome, bBars, bTile, bWall, bDock, bLook3, bIc2, bPrg;   /* the overlays' banks */
 extern unsigned char tileBuf[132];      /* a tile or a glyph as BitmapUp takes it */
 extern unsigned char pinTile[MAXPINS];  /* the pins' tiles (TL_*) */
 
@@ -166,6 +166,9 @@ void shell_reload(void);                          /* the windows read and drawn 
 void shell_redraw(void);                          /* the front window's contents drawn again */
 void shell_go(const char *dir, const char *name, unsigned char open);
 void shell_open(unsigned char w, unsigned char idx);  /* a double click on an entry */
+unsigned char prg_run(unsigned char w);           /* prg.c: a plain .PRG run in BASIC, Veranda kept (V197); 0: not one */
+void prg_log(void);                               /* prg.c: (gates) the windows the shell kept, logged */
+unsigned char prg_req(unsigned char u);           /* prg.c: START.REQ read and deleted: 1, the folder in str, the name in tmp (V198) */
 void shell_front(unsigned char w);                /* curDirName = window w's path */
 void shell_pin_start(unsigned char p);            /* a pinned application started */
 void shell_trash(void);                           /* the trash's window */

@@ -34,7 +34,9 @@ static char v[100];
 
 static void source_line(void)
 {
-    if (C.src == SRC_PC) {
+    if (xmode)                          /* (V198) */
+        strcpy(v, "GitHub releases of " X_REPO ": Veranda Write's dictionaries");
+    else if (C.src == SRC_PC) {
         strcpy(v, "a PC on my network, ");
         strcat(v, C.pc[0] ? C.pc : "(no address: Source...)");
     } else {
@@ -63,12 +65,20 @@ void ui_head_o(void)
 {
     unsigned char i;
     source_line();
-    if (ibuild[0])
+    if (xmode)
+        strcpy(v, "the dictionaries in /VERANDA/DICT (Veranda's build stays as it is)");
+    else if (ibuild[0])
         build_text(iver, ibuild, idate);
     else
         strcpy(v, "not known (no /VERANDA/UPDATE.LST: a card from before Veranda Update)");
     ui_pair(Y_INST, "Installed", v);
-    if (nbuild[0]) {
+    if (nbuild[0] && xmode) {
+        strcpy(v, "dictionaries ");
+        strcat(v, nver[0] ? nver : nbuild);
+        strcat(v, " of ");
+        strcat(v, ndate);
+        strcat(v, ", release " X_TAG);
+    } else if (nbuild[0]) {
         build_text(nver, nbuild, ndate);
         if (ntag[0]) {
             strcat(v, ", release ");
@@ -89,7 +99,7 @@ void ui_list_o(void)
     SetPattern(0);
     WRectangle(0, Y_FILES, 639, Y_BAR - 1);
     if (!checked && job != J_DL) {
-        ui_text(16, Y_FILES, job == J_SCAN ? "Comparing the card with the list ..." : "Check fetches the list of files and compares the card.", 0);
+        ui_text(16, Y_FILES, job == J_SCAN ? "Comparing the card with the list ..." : xmode ? "Dictionaries fetches their list and compares the card." : "Check fetches the list of files and compares the card.", 0);
         return;
     }
     strcpy(v, "Changed ");
@@ -209,4 +219,75 @@ void ui_source_o(void)
     nnotes = 0;
     ui_all_o();
     say("Saved in /VERANDA/.SYSTEM/UPDATE.CFG; Check asks it.");
+}
+
+/*---------------------------------------------------------------- the settings */
+/* (main.c's until V198; overlay 2's) UPDATE.CFG in /VERANDA/.SYSTEM. The public
+   repository (DECISIONS V139): the organisation's; a card that saved the
+   one before (sandlbn/veranda-x16, before the organisation) reads the new
+   one, and the next save writes it */
+#define DEF_REPO "veranda-x16/veranda"
+static const char oldRepo[] = "sandlbn/veranda-x16";
+static unsigned char cfh;
+
+void cfg_load_o(void)
+{
+    char *b = (char *)iobuf;
+    unsigned char n, k;
+    char *p, *e;
+    C.src = SRC_GITHUB;
+    strcpy(C.repo, DEF_REPO);
+    C.pc[0] = 0;
+    strcpy(C.gh, "github.com");
+    if (ChDir(K(VR_DATADIR)))
+        return;
+    cfh = FOpen(K("UPDATE.CFG"), 'r');
+    if (cfh < 2 || cfh > 9 || dosStatus >= 20)
+        return;
+    n = FRead(cfh, b, 200);
+    FClose(cfh);
+    b[n] = 0;
+    for (p = b; *p; p = e) {
+        for (e = p; *e && *e != '\n' && *e != '\r'; ++e)
+            ;
+        k = e - p;
+        if (*e)
+            *e++ = 0;
+        if (!memcmp(p, "source=", 7))
+            C.src = !strcmp(p + 7, "pc") ? SRC_PC : SRC_GITHUB;
+        else if (!memcmp(p, "repo=", 5) && k - 5 < sizeof C.repo && k > 5 && strcmp(p + 5, oldRepo))
+            strcpy(C.repo, p + 5);
+        else if (!memcmp(p, "pc=", 3) && k - 3 < sizeof C.pc)
+            strcpy(C.pc, p + 3);
+        else if (!memcmp(p, "github=", 7) && k - 7 < sizeof C.gh && k > 7)
+            strcpy(C.gh, p + 7);
+        else if (!memcmp(p, "channel=", 8))
+            C.test = !strcmp(p + 8, "test");
+    }
+}
+
+void cfg_save_o(void)
+{
+    char *b = (char *)iobuf;
+    strcpy(b, "source=");
+    strcat(b, C.src == SRC_PC ? "pc" : "github");
+    strcat(b, "\r\nrepo=");
+    strcat(b, C.repo);
+    strcat(b, "\r\npc=");
+    strcat(b, C.pc);
+    strcat(b, C.test ? "\r\nchannel=test\r\n" : "\r\nchannel=stable\r\n");
+    if (strcmp(C.gh, "github.com")) {
+        strcat(b, "github=");
+        strcat(b, C.gh);
+        strcat(b, "\r\n");
+    }
+    ChDir(K("/VERANDA"));
+    MkDir(K(".SYSTEM"));
+    if (ChDir(K(VR_DATADIR)))
+        return;
+    cfh = FOpen(K("UPDATE.CFG"), 'w');
+    if (cfh < 2 || cfh > 9 || dosStatus >= 20)
+        return;
+    FWrite(cfh, b, strlen(b));
+    FClose(cfh);
 }

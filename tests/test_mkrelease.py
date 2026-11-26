@@ -105,6 +105,12 @@ ports = {'VERANDA/APPS/geoWrite.cvt': cvt('geoWrite', 'Tony Requist'),
          'VERANDA/APPS/geoChess.cvt': cvt('GeoChess', 'Scott Hutter'),
          'DOCUMENTS/Letter.geoWrite': b'a document', 'VERANDA/APPS/MOD Player.cvt': cvt('ModPlayer'),
          'VERANDA/APPS/Solitaire.cvt': cvt('Solitaire')}
+# (V198) Veranda Write's DICT as a build before V198 fills it: only its
+# spelling code (SPELL.OVL) goes into a release, never the dictionaries
+# nor their licences (their own release, dict-1 of veranda-write)
+dicts = ('PL.DIC', 'PL.DIC.txt', 'EN.DIC', 'EN.DIC.txt')
+ports.update({'VERANDA/DICT/' + d: b'dictionary ' + d.encode() for d in dicts})
+ports['VERANDA/DICT/SPELL.OVL'] = b'WSPO' + b'\0' * 60
 # (V162) the wallpapers: Dusk and the three drawn as tiles shipped; the
 # Meadow (the earlier packages') no longer, should a package still hold it
 walls = ('Dusk', 'Still Water', 'Low Hills', 'Sunroom Tiles')
@@ -114,12 +120,12 @@ text, cmd = release(P, os.path.join(W, 'rel'))
 no_port(os.path.join(W, 'rel'))
 _, ents = mkmanifest.parse(text)
 paths = {e['path'] for e in ents}
-for p in ('VERANDA/README.txt', 'TILEHW/TILEHW.PRG', 'VERANDA/WALLPAPERS/Meadow.cvt'):
+for p in ('VERANDA/README.txt', 'TILEHW/TILEHW.PRG', 'VERANDA/WALLPAPERS/Meadow.cvt') + tuple('VERANDA/DICT/' + d for d in dicts):
     if p in paths:
         fail('%s is in the release (not in the allowlist)' % p)
 for p in ('VERANDA/VERANDA.SYS', 'VERANDA/APPS/Veranda Calc.cvt', 'VERANDA/APPS/Veranda Write.cvt', 'PC/update_server.py',
           'VERANDA/APPS/MOD Player.cvt', 'VERANDA/APPS/Solitaire.cvt', 'VERANDA/APPS/geoChess.cvt',
-          'VERANDA/APPS/Colour Paint.cvt') \
+          'VERANDA/APPS/Colour Paint.cvt', 'VERANDA/DICT/SPELL.OVL') \
         + tuple('VERANDA/WALLPAPERS/%s.cvt' % w for w in walls):
     if p not in paths:
         fail('%s is not in the release' % p)
@@ -158,14 +164,16 @@ for port in ('VERANDA/APPS/geoWrite.cvt', 'VERANDA/APPS/TopDesk.cvt', 'DOCUMENTS
         continue
     fail('an allowlist naming %s made a release' % port)
 
-# 4. the real allowlist names no port
+# 4. the real allowlist names no port, and of VERANDA/DICT only SPELL.OVL (V198)
 for p in mkrelease.read_allow(mkrelease.DEFAULT_ALLOW):
     if mkrelease.denied(p, b''):
         fail('tools/release.allow names %s' % p)
+    if p.startswith('VERANDA/DICT/') and p != 'VERANDA/DICT/SPELL.OVL':
+        fail('tools/release.allow names %s: the dictionaries have their own release (V198)' % p)
 n += 1
 print('ok    mkrelease: %d cases: the ports (geoWrite, TopDesk) never in a release; geoChess, MOD Player and Solitaire in it: by name, by a .cvt\'s '
       'class, parent class or author under another name, nor when the allowlist names them (refused); README.txt, '
-      'the Meadow (V162: Dusk, Still Water, Low Hills, Sunroom Tiles in), MOD Player, Solitaire and files outside the allowlist left out; one asset a distinct file; the gh command printed' % n)
+      'the Meadow (V162: Dusk, Still Water, Low Hills, Sunroom Tiles in), Write\'s dictionaries and their licences (V198: SPELL.OVL in), MOD Player, Solitaire and files outside the allowlist left out; one asset a distinct file; the gh command printed' % n)
 
 # 5. the manifest: what may be listed, the round trip, a cut-short one
 try:

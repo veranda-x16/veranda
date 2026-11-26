@@ -32,7 +32,7 @@ licences:
 
 | Program | Licence | Author, origin |
 |---|---|---|
-| Veranda Write (Commander Write) | MIT | Copyright (c) 2026 Marcin Spoczynski |
+| Veranda Write (Commander Write) | MIT | Copyright (c) 2026 Marcin Spoczynski. Its spelling dictionaries are a separate download with their own licences: EN.DIC from SCOWL (its permissive notice, EN.DIC.txt), PL.DIC from Morfologik (BSD 2-clause) chosen by FrequencyWords (CC BY-SA 4.0), PL.DIC.txt. |
 | Veranda Calc (Commander Calc) | MIT | Copyright (c) 2026 Marcin Spoczynski |
 | MOD Player (x16-mod) | MIT | Copyright (c) 2026 Marcin Spoczynski. Its own replay engine. Martin Cameron's micromod (BSD 3-Clause) is used only as a test reference and is not in the player. |
 | Lighthouse Pinball | MIT | Copyright (c) 2026 Marcin Spoczynski; an original game |

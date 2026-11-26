@@ -17,6 +17,26 @@ struct cfg {
 };
 extern struct cfg C;
 void cfg_save(void);
+void cfg_load_o(void), cfg_save_o(void);   /* (ui.c, overlay 2: V198) */
+void back_o(void);              /* (swap.c, overlay 3: V198) */
+
+/*---------------------------------------------------------------- the dictionaries (V198) */
+/* Veranda Write's spelling dictionaries are not in Veranda's releases:
+   they are the assets of one release of Write's repository, tagged by
+   their format (dict-1: the format Write reads now; a later format gets
+   a new tag, so an older Write never fetches what it cannot read), with
+   their list DICT.LST (UPDATE.LST's format: every file under
+   VERANDA/DICT/). Dictionaries for Write (D) checks that list instead of
+   Veranda's; Update then asks which to get. Always from GitHub (C.gh),
+   whatever the source */
+#define X_REPO  "veranda-x16/veranda-write"
+#define X_TAG   "dict-1"
+#define X_LIST  "DICT.LST"
+#define X_DIR   "VERANDA/DICT/"
+extern unsigned char xmode;     /* 1: the dictionaries' list is the one checked (job_dict) */
+extern char back[18];           /* UPDATE.REQ's "back": the program put aside that asked (Quit brings it back) */
+unsigned char req_load(void);   /* UPDATE.REQ read and deleted: 1 if it asks for the dictionaries */
+unsigned char req_load_o(void);
 
 /*---------------------------------------------------------------- the network (http.c) */
 #define URLMAX 1100             /* GitHub's signed asset addresses are near 1 KB */
@@ -101,6 +121,7 @@ extern unsigned char cur;       /* the entry being worked on */
 extern unsigned char slept;     /* put aside while a file was open */
 extern unsigned char refused;   /* (why the last update stopped: test builds) */
 void job_check(void);
+void job_dict(void);            /* (V198) Check, the dictionaries' list */
 void job_update(void);
 void job_undo(void);
 void job_tick(void);
@@ -162,6 +183,7 @@ void __fastcall__ up_log(const char *a, const char *b);
 void up_restart(void);
 
 #ifdef UP_TEST
+extern unsigned int t_free;             /* the card's free KB as the test says (0: CalcBlksFree's) */
 extern unsigned char t_aside_at;        /* put aside at this many KB of a file (0: no) */
 void up_test_start(void);
 void up_test_tick(void);

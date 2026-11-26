@@ -411,6 +411,13 @@ static void __fastcall__ swap_end(const char *b, unsigned char ok)
         up_message("Some files could not be put in place.", "Undo last update puts the card back.");
         return;
     }
+    if (!strcmp(cur_, X_TAG)) {         /* (V198: the dictionaries; the card's build is as it was) */
+        strcpy(line, "The dictionaries are in /VERANDA/DICT.");
+        say(line);
+        up_log("UP DONE ", cur_);
+        up_message(line, "Veranda Write uses them the next time it checks spelling.");
+        return;
+    }
     strcpy(line, "Updated to build ");
     strcat(line, ibuild);
     strcat(line, " (");
@@ -428,7 +435,9 @@ void swap_go_o(void)
 {
     unsigned char i, pass, h;
     static char b[16];
-    strcpy(b, ibuild[0] ? ibuild : "unknown");
+    /* (V198) the dictionaries' backup is OLD/dict-1, apart from the
+       builds' (the card's build does not change) */
+    strcpy(b, xmode ? X_TAG : ibuild[0] ? ibuild : "unknown");
     strcpy(oldb, b);
     say("Putting the new files in place ...");
     up_log("UP SWAP START", "");
@@ -439,7 +448,7 @@ void swap_go_o(void)
     old_file(b, "UNDO.LST");
     mkdirs_o(pb);
     /* (the manifest's step last; looked at before UNDO.LST is open) */
-    strcpy(ps, exists_o("VERANDA/UPDATE.LST") ? "R VERANDA/UPDATE.LST\n" : "N VERANDA/UPDATE.LST\n");
+    strcpy(ps, xmode ? "" : exists_o("VERANDA/UPDATE.LST") ? "R VERANDA/UPDATE.LST\n" : "N VERANDA/UPDATE.LST\n");
     cd_of(pb);
     ChDir(pa);
     h = FOpen(K("UNDO.LST"), 'w');
@@ -450,7 +459,7 @@ void swap_go_o(void)
     strcpy(line, "VERANDA-UNDO 1\nfrom ");
     strcat(line, b);
     strcat(line, "\nto ");
-    strcat(line, nbuild);
+    strcat(line, xmode ? X_TAG : nbuild);
     strcat(line, "\n");
     FWrite(h, line, strlen(line));
     for (pass = 0; pass < 2; ++pass)
@@ -533,12 +542,17 @@ void job_undo_o(void)
         up_message("The last update's backup is not complete:", "it cannot be undone.");
         return;
     }
-    strcpy(line, "Undo the update to build ");
-    strcat(line, to);
-    strcat(line, "?");
-    strcpy(p, "Back to build ");
-    strcat(p, b);
-    strcat(p, ": the files it replaced come back.");
+    if (!strcmp(b, X_TAG)) {            /* (V198: the dictionaries fetched) */
+        strcpy(line, "Undo the dictionaries fetched last?");
+        strcpy(p, "Those they replaced come back, the new ones go.");
+    } else {
+        strcpy(line, "Undo the update to build ");
+        strcat(line, to);
+        strcat(line, "?");
+        strcpy(p, "Back to build ");
+        strcat(p, b);
+        strcat(p, ": the files it replaced come back.");
+    }
     if (!up_confirm(line, p))
         return;
     say("Putting the old files back ...");
@@ -577,10 +591,60 @@ void job_undo_o(void)
     strcpy(line, "Undone: back to build ");
     strcat(line, ibuild[0] ? ibuild : b);
     strcat(line, ".");
+    if (!strcmp(b, X_TAG))
+        strcpy(line, "Undone: the dictionaries as they were.");
     say(line);
     up_log("UP UNDONE ", b);
     if (sys_touched)
         up_restart();
     else
         up_message(line, "The old versions start the next time they are opened.");
+}
+
+/*---------------------------------------------------------------- a request */
+/* (V198) /VERANDA/.SYSTEM/UPDATE.REQ, written by a program that starts
+   Veranda Update for something (Veranda Write's Tools > Get
+   dictionaries: the line "dict"; "back <its GEOS name>": Quit brings that
+   program back if it is aside). Read and deleted at the start: 1 if it
+   asks for the dictionaries */
+unsigned char req_load_o(void)
+{
+    unsigned char h, n, r = 0;
+    char *p, *e;
+    if (ChDir(K(VR_DATADIR)))
+        return 0;
+    h = FOpen(K("UPDATE.REQ"), 'r');
+    if (h < 2 || h > 9)
+        return 0;
+    n = 0;
+    if (dosStatus < 20)
+        n = FRead(h, line, sizeof line - 1);
+    FClose(h);
+    if (!n)
+        return 0;
+    FDelete(K("UPDATE.REQ"));
+    line[n] = 0;
+    for (p = line; *p; p = e) {
+        for (e = p; *e && *e != '\n' && *e != '\r'; ++e)
+            ;
+        if (*e)
+            *e++ = 0;
+        if (!strcmp(p, "dict"))
+            r = 1;
+        else if (!memcmp(p, "back ", 5) && strlen(p + 5) < sizeof back)
+            strcpy(back, p + 5);
+    }
+    up_log("UP REQUEST ", r ? "dict" : "?");
+    return r;
+}
+
+/* (V198: back to the program that asked, if it is aside) */
+void back_o(void)
+{
+    unsigned char i;
+    for (i = 0; i < TASK_MAX; ++i)
+        if (!TaskCtl(TASK_INFO, i, iobuf) && iobuf[TR_STATE] && !strcmp((char *)iobuf + TR_NAME, back)) {
+            up_log("UP BACK TO ", back);
+            TaskCtl(TASK_RESUME, i, 0);
+        }
 }

@@ -61,6 +61,13 @@ VERANDA/APPS/Bird Watch.cvt
 # the user's sibling repositories, MIT (their LICENSE read: Marcin Spoczynski)
 VERANDA/APPS/Veranda Calc.cvt
 VERANDA/APPS/Veranda Write.cvt
+# Veranda Write's spelling code (commander-write's build, with the
+# program: it must match Veranda Write.cvt). The dictionaries themselves
+# (PL.DIC, EN.DIC with their licences, PL.DIC.txt and EN.DIC.txt) are not
+# in Veranda's releases nor in the package (DECISIONS V198): they are the
+# release dict-1 of veranda-x16/veranda-write, fetched on demand by Veranda
+# Update (Write's Tools > Get dictionaries) or copied by hand from its zip
+VERANDA/DICT/SPELL.OVL
 
 # fonts, pictures, help (tools/fontcvt.py, gatemono.py, mkwall.py, wall_*.py, vbgen.py, vbmanual.py)
 VERANDA/FONTS/Gate Sans.cvt

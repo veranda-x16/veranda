@@ -44,7 +44,7 @@ static unsigned char start(unsigned char opts, const char *doc);
 
 struct win wins[NWIN];
 unsigned char front = 0xFF;
-unsigned char bIcons, bDesk, bTiles, bWin, bView, bDir, bFiles, bPrint, bMouse, bOps, bChrome, bBars, bTile, bWall, bDock, bLook3, bIc2;
+unsigned char bIcons, bDesk, bTiles, bWin, bView, bDir, bFiles, bPrint, bMouse, bOps, bChrome, bBars, bTile, bWall, bDock, bLook3, bIc2, bPrg;
 unsigned char wallMode = W_PATTERN, wallBank, guiOn;
 unsigned char vCols, vRows, ic3On, ic3Want, ic3Now, ic3Next, deskFresh;          /* (V151) view.c's geometry; look3.c: the plain tile desktop */
 unsigned char tileBuf[132];
@@ -1264,10 +1264,10 @@ static void openDoc(unsigned char w)
     struct win *p = &wins[w];
 
     shell_keep();                     /* (before the folders change) */
-    if (!extOf(E.name)) {
-        warn("Only GEOS applications open.");
+    /* (V197) prg.c: an X16 program (.PRG) run by BASIC; no extension
+       (the warning there: main RAM's room) */
+    if (XCALL(bPrg, prg_run, RB)(w) || !extOf(E.name))
         return;
-    }
     strcpy(str, E.name);                /* (a long name: dataLongName, V82) */
     for (i = 0; i < p->n; ++i) {
         ent_get2(w, i);
@@ -1692,6 +1692,7 @@ int main(void)
     bWall = ovl(11);
     bLook3 = ovl(12);
     bIc2 = ovl(16);             /* (V165: records 13-15 are look3.c's libraries) */
+    bPrg = ovl(17);             /* (V197) */
     bDock = bTile;              /* (the dock is in the tiles' overlay: V83) */
     appBank = bWin;
     RAMBANK = bWin;
@@ -1727,19 +1728,8 @@ int main(void)
     for (w = 0; w < NWIN; ++w)
         if (wins[w].open)
             shell_hist(w);
-    for (w = 0; w < NWIN && testing; ++w)
-        if (wins[w].open) {
-            strcpy(msg, "SHELL WINDOW 0 KEPT AT ");
-            msg[13] += w;
-            num(wins[w].x * 8, msg + 23);
-            strcat(msg, " ");
-            num(wins[w].y, msg + strlen(msg));
-            strcat(msg, " VIEW ");
-            num(wins[w].view, msg + strlen(msg));
-            strcat(msg, " ");
-            strcat(msg, wins[w].path);
-            LogText(msg);
-        }
+    if (testing)
+        XCALL(bPrg, prg_log, FV)();     /* (the windows kept: V198 moved it there) */
     redraw();
     XCALL(bWin, dock_init, FV)();
     otherPressVec = VR_FN(press);
@@ -1747,5 +1737,9 @@ int main(void)
     keyVector = VR_FN(key);
     if (part)
         play_start(part);
+    if (XCALL(bPrg, prg_req, RB)(0)) {  /* (V198: a program's START.REQ) */
+        mouseSource = 0;
+        sayErr("Cannot start it:", startApp(str));
+    }
     return 0;
 }

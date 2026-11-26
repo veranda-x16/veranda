@@ -477,14 +477,21 @@ got:
 
 /* (V156) Veranda Write's documents: geoWrite's class (Veranda Write opens
    them: V135), and its own .cwr files (not GEOS files: E, a window's
-   entry, ends in ".cwr") shown with it too */
+   entry, ends in ".cwr") shown with it too; (V197) a plain ".prg", an
+   X16 program BASIC runs (prg.c), with the library's "X16 program" (the
+   small icons: a program's) */
 static const char kWrite[] = "Write Image ";
+static const char kPrg[] = "*Prg        ";
 
+/* E's: 1 ".cwr", 2 ".prg", 0 neither (or not a window's plain file) */
 static unsigned char cwr(unsigned char w)
 {
     const char *e = E.name + strlen(E.name) - 4;
-    return w < 2 && !E.geos && e >= E.name && e[0] == '.' && (e[1] | 32) == 'c' && (e[2] | 32) == 'w'
-        && (e[3] | 32) == 'r';
+    if (w >= 2 || E.geos || e < E.name || e[0] != '.')
+        return 0;
+    if ((e[1] | 32) == 'c' && (e[2] | 32) == 'w' && (e[3] | 32) == 'r')
+        return 1;
+    return (e[1] | 32) == 'p' && (e[2] | 32) == 'r' && (e[3] | 32) == 'g' ? 2 : 0;
 }
 
 /* the slot of window w's (2: the desk's) tile t, its GEOS file's icon i
@@ -499,7 +506,9 @@ static unsigned char slotOf(unsigned char w, unsigned char t, unsigned char i)
         t &= 0x1F;
         if (t >= 13)
             return NSLOT;
-        k = t == 9 && cwr(w) ? kWrite : bkeys[t];      /* (9: tiles.h's T_DOCUMENT) */
+        k = bkeys[t];
+        if (t == 9 && (s = cwr(w)) != 0)        /* (9: tiles.h's T_DOCUMENT) */
+            k = s == 1 ? kWrite : kPrg;
     } else if (w < 2 && i < MAXICON) {
         bget(bInk, WKEY + (w * MAXICON + i) * WREC, k3buf, WREC);
         k = k3buf;
@@ -756,8 +765,13 @@ static void smInit(void)
 static unsigned char smOf(unsigned char w, unsigned char t)
 {
     unsigned char i = E.icon - I_OWN;
-    if (t & TL_BUILT)
-        return (t &= 0x1F) >= 13 ? 0xFF : t == 9 && cwr(w) ? smCwr : smB[t];
+    if (t & TL_BUILT) {
+        if ((t &= 0x1F) >= 13)
+            return 0xFF;
+        if (t == 9 && (i = cwr(w)) != 0)
+            return i == 1 ? smCwr : smApp;
+        return smB[t];
+    }
     if (w < 2 && i < MAXICON && (i = wSm[w][i]) != 0xFF)
         return i;
     return E.geos == APPLICATION || E.geos == DESK_ACC ? smApp : smB[9];   /* (tiles.h: T_DOCUMENT) */

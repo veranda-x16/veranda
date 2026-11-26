@@ -9,7 +9,13 @@ Update's test build. No real server is contacted.
      "missing": [asset, ...],   GitHub answers 404 for these
      "corrupt": [asset, ...],   one byte changed (the CRC must refuse it)
      "drop": [asset, ...],      the connection closed half way, once each
-     "latest": true}            (false: no release, 404 for UPDATE.LST)
+     "latest": true,            (false: no release, 404 for UPDATE.LST)
+     "repos": {"owner/repo": "<folder>", ...}}
+                                (V198) more repositories, each with one
+                                release (its tag its list's: UPDATE.LST's
+                                or DICT.LST's, Veranda Write's
+                                dictionaries); missing, corrupt and drop
+                                name their assets too
 
 The release is served as GitHub serves a published one (V140): its tag
 is the one its UPDATE.LST names (mkrelease.py's --tag v<version>, the
@@ -99,11 +105,26 @@ def send(c, code, reason, body=b'', extra=()):
 
 
 def release_tag(rel):
-    """the release's tag: its UPDATE.LST's "tag" line"""
-    for l in open(os.path.join(rel, 'UPDATE.LST'), encoding='latin-1'):
-        if l.startswith('tag '):
-            return l[4:].strip()
+    """the release's tag: its UPDATE.LST's (or DICT.LST's) "tag" line"""
+    for n in ('UPDATE.LST', 'DICT.LST'):
+        if os.path.isfile(os.path.join(rel, n)):
+            for l in open(os.path.join(rel, n), encoding='latin-1'):
+                if l.startswith('tag '):
+                    return l[4:].strip()
     return None
+
+
+RELS = {}      # an asset's token: its release's folder
+
+
+def which(path):
+    """the repository a path asks for and its release's folder"""
+    repos = {CFG['repo']: CFG['release']}
+    repos.update(CFG.get('repos', {}))
+    for r, rel in repos.items():
+        if path.startswith('/%s/' % r):
+            return r, rel
+    return CFG['repo'], CFG['release']
 
 
 def github(c, aport):
@@ -111,14 +132,13 @@ def github(c, aport):
     if line is None:
         return
     path, bad = check(line, hdr, 'github')
-    repo = CFG['repo']
+    repo, rel = which(path)
     m = re.match(r'^/%s/releases/(?:latest/download|download/([^/]+))/([^/?]+)$' % re.escape(repo), path)
     if not m or (path.endswith('/latest/download/UPDATE.LST') and not CFG.get('latest', True)):
         log(host='github', path=path[:120], status=404, bad=bad, hosthdr=hdr.get('host'))
         send(c, 404, 'Not Found', b'Not Found')
         return
     tag, name = m.group(1), m.group(2)
-    rel = CFG['release']
     rtag = release_tag(rel)
     if tag is None and rtag == 'test':
         log(host='github', path=path[:120], status=404, name=name, tag=tag, why='a pre-release is never latest',
@@ -143,6 +163,7 @@ def github(c, aport):
         return
     tok = hashlib.sha256(('%s %d' % (name, len(TOKENS))).encode()).hexdigest()
     TOKENS[tok] = name
+    RELS[tok] = rel
     q = ('X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=releaseassetproduction%2F20261121%2Fus-east-1%2Fs3%2Faws4_request'
          '&X-Amz-Date=20261121T120000Z&X-Amz-Expires=300&X-Amz-Signature=' + tok + '&X-Amz-SignedHeaders=host'
          '&actor_id=0&key_id=0&repo_id=123456789&response-content-disposition=attachment%3B%20filename%3D' + name +
@@ -161,11 +182,12 @@ def assets(c):
     path, bad = check(line, hdr, 'assets')
     m = re.match(r'^/github-production-release-asset-2e65be/\d+/[0-9a-f]+\?.*X-Amz-Signature=([0-9a-f]{64})&', path)
     name = TOKENS.get(m.group(1)) if m else None
+    rel = RELS.get(m.group(1)) if m else None
     if not name:
         log(host='assets', path=path[:80], status=403, line_len=len(line), bad=bad)
         send(c, 403, 'Forbidden', b'<Error>AccessDenied</Error>')
         return
-    body = open(os.path.join(CFG['release'], name), 'rb').read()
+    body = open(os.path.join(rel, name), 'rb').read()
     how = []
     if name in CFG.get('corrupt', []):
         body = bytearray(body)

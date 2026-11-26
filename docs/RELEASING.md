@@ -282,4 +282,9 @@ then, Test's Check says "the repository has no release with UPDATE.LST".
   itself is the release workflow's (`gh release create` by hand only for
   the old repository, `--x16`).
 - The private download page.
+- Veranda Write's dictionaries (V198): not in a Veranda release. Their
+  own release, `dict-1` of veranda-write, is made once (and again only
+  when the dictionaries change): Actions > Dictionaries > Run workflow
+  there, or `make dict-release` in commander-write and the `gh` command
+  it prints.
 - TILEHW, which has no source: it is carried over.
