@@ -126,6 +126,7 @@ column's header is bold, with a small triangle.
 | `.X16S`, `.XLSX`, `.ODS`, `.CSV` | Veranda Calc |
 | `.BMP` | View |
 | `.MOD` | MOD Player |
+| `.MID`, `.MIDI`, `.ZSM` | MIDI Player |
 | `.SID` | SID Player |
 | `.SPV`, `.WAV`, `.ZCM` | VIDKIT Player |
 | `.D64`, `.D71`, `.D81` | Archive |

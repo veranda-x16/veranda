@@ -302,8 +302,9 @@ def page(title, body, here, depth=0, desc=''):
 FEATURES = [
     # (title, picture, manual page, text)
     ('Veranda Write', 'img/veranda-write.png', 'Veranda-Write',
-     'A word processor: fonts and sizes, bold, italic and underline, paragraph styles, find and replace. '
-     'It opens geoWrite documents and converts them.'),
+     'A word processor: fonts and sizes, paragraph styles, pages with headers and footers, tables, templates, '
+     'spelling in English and Polish, export as PDF, and Word (.DOCX) and OpenDocument (.ODT) files; optional AI help '
+     'through Veranda Ask.'),
     ('Veranda Calc', 'img/calc.png', 'Veranda-Calc',
      'A spreadsheet: 16 worksheets, formulas, bar, line and pie charts; it reads and writes Excel (.XLSX) and CSV '
      'files and reads LibreOffice (.ODS) files.'),
@@ -328,6 +329,13 @@ FEATURES = [
     ('Bird Watch, made with VeraBASIC', 'img/birdwatch.png', 'VeraBASIC',
      'The tutorial\'s example, made into an application with File > Make application: its own window, menus '
      'and icon.'),
+    ('Music and video', [('manual/img/modplayer.png', 'MOD-Player', 'MOD Player'),
+                         ('manual/img/sidplayer.png', 'SID-Player', 'SID Player'),
+                         ('manual/img/midi-player.png', 'MIDI-Player', 'MIDI Player'),
+                         ('manual/img/vidkit-player.png', 'VIDKIT-Player', 'VIDKIT Player')], 'MOD-Player',
+     'MOD Player for Amiga modules, SID Player for C64 tunes on a SID card, MIDI Player for MIDI and ZSM songs on '
+     'the YM2151, and VIDKIT Player for SPV videos and WAV and ZCM audio from the SD card.',
+     'MIDI Player plays with Melodius and ZSMKit by MooingLemur; VIDKIT Player is by Anthony W. Henry.'),
     ('Games', [('img/game-pinball.png', 'Lighthouse-Pinball', 'Lighthouse Pinball'),
                ('img/game-harbour-walls.png', 'Harbour-Walls', 'Harbour Walls'),
                ('img/game-solitaire.png', 'Solitaire', 'Solitaire'),
@@ -385,12 +393,14 @@ def build(a):
 
     # ---- home
     feats = []
-    for t, img, mp, text in FEATURES:
+    for f in FEATURES:
+        t, img, mp, text = f[:4]
+        note = f[4] if len(f) > 4 else (GAMES_CREDIT if t == 'Games' else '')
         if isinstance(img, list):       # a gallery: 2 x 2 screens, each its page
             pics = '<div class="gallery">%s</div>' % ''.join(
                 '<a href="manual/%s.html"><img src="%s" alt="%s" title="%s" loading="lazy" width="640" height="480">'
                 '</a>' % (gp, gi, html.escape(gt), html.escape(gt)) for gi, gp, gt in img)
-            credit = '<p class="credit">%s</p>' % html.escape(GAMES_CREDIT)
+            credit = '<p class="credit">%s</p>' % html.escape(note) if note else ''
         else:
             pics = ('<a href="manual/%s.html"><img src="%s" alt="%s" loading="lazy" width="640" height="480"></a>'
                     % (mp, img, html.escape(t)))

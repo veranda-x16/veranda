@@ -22,7 +22,7 @@ The manual on the X16 has a few parts, one file each, in
 | `Veranda manual 1 - Getting started.txt` | installing, the desktop, your first letter, files, the clock, Preferences, BASIC |
 | `Veranda manual 2 - Programs.txt` | the pictures, system programs and desk accessories |
 | `Veranda manual 3 - Network.txt` | the Wi-Fi card and the network programs |
-| `Veranda manual 4 - Music games and BASIC.txt` | MOD Player, SID Player, the games, VeraBASIC |
+| `Veranda manual 4 - Music games and BASIC.txt` | MOD Player, MIDI Player, SID Player, VIDKIT Player, the games, VeraBASIC |
 | `Veranda manual 5 - Reference.txt` | keyboard shortcuts, troubleshooting, developers, licences |
 | `Veranda manual 6 - Writing and numbers.txt` | Veranda Write, Veranda Edit, Veranda Calc |
 

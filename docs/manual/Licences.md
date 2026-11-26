@@ -8,7 +8,7 @@ Copyright (c) 2026 Marcin Spoczynski. See [LICENSE](../../LICENSE).
 
 This includes: the desktop, Paint, Colour Paint, Veranda Edit, View, Archive, Term,
 Veranda FTP, Veranda Gopher, Veranda Gemini, Veranda Chat, Veranda
-Claude, Veranda Ask, Disk Tools, About this X16, Veranda Update, FontEd,
+Claude, Veranda Ask, Disk Tools, About this X16, MIDI Player, Veranda Update, FontEd,
 Calculator, Note Pad, Dex, Calendar, Preferences, Photo Manager, Text
 Manager, Veranda Setup, VeraBASIC and VeraBASIC Run, the fonts Gate
 Sans and Gate Mono, the desktop pictures Dusk, Still Water, Low Hills and Sunroom Tiles, the icons, and
@@ -20,6 +20,13 @@ Code that came from elsewhere into Veranda's tree:
   protocol and the modem driver (`vrnet`) of the network programs.
 - **Commander Calc**'s inflate code (MIT, the same author): Veranda
   Gemini's PNG decoder is based on it.
+- **Melodius**'s MIDI engine and **ZSMKit**, by **MooingLemur**
+  ([github.com/mooinglemur/melodius](https://github.com/mooinglemur/melodius),
+  [github.com/mooinglemur/ZSMKit](https://github.com/mooinglemur/ZSMKit)),
+  MIT licence, Copyright (c) 2023 MooingLemur: MIDI Player plays MIDI
+  files with the first and ZSM files with the second. They keep their
+  notices and LICENSE files in `apps/midiplay/vendor`, with the commits
+  they were taken from.
 
 Programs that were **read but not copied** (no code taken): Bo
 Zimmerman's geoBrowser (Apache-2.0) for View, GEOS-W128's BBS client

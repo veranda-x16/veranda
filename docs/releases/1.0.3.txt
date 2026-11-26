@@ -1,11 +1,5 @@
-# Veranda 1.0.3: what is new since 1.0.1.
+# Veranda 1.0.3: what is new since 1.0.2.
 # One "- " line a point; the part before the first "; " goes into
 # Veranda Update's short list (UPDATE.LST). Plain words, no testing claims.
-- Spelling in Veranda Write; English and Polish, words marked as you type, Check spelling (F7) and suggestions (F8), your own words, Spelling options; the dictionaries come from Veranda Update's "Dictionaries for Write" or by hand
-- Tables in Veranda Write; Insert > Table, Tab between cells, rows and columns added or deleted, column widths, borders, kept in Word and OpenDocument files and drawn in PDFs
-- Templates in Veranda Write; File > New from template (letter, CV, report, meeting notes, in English and Polish), and Save as template for your own
-- AI help in Veranda Write, optional; rewrite, shorten, fix grammar, translate English and Polish, summarise or ask about the selected text, through Veranda Ask's sign-in, nothing sent before you press Send
-- Veranda Write opens Word and OpenDocument files about two and a half times faster, and scrolls faster
-- Programs (.PRG) run from the desktop; double-click one, BASIC runs it, and Veranda comes back when it ends
-- Veranda Ask can help other programs with their text (request mode), and says clearly when the network card or memory is the problem
-- The manual's Veranda Write page covers pages, PDF, Word and OpenDocument files, tables, templates, spelling and AI help
+- VIDKIT Player; SPV videos full screen, WAV and ZCM audio in its window, with a playlist, Play next, repeat, shuffle and bookmarks, by Anthony W. Henry
+- The manual has a page for VIDKIT Player, and For developers a section on writing Veranda programs in Prog8 (github.com/veranda-x16/veranda-prog8)

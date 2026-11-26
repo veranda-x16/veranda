@@ -339,6 +339,16 @@ def subjects():
     for x in range(7, 26, 3):
         ic.d(R(x, 26, 2, 1), 'grey')
 
+    # (V205) MIDI Player: a MIDI socket (five pins on its arc, its notch) and
+    # a green note (the small set is full: its list icon is the program's)
+    ic = new('MIDI Player', 'VerandaMIDI', 'app:midiplay')
+    ic.s(E(12.5, 13.5, 11, 11), 'metal', shade='round')
+    ic.s(E(12.5, 13.5, 8.2, 8.2), 'dark', shade='flat')
+    ic.d(R(11, 21, 3, 3), 'pale')
+    for a in (0, 45, 90, 135, 180):
+        ic.d(E(12.5 + 5.3 * math.cos(math.radians(a)), 14.5 - 5.3 * math.sin(math.radians(a)), 1.6, 1.6), 'white')
+    ic.s(U(E(23.5, 26.5, 4.6, 3.5), R(25.8, 9, 2.4, 17), P((25.8, 9), (31.5, 13), (31.5, 18), (25.8, 14))), 'green', shade='round')
+
     ic = new('Document', '*Document', 'lib')
     ic.s(P((6, 2), (19, 2), (26, 9), (26, 30), (6, 30)), 'paper')
     ic.s(P((19, 2), (19, 9), (26, 9)), 'metal')

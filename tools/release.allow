@@ -20,6 +20,9 @@
 #   published at github.com/veranda-x16).
 # Other people's work released with their permission (2026-11-26): VIDKIT
 #   Player by Anthony W. Henry, MIT, with his VIDKIT inside it (V203).
+# Other people's work under its own licence, kept with its notices: MIDI
+#   Player (this repository's) carries MooingLemur's Melodius MIDI engine
+#   and ZSMKit, MIT (V205).
 #
 # To add one: put its path here after reading its repository's LICENSE.
 
@@ -47,6 +50,10 @@ VERANDA/APPS/Veranda Claude.cvt
 VERANDA/APPS/Veranda Ask.cvt
 VERANDA/APPS/Disk Tools.cvt
 VERANDA/APPS/About this X16.cvt
+# MIDI Player (apps/midiplay, DECISIONS V205): Veranda's own, MIT, with
+# MooingLemur's Melodius MIDI engine and ZSMKit inside it (MIT, Copyright
+# (c) 2023 MooingLemur: apps/midiplay/vendor/, their LICENSE files)
+VERANDA/APPS/MIDI Player.cvt
 VERANDA/APPS/Veranda Update.cvt
 VERANDA/APPS/FontEd.cvt
 VERANDA/APPS/Calculator.cvt

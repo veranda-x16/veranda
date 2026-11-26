@@ -164,6 +164,9 @@ app apps/ask "$V/APPS" "Ask.cvt=Veranda Ask.cvt"
 cp tools/chatgpt_signin.py "$DEST/PC/chatgpt_signin.py"
 app apps/disktools "$V/APPS" "DiskTools.cvt=Disk Tools.cvt"
 app apps/about "$V/APPS" "About.cvt=About this X16.cvt"
+# MIDI Player (DECISIONS V205): MooingLemur's Melodius MIDI engine and
+# ZSMKit (MIT) built from apps/midiplay/vendor
+app apps/midiplay "$V/APPS" "MIDIPlay.cvt=MIDI Player.cvt"
 app apps/update "$V/APPS" "Update.cvt=Veranda Update.cvt"
 # (its PC source runs on a PC: PC/; V130)
 cp tools/update_server.py "$DEST/PC/update_server.py"
@@ -376,9 +379,9 @@ START
 The shell opens in /DOCUMENTS; disk > documents opens it again, the card
 icon the card's top folder. Double-click a document to open it with its
 application from /VERANDA/APPS (.X16S .XLSX .ODS .CSV Veranda Calc, .TXT
-Veranda Edit, .MOD MOD Player, .SID SID Player, .D64 .D71 .D81 Archive,
-.TEL Term, .BMP View, .BAS VeraBASIC). BASIC (keep Veranda): back with
-SYS 35328, or LOAD"RBOOT" and RUN (in /VERANDA).
+Veranda Edit, .MOD MOD Player, .MID .MIDI .ZSM MIDI Player, .SID SID Player,
+.D64 .D71 .D81 Archive, .TEL Term, .BMP View, .BAS VeraBASIC). BASIC (keep
+Veranda): back with SYS 35328, or LOAD"RBOOT" and RUN (in /VERANDA).
 
 VERANDA FTP
   An FTP client through TexElec's Serial & ESP32 Network Card (its Wi-Fi

@@ -45,6 +45,7 @@
 
 **Music, games, BASIC**
 - [MOD Player](MOD-Player.md)
+- [MIDI Player](MIDI-Player.md)
 - [SID Player](SID-Player.md)
 - [VIDKIT Player](VIDKIT-Player.md)
 - [Solitaire](Solitaire.md)
