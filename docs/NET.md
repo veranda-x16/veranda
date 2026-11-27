@@ -94,7 +94,9 @@ sends one ahead only while nothing else waits (a command, a send, a
 connection to make or close) and every open socket has room for two
 packets; with one always out, a pull's 0.5 s deadline counts from each
 header that comes, so a long pass of the program (a card write) is not
-taken for a modem that does not answer. The emulator's modem drops an
+taken for a modem that does not answer, and (V211) no deadline is
+checked while bytes still wait in the serial ring (after a pass of a
+second two packets may wait there, more than one step reads). The emulator's modem drops an
 XON that comes while more than a packet waits to go out (the firmware
 would keep it): one ahead never meets that. Also since V210 the serial
 ring is read in assembly (`ser_get`, some 40 cycles a byte; the C loop
@@ -102,6 +104,31 @@ took 120) and the packets' CRC-8 too (`vrnetcrc.s`, 17 cycles a byte;
 60). For the most, read the socket on every pass with a buffer of 256
 bytes and keep each pass short (Veranda Update calls `net_poll()` again
 between the parts of its own work).
+
+**When to call `net_ahead_on()`** (DECISIONS V211). In any program whose
+downloads are more than a few packets (a file, a page, a picture): call
+it once, after `net_start()`; Veranda Update, FTP, Gemini and Gopher do.
+It costs its 200 bytes of main RAM and nothing else: sends, commands and
+connections still go first, and with a second socket open (FTP's control
+connection) it waits only while that socket's ring is fuller than
+1 KB - 2 packets, so read every open socket on every pass and the idle one
+never holds the data back. Leave it out where what comes is slower than
+the line anyway (Veranda Ask's and Claude's streamed answers, Chat) and
+the 200 bytes are worth more. Two more rules from V211's measurements:
+the status line's text in the UI font takes some 55-65 ms each time it
+is drawn, and while it is drawn no packet is pulled and no send's OK is
+seen: draw a transfer's progress once a second, not more; and an upload
+goes as fast as its ring is full when each `ATT`'s OK comes: since V211 a
+packet's bytes leave the 256-byte send ring as they are pushed to the
+UART (not when the OK comes), so `net_write` again at once after
+`net_poll()`, and while the pulls bring nothing the sends follow one
+another (a pull every 10 frames for what the other side says). `ATT`s
+are not sent ahead of their OK: while Zimodem 4.0.2 writes one `ATT`'s
+bytes to the socket (`doTransmitCommand`: `readBytes`, then the client's
+`write`), what comes next waits in the ESP32's serial receive buffer
+(the core's default 256 bytes: Zimodem sets no other), and the card has
+no CTS (Packet16 D21): a socket slow to take them would lose bytes, and
+`readBytes` would then take the next command's as the payload.
 
 **Rates.** 57600 is the default and the one proven on the card. The UART
 is read from VERA's line interrupt 16 times a frame (every 1.05 ms: 6

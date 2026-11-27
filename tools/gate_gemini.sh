@@ -49,6 +49,12 @@
 #    (tests/gemini_launch.py's SHELL.TST): Veranda Gemini started with it,
 #    the box "Look up in Wikipedia:" at once, the article
 # 3. nomodem (-uart 9FE0 file:, no modem): the address typed: the box
+# 4. (V211) timing, on an SD card image (tools/vcard.py: CMDR-DOS writes
+#    the card as on the X16): a page of 28 KB, a binary of 200 KB saved,
+#    a JPEG of 192 KB shown, through the emulated modem at 57600: the
+#    emulated X16's seconds of each (GE TIME ...). The emulated modem
+#    answers at once and makes no TLS: this side and the line.
+#    ONLY=timing: this session only.
 # (V192, before 2: jpeg: the JPEG decoder on the X16's own runtime, its
 #    tiles against tests/jpeg_ref.py with VERA FX's multiplier and without,
 #    their times at 8 MHz)
@@ -185,6 +191,49 @@ if [ -n "$PICS_ONLY" ]; then
 	grep "GE " "$R/log.txt" | grep -v "GE L \|GE IROW" | tail -40
 	exit 0
 fi
+echo "== (V211) timing: a page of 28 KB, a binary of 200 KB, a JPEG of 192 KB through the emulated modem at 57600, on an SD card image"
+R=$OUT/timing
+server "$R/srv"
+mkdir -p "$R/VERANDA/.SYSTEM" "$R/DOCUMENTS"
+printf 'pictures=250\r\n' > "$R/VERANDA/.SYSTEM/GEMINI.CFG"
+cp "$A/test/Gemini.cvt" "$R/AUTOSTART.cvt"
+cp "$A/SHELL.cvt" build/VERANDA.SYS "$R/"
+cp "$A/SHELL.cvt" "$R/VERANDA/"
+echo "timing $SPORT" > "$R/GEMINI.TST"
+mkdir -p "$R.sd"
+$PY tools/vcard.py make --mb 64 "$R.sd/sd.img" "$R" >/dev/null || fail "vcard make (timing)"
+cp build/VERANDA.PRG "$R.sd/"
+(cd "$R.sd" && SDL_VIDEODRIVER=dummy timeout -s INT 1200 "$EMU_NET" -rom "$ROM" -sdcard sd.img -prg VERANDA.PRG -run \
+	-warp -sound none -echo -dump V -uartclock 14.7456 -uart 9FE0 "modem:baud=57600,log=$R/modem.log" \
+	> console.txt 2>&1) || true
+tr '\r' '\n' < "$R.sd/console.txt" > "$R/log.txt"
+server_end
+$PY tools/vcard.py get "$R.sd/sd.img" DOCUMENTS/big.bin "$R/got.bin" >/dev/null 2>&1 || true
+rm -f "$R.sd/sd.img"
+grep -q "^GE END$" "$R/log.txt" || { grep "^GE" "$R/log.txt" | tail -30; fail "timing: the session did not end"; }
+$PY - "$R" <<'EOF' || fail "timing"
+import os, re, sys
+R = sys.argv[1]
+log = open(os.path.join(R, 'log.txt'), encoding='latin-1').read()
+def v(k):
+    m = re.findall(r'^GE %s (\d+)$' % k, log, re.M)
+    if not m:
+        sys.exit('FAIL  timing: no "GE %s"' % k)
+    return int(m[-1])
+TBIN = bytes((i * 131 + (i >> 8) * 7) & 255 for i in range(204800))    # (tests/gemini_server.py's)
+if not os.path.exists(os.path.join(R, 'got.bin')) or open(os.path.join(R, 'got.bin'), 'rb').read() != TBIN:
+    sys.exit('FAIL  timing: big.bin not equal')
+for k, w in (('PAGE', 'the page'), ('BIN', 'the binary'), ('JPG', 'the JPEG')):
+    t, b, n, pk = v('TIME ' + k), v('TBODY ' + k), v('TBYTES ' + k), v('TPACKETS ' + k)
+    print('ok    %s: %d bytes in %.1f s of the emulated X16, its body %.1f s (%.2f KB/s); %d XONs, %d packets (%.1f ms a packet)'
+          % (w, n, t / 60, b / 60, n / 1024 / max(b / 60, 0.01), v('TPULLS ' + k), pk, b / 60 * 1000 / max(1, pk)))
+print('      the page %d lines; the JPEG shown %.1f s after its request; the main loop\'s longest gap %d frames; UART lost %d, overruns %d, bad CRC %d'
+      % (v('TLINES'), v('TSHOWN') / 60, v('MAXGAP'), v('LOST'), v('OE'), v('BADCRC')))
+if v('LOST') or v('OE') or v('BADCRC'):
+    sys.exit('FAIL  timing: bytes lost')
+EOF
+if [ "$ONLY" = timing ]; then echo "GATE gemini: the timing session only (ONLY=timing)"; exit 0; fi
+
 echo "== main: the bookmarks, gemtext, links, Back and Forward, questions, redirects, errors, texts, a download with Alt+Tab, Stop, Find, bookmarks, web pages (NewsWaffle, the proxy)"
 R=$OUT/main
 server "$R/srv"

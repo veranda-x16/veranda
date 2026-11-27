@@ -675,7 +675,7 @@ void ui_tick(void)
     }
     if (gbusy) {
         wasbusy = 1;
-        if (ser_frames - tshow < 20)
+        if (ser_frames - tshow < 60)   /* (V211: once a second, the UI font's text some 60 ms) */
             return;
         tshow = ser_frames;
         if (!gfirst && !gdl)

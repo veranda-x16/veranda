@@ -108,6 +108,8 @@ unsigned char parse_time(const char *s, struct when *w)
     unsigned int y, mo, d, h, mi, se;
     unsigned char yl;
     for (; *s; ++s) {
+        if (*s < '0' || *s > '9')
+            continue;                   /* (V212: a date starts with a digit; each line that comes is looked at) */
         for (yl = 4; yl >= 2; yl -= 2) {
             const char *p = s;
             if (!num(p, yl, &y) || p[yl] != '-')

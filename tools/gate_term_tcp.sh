@@ -33,6 +33,11 @@
 #          host)", ATZ
 #  nomodem nothing on the line (-uart 9FE0 file:): the box "The modem
 #          does not answer"
+#  kbench  (V212; the second test build, TERM_UI) the drawing's speed: 300
+#          lines (drawn every 4, and one a pass as the main loop draws),
+#          the model alone, single lines scrolled, ANSI screens, the window
+#          drawn again, the kernel's ScrollRect (frames at 8 MHz).
+#          ONLY=bench: the build and this session only
 # Screenshots (tools/vram2png.py --color) in $OUT: tel.png, raw.png,
 # hosts.png, refused.png, nomodem.png.
 set -e
@@ -58,7 +63,7 @@ SDK=$(cd "$OUT/sdk" && pwd)
 TOP=$(pwd)
 make -s -C apps/term SDK="$SDK" OUT="$TOP/$OUT/app" >"$OUT/app/build.log" 2>&1 \
 	|| { cat "$OUT/app/build.log"; fail "Veranda Term does not build"; }
-make -s -C apps/term test SDK="$SDK" OUT="$TOP/$OUT/test" >"$OUT/test/build.log" 2>&1 \
+[ "$ONLY" = bench ] || make -s -C apps/term test SDK="$SDK" OUT="$TOP/$OUT/test" >"$OUT/test/build.log" 2>&1 \
 	|| { cat "$OUT/test/build.log"; fail "the test build does not build"; }
 mkdir -p "$OUT/testui"
 make -s -C apps/term test SDK="$SDK" OUT="$TOP/$OUT/testui" TESTFLAGS=-DTERM_UI >"$OUT/testui/build.log" 2>&1 \
@@ -95,6 +100,7 @@ run() {
 png() { $PY tools/vram2png.py --color "$1" "$2" 2>/dev/null || true; }
 inlog() { grep -q "^$2" "$OUT/$1/log.txt" || fail "$1: no \"$2\" in the log"; }
 
+if [ "$ONLY" != bench ]; then
 echo "== tel: Telnet to a test host"
 P=$(freeport)
 run tel tel telnet "$P" "modem:log=$TOP/$OUT/tel/modem.log" 150
@@ -209,8 +215,10 @@ inlog nomodem "TERM TCP NO MODEM"
 ok "no modem: the rates tried again, the profile's AT unanswered: the box \"The modem does not answer\""
 png "$OUT/nomodem/dump.bin" "$OUT/nomodem.png"
 
+fi
 # (V194, V195) the second test build (TERM_UI): idle, and the pages with the mouse
 export TCVT=$OUT/testui/Term.cvt
+if [ "$ONLY" != bench ]; then
 echo "== idle: 10 s with nothing happening (V194)"
 SESS=idle run i idle "" 1 "modem:log=$TOP/$OUT/idle/modem.log" 90
 grep -q "^TERM IDLE 10S STATUS 0 PARTS 0 CURSOR 0 TX 0$" "$OUT/idle/log.txt" \
@@ -228,6 +236,30 @@ if l != want:
 print('ok    the modem log: only the rate found (AT, ATB38400), then nothing in 11 s')
 EOF
 png "$OUT/idle/dump.bin" "$OUT/idle.png"
+
+fi
+
+echo "== (V212) bench: the drawing's speed (the model written and drawn as the main loop does)"
+SESS=kbench run k bench "" 1 "modem:log=$TOP/$OUT/bench/modem.log" 120
+$PY - "$OUT/bench/log.txt" <<-'EOF' || fail "bench"
+import re, sys
+log = open(sys.argv[1], encoding='latin-1').read()
+def v(k):
+    m = re.search(r'^TERM BENCH %s (\d+)$' % k, log, re.M)
+    if not m:
+        sys.exit('FAIL  bench: no "TERM BENCH %s"' % k)
+    return int(m.group(1)) / 60
+cat, st, mod, mods, scr, ansi, red, sr = (v(k) for k in ('CAT', 'STREAM', 'MODEL', 'MODELS', 'SCROLL', 'ANSI', 'REDRAW', 'SR'))
+print('ok    the drawing at 8 MHz: cat (300 lines of 80 characters, drawn every 4 lines) %.2f s, %d characters a second, '
+      '%.1f ms a line; a line a pass drawn as the main loop draws %.1f ms a line (%d characters a second); the model alone %.1f ms a line (%d cycles a character; on the serial line, its result lines '
+      'looked for, %.1f ms); 300 lines scrolled one by one %.1f ms a line; a full screen in ANSI colours %.0f ms; the '
+      'window drawn again %.0f ms; the kernel\'s ScrollRect of the window by a line %.1f ms'
+      % (cat, 300 * 81 / cat, cat * 1000 / 300, st * 1000 / 300, 300 * 81 / st, mod * 1000 / 300, mod * 8e6 / 300 / 81, mods * 1000 / 300,
+         scr * 1000 / 300, ansi * 100, red * 100, sr * 1000 / 50))
+EOF
+png "$OUT/bench/dump.bin" "$OUT/bench.png"
+
+if [ "$ONLY" = bench ]; then echo "GATE term_tcp: the bench only (ONLY=bench)"; exit 0; fi
 
 echo "== mouse: the Hosts page and the address book with the mouse (V195)"
 P1=$(freeport); P2=$(freeport); P3=$(freeport)

@@ -221,6 +221,8 @@ LONG = b''.join(b'Line %05d: the quick brown fox jumps over the lazy dog.\r\n' %
 need(lg[0][1] == wrap(LONG)[:80], 'the long text\'s first lines')
 ok('a long text (80,000 bytes): 49,152 kept (6 RAM banks), %d lines, the rest not read (the connection closed), '
    'the note "Cut here" after them; End shows the last 34 lines (12 pixels a line)' % lines)
+if val('GO TIME LONG ') is not None:
+    print('      (V211) the long text: %.1f s of the emulated X16 from its click to its end (49,152 bytes)' % (val('GO TIME LONG ') / 60))
 
 se = [p for p in P if p[0] == ROOT + '7/search%09veranda']
 need(se and se[0][1] == ['iYou searched for: veranda', '0A result'], 'the search: %s' % [p[0] for p in P])

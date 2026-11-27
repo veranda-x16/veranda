@@ -539,13 +539,16 @@ void ui_done(unsigned char op)
         clear_remote();
 }
 
-/* every pass: the transfer's progress, the modem's state */
+/* every pass: the transfer's progress, the modem's state. (V211) The
+   progress once a second: the status bar's text in the UI font takes
+   some 55 ms, and an upload's next packet waits for it (gate ftp's
+   timing session: 12 s of 72 for 300 KB at three times a second) */
 void ui_tick(void)
 {
     unsigned long f, bps;
     char *p;
     if (xfer_data) {
-        if (ser_frames - tshow < 20)
+        if (ser_frames - tshow < 60)
             return;
         tshow = ser_frames;
         strcpy(msg, xf_up ? "Uploading " : "Downloading ");

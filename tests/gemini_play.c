@@ -26,6 +26,9 @@
               tools/gate_gemini.sh's launcher) the box at once: "Ada
               Lovelace", the article, the end
      nomodem  (no modem on the port) the address typed: the box, the end
+     timing   (V211; gemini_pics.c's t_timing) /t/page.gmi (a page of 28
+              KB), /t/big.bin (200 KB, saved), /t/big.jpg (192 KB, shown):
+              their times (GE TIME ...), the end
      qclose, ckey, fmenu  (V196) the pictures' page, small.png shown, then
               the close box, Ctrl+Q, Veranda Gemini > Quit (gemini_pics.c): Gemini
               ends, the test desktop's log follows
@@ -77,6 +80,8 @@ static char port[8] = { 0 };
 static unsigned char seen = 0;          /* (t_pics_prog as last seen) */
 #pragma data-name ("DATA")
 static char tl[100];                    /* (V149: main RAM, for overlay 8's room) */
+unsigned char t_time_done;              /* (V211) the timing session's end (gemini_pics.c's t_timing) */
+void t_timing(void);
 extern unsigned int v_find;
 extern char _STACKSIZE__[];             /* (the linker's __STACKSIZE__) */
 
@@ -405,6 +410,12 @@ void gt_tick(void)
     }
     if (step == 0xFF)
         return;
+    if (sess == 't') {                  /* (V211) timing: gemini_pics.c's, its own limits */
+        t_ov7(t_timing);
+        if (t_time_done)
+            the_end();
+        return;
+    }
     if (ser_frames - tstep_t > 60u * 90) {
         logn("GE TEST STUCK AT STEP ", step);
         snap("FAIL.RAW");

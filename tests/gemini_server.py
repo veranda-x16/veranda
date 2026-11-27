@@ -146,6 +146,11 @@ PICS = ['gray1', 'pal1', 'pal4', 'pal8', 'gray8', 'rgb', 'rgba', 'gray16', 'smal
 PNGS = {k: png_ref.make(k) for k in PICS}
 JPGS = {k: jpeg_ref.make(k) for k in ('photo', 'progressive', 'p422')}
 JPEG = JPGS['p422']             # (the gallery's Wawel)
+# (V211) the timing session's page and binary
+TPAGE = ''.join(('## Part %d\n' % (i // 20) if i % 20 == 0 else '') + ('=> /sub/page.gmi A link, line %d\n' % i if i % 7 == 0 else
+                'Line %d of the timing page: some ordinary words that wrap on the screen as a paragraph does.\n' % i)
+                for i in range(330)).encode('utf-8')
+TBIN = bytes((i * 131 + (i >> 8) * 7) & 255 for i in range(204800))
 PICPAGE = ('# Pictures\n' + ''.join('=> pic/%s.png %s.png\n' % (k, k) for k in PICS) + '=> pic/photo.jpg photo.jpg\n'
            '=> pic/progressive.jpg progressive.jpg\n=> /cgi-bin/wp.cgi/images?Poland Gallery: Poland\n')
 
@@ -352,6 +357,12 @@ def serve(c, port):
                 time.sleep(0.005)
         elif path.startswith('/pic/') and path[5:-4] in JPGS:
             send('20 image/jpeg', JPGS[path[5:-4]])
+        elif path == '/t/page.gmi':   # (V211) gate gemini's timing session: a page of 28 KB
+            send('20 text/gemini', TPAGE)
+        elif path == '/t/big.bin':    # (V211) 200 KB, sent at once
+            send('20 application/octet-stream', TBIN)
+        elif path == '/t/big.jpg':    # (V211) jpeg_ref's big (3200 x 2000, 192 KB), sent at once
+            send('20 image/jpeg', jpeg_ref.make('big'))
         elif path == '/slow':
             send('20 text/gemini', SLOW.encode('utf-8'))
             time.sleep(120)

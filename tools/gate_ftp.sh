@@ -38,6 +38,15 @@
 #      the third (its FEAT names MLSD): the listing through MLSD
 #    the main loop never waited (its longest gap); nothing lost in the
 #    UART, no bad CRC
+# 3. (V211) timing: the time of a download and an upload of 300 KB
+#    (t300.bin from the server, t300up.bin from the card, 307,200 bytes
+#    each) through the emulated modem at 57600: the emulated X16's
+#    seconds from File > Download (Upload) to its end and of its data,
+#    vrnet's XONs, packets and sends (FTP TIME ...); both files equal.
+#    On an SD card image (tools/vcard.py: CMDR-DOS writes and reads the
+#    card as on the X16; a host folder costs no cycles). The emulated
+#    modem answers at once: what it measures is this side, the card and
+#    the line. ONLY=timing: this session only.
 # Screenshots: $OUT/sites.png, $OUT/connected.png, $OUT/transfer.png,
 # $OUT/end.png.
 set -e
@@ -125,6 +134,7 @@ run() {
 	tr '\r' '\n' < "$dir/console.txt" > "$dir/log.txt"
 }
 
+if [ "$ONLY" != timing ]; then
 echo "== main: log in, list, folders, a download with Alt+Tab, an upload, a folder made, a rename, deletes, the errors"
 R=$OUT/main
 S=$R/srv
@@ -159,6 +169,63 @@ done
 $PY tests/check_l10_text.py --raw "$R/CONN.RAW" "$ROM" --cp437 "Zażółć gęślą" || fail "the UTF-8 name on the screen"
 [ -f "$OUT/xfer.png" ] && mv "$OUT/xfer.png" "$OUT/transfer.png"
 $PY tests/check_ftp.py "$R" || fail "main"
+fi
+
+echo "== (V211) timing: a download and an upload of 300 KB through the emulated modem at 57600"
+R=$OUT/timing
+S=$R/srv
+mkdir -p "$S/root/pub" "$R/DOCUMENTS" "$R/VERANDA/.SYSTEM"
+$PY - "$S/root/pub" "$R/DOCUMENTS" <<'EOF'
+import os, random, sys
+r = random.Random(211)
+open(os.path.join(sys.argv[1], 't300.bin'), 'wb').write(r.randbytes(307200))
+open(os.path.join(sys.argv[2], 't300up.bin'), 'wb').write(r.randbytes(307200))
+EOF
+server "$S"
+printf 'Gate server,127.0.0.1,%s,,,/pub\r\n' "$SPORT" > "$R/VERANDA/.SYSTEM/FTP.SITES"
+cp "$A/test/FTP.cvt" "$R/AUTOSTART.cvt"
+cp "$A/SHELL.cvt" build/VERANDA.SYS "$R/"
+cp "$A/SHELL.cvt" "$R/VERANDA/"
+echo "timing $(date +'%y %m %d %H %M')" > "$R/FTP.TST"
+mkdir -p "$R.sd"
+$PY tools/vcard.py make --mb 64 "$R.sd/sd.img" "$R" >/dev/null || fail "vcard make (timing)"
+cp build/VERANDA.PRG "$R.sd/"
+(cd "$R.sd" && SDL_VIDEODRIVER=dummy timeout -s INT 1500 "$EMU_NET" -rom "$ROM" -sdcard sd.img -prg VERANDA.PRG -run \
+	-warp -sound none -echo -dump V -uartclock 14.7456 -uart 9FE0 "modem:baud=57600,log=$R/modem.log" \
+	> console.txt 2>&1) || true
+tr '\r' '\n' < "$R.sd/console.txt" > "$R/log.txt"
+server_end
+$PY tools/vcard.py get "$R.sd/sd.img" DOCUMENTS/t300.bin "$R/got.bin" >/dev/null 2>&1 || true
+rm -f "$R.sd/sd.img"
+grep -q "^FTP END$" "$R/log.txt" || { grep "^FTP" "$R/log.txt" | tail -30; fail "timing: the session did not end"; }
+$PY - "$R" <<'EOF' || fail "timing"
+import os, re, sys
+R = sys.argv[1]
+log = open(os.path.join(R, 'log.txt'), encoding='latin-1').read()
+def v(k):
+    m = re.findall(r'^FTP %s (\d+)$' % k, log, re.M)
+    if not m:
+        sys.exit('FAIL  timing: no "FTP %s"' % k)
+    return int(m[-1])
+if not os.path.exists(os.path.join(R, 'got.bin')) or open(os.path.join(R, 'got.bin'), 'rb').read() != open(os.path.join(R, 'srv', 'root', 'pub', 't300.bin'), 'rb').read():
+    sys.exit('FAIL  timing: t300.bin not equal')
+if open(os.path.join(R, 'srv', 'stored', 't300up.bin'), 'rb').read() != open(os.path.join(R, 'DOCUMENTS', 't300up.bin'), 'rb').read():
+    sys.exit('FAIL  timing: t300up.bin not equal on the server')
+for k, w in (('DOWN', 'download'), ('UP', 'upload')):
+    t, d, n = v('TIME ' + k), v('TDATA ' + k), v('TBYTES ' + k)
+    pk, se = v('TPACKETS ' + k), v('TSENDS ' + k)
+    print('ok    the %s: %d bytes in %.1f s of the emulated X16 (%.2f KB/s), its data %.1f s (%.2f KB/s); '
+          '%d XONs, %d packets (%.1f ms a packet), %d empty, %d sends (%.1f ms a send), %d XONs again'
+          % (w, n, t / 60, n / 1024 / (t / 60), d / 60, n / 1024 / (d / 60), v('TPULLS ' + k), pk,
+             d / 60 * 1000 / max(1, pk) if k == 'DOWN' else 0, v('TEMPTIES ' + k), se,
+             d / 60 * 1000 / max(1, se) if k == 'UP' else 0, v('TRETRIES ' + k)))
+    print('      %d passes of the main loop (%.1f ms a pass); %.1f s in the status line\'s redraws, %.1f s in the card\'s calls'
+          % (v('TPASSES ' + k), d / 60 * 1000 / max(1, v('TPASSES ' + k)), v('TUI ' + k) / 60, v('TFILE ' + k) / 60))
+lost, oe, bad = v('LOST'), v('OE'), v('BADCRC')
+print('      the main loop\'s longest gap %d frames; UART lost %d, overruns %d, bad CRC %d' % (v('MAXGAP'), lost, oe, bad))
+if lost or oe or bad:
+    sys.exit('FAIL  timing: bytes lost')
+EOF
 
 echo "screenshots: $OUT/sites.png $OUT/connected.png $OUT/transfer.png $OUT/end.png"
 echo "GATE ftp: PASS"

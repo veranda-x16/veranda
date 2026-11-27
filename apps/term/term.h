@@ -56,8 +56,14 @@ void vt_init(unsigned char bank0, unsigned char hbank, unsigned char hbanks);
 void vt_reset(void);
 void vt_put(unsigned char c);
 void vt_write(const unsigned char *p, unsigned int n);
+/* (V212) n printable characters (32-126, below $A000) as vt_put takes
+   them, runs of them at once (vt.c); the printable run at p's start, at
+   most n and 255 (vtrun.s) */
+void __fastcall__ vt_text(const unsigned char *s, unsigned char n);
+unsigned char __fastcall__ net_run(const unsigned char *p, unsigned int n);
 void vt_puts(const char *s);
 void vt_render(void);
+void __fastcall__ vt_pass(unsigned char got);  /* (V212) the main loop's: got, bytes came this pass */
 void vt_redraw(void);           /* everything dirty */
 void vt_mapclear(void);         /* the window's colours off (before a page) */
 void vt_view(int delta);        /* scrollback: lines back (0: live) */

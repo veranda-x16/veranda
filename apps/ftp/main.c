@@ -320,19 +320,37 @@ void xf_close(unsigned char ok)
     }
 }
 
+#ifdef FTP_TEST
+unsigned int t_ui, t_file;              /* (V211) frames in the status's redraws, in the card's calls */
+#endif
+
 unsigned char __fastcall__ xf_write(const unsigned char *b, unsigned int n)
 {
+#ifdef FTP_TEST
+    unsigned int t = ser_frames;
+    unsigned char e = !xf_h || FWrite(xf_h, (void *)b, n);
+    t_file += ser_frames - t;
+    if (e)
+        return 0;
+#else
     if (!xf_h || FWrite(xf_h, (void *)b, n))
         return 0;
+#endif
     xf_fpos += n;
     return 1;
 }
 
 unsigned int __fastcall__ xf_read(unsigned char *b, unsigned int n)
 {
+#ifdef FTP_TEST
+    unsigned int t = ser_frames;
+#endif
     if (!xf_h)
         return 0;
     n = FRead(xf_h, b, n);
+#ifdef FTP_TEST
+    t_file += ser_frames - t;
+#endif
     xf_fpos += n;
     return n;
 }
@@ -378,6 +396,7 @@ void net_restart(void)
 {
     net_stop();
     net_on = net_start(0, 576) == NET_OK;
+    net_ahead_on();                     /* (V211: one XON ahead, a download at the line's rate) */
     net_aside = net_on ? asideVector : 0;
     asideVector = VR_FN(aside);
 }
@@ -392,7 +411,15 @@ static void tick(void)
     op = ftp_poll();
     if (op)
         ui_done(op);
+#ifdef FTP_TEST
+    {
+        unsigned int t = ser_frames;
+        ui_tick();
+        t_ui += ser_frames - t;
+    }
+#else
     ui_tick();
+#endif
 #ifdef FTP_TEST
     RAMBANK = bOv4;
     ftp_test_tick();

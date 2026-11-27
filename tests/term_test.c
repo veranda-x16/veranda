@@ -28,6 +28,8 @@
              double click on the 3rd (it connects); a the address book,
              row 9 clicked; b a double click on row 9 (it dials); e row 8
              clicked, then the Dial button
+     kbench  (V212, gate term_tcp) the modem found, then the drawing's
+             speed: TERM BENCH CAT, SCROLL, ANSI, REDRAW (frames)
    The end: TERM.SCR written, a line logged, VRAM dumped. */
 
 void __fastcall__ term_play(const unsigned int *script);
@@ -293,6 +295,115 @@ static void test_idle(void)
         the_end();
 }
 
+/* (V212) the drawing's speed (gate term_tcp's bench): what comes in
+   given to Term as the line's bytes are (net_rx: Telnet, the capture,
+   the model) and drawn (vt_render) as the main loop does, timed in
+   frames, the main loop not running meanwhile; the lines made before
+   the clock starts:
+     CAT    300 lines of 79 characters and CR LF, drawn after every 4
+            lines (324 bytes: about what a pass of the main loop takes
+            at 57600 when the drawing is slow)
+     MODEL  the same 300 lines into the model only (vt_hold), as a TCP
+            session (no modem result lines looked for); MODELS the same
+            on the serial line (each line looked at for CONNECT, NO
+            CARRIER, a time)
+     STREAM 300 lines given one a pass and drawn as the main loop draws
+            (vt_pass; V212: at most every 3 frames while bytes come)
+     SCROLL 300 lines of one character, each drawn (a line scrolled)
+     ANSI   10 screens: the cursor home, 55 rows of 79 characters, each
+            row its own colour (ESC [ 3x m), drawn after each screen
+     REDRAW 10 times the whole window drawn again (vt_redraw)
+     SR     50 ScrollRects of the window by a line (the kernel's alone)
+   TERM BENCH <what> <frames> */
+static unsigned char b_buf[88];         /* ESC [ 3 x m, 79 characters, CR LF */
+#define B_LINE (b_buf + 5)
+
+static void __fastcall__ b_log(const char *k, unsigned int t)
+{
+    logn(k, ser_frames - t);
+}
+
+static void __fastcall__ b_cat(unsigned char draw)
+{
+    unsigned int i;
+    for (i = 0; i < 300; ++i) {
+        net_rx(B_LINE, 81);
+        if (draw && (i & 3) == 3)
+            vt_render();
+    }
+    vt_render();
+}
+
+static void test_bench(void)
+{
+    unsigned int t, i;
+    unsigned char k, r;
+    if (tstep != 1 || syncing || tt < 60)
+        return;
+    memcpy(b_buf, "\x1b[31mLine ", 10);
+    for (k = 10; k < 84; ++k)
+        b_buf[k] = 'a' + k % 26;
+    b_buf[84] = 13;
+    b_buf[85] = 10;
+    vt_render();
+    tcp = 9;                            /* (a TCP session's path) */
+    t = ser_frames;
+    b_cat(1);
+    b_log("TERM BENCH CAT ", t);
+    t = ser_frames;
+    for (i = 0; i < 300; ++i) {
+        net_rx(B_LINE, 81);
+        vt_pass(1);
+    }
+    vt_pass(0);
+    b_log("TERM BENCH STREAM ", t);
+    vt_hold = 1;
+    t = ser_frames;
+    b_cat(0);
+    b_log("TERM BENCH MODEL ", t);
+    tcp = 0;
+    t = ser_frames;
+    b_cat(0);
+    b_log("TERM BENCH MODELS ", t);
+    tcp = 9;
+    vt_hold = 0;
+    vt_redraw();
+    t = ser_frames;
+    for (i = 0; i < 300; ++i) {
+        net_rx((const unsigned char *)"x\r\n", 3);
+        vt_render();
+    }
+    b_log("TERM BENCH SCROLL ", t);
+    t = ser_frames;
+    for (k = 0; k < 10; ++k) {
+        net_rx((const unsigned char *)"\x1b[H", 3);
+        for (r = 0; r < 55; ++r) {
+            b_buf[3] = '1' + (r + k) % 7;
+            net_rx(b_buf, r < 54 ? 86 : 84);
+        }
+        vt_render();
+    }
+    net_rx((const unsigned char *)"\x1b[0m", 4);
+    b_log("TERM BENCH ANSI ", t);
+    tcp = 0;
+    t = ser_frames;
+    for (k = 0; k < 10; ++k)
+        vt_redraw();
+    b_log("TERM BENCH REDRAW ", t);
+    dispBufferOn = ST_WR_FORE;
+    t = ser_frames;
+    for (k = 0; k < 50; ++k)
+        ScrollRect(0, COLS, TY, TY + ROWS * 8 - 1, -8, 0);
+    b_log("TERM BENCH SR ", t);
+    t = ser_frames;
+    for (k = 0; k < 10; ++k)
+        for (r = 0; r < ROWS; ++r)
+            PutCards(b_buf + 5, font, 0, COLS - 1, TY + (r << 3), 0);
+    b_log("TERM BENCH PC ", t);
+    vt_redraw();
+    the_end();
+}
+
 /* (V195) the pages with the mouse: rows at LISTTOP + 16 i */
 #define ROWY(i) (LISTTOP + 16 * (i) + 8)
 
@@ -468,6 +579,9 @@ static void test_tick(void)
         break;
     case 'm':
         test_mouse();
+        break;
+    case 'k':                           /* (V212) the drawing's speed */
+        test_bench();
         break;
 #endif
     }

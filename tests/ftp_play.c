@@ -16,6 +16,11 @@
              (the box's OK clicked); Connection > Disconnect; the second
              server (a wrong password): the box; the third (MLSD); the end
      probe   the screen once the modem is ready, then the end
+     timing  (V211) the first server; t300.bin (307,200 bytes) downloaded,
+             then t300up.bin from the card uploaded: each one's frames
+             from File > Download (Upload) to its end and from its first
+             data byte to its last, its bytes, vrnet's XONs, packets,
+             empty packets and sends (FTP TIME ...)
    Screens: SITES.RAW, CONN.RAW, XFER.RAW, END.RAW (ftp_snap: the
    foreground's 480 rows of 80 bytes, the cards' paper colours, 60 rows of
    80, the palette's 16 entries); the log lines "FTP ..." on the console.
@@ -277,9 +282,60 @@ static void clock(void)
     SetClock(100 + num2(p + 1), num2(p + 4), num2(p + 7), num2(p + 10), num2(p + 13), 0, 1);
 }    /* (the main loop's longest gap) */
 
+/* (V211) the timing session: a transfer's frames, from its start (fop)
+   and from its data's first byte, and vrnet's counters over it */
+static unsigned int tt_op, tt_data, tt_end, tt_dend, tt_passes;
+static struct net_stats tt_ns;
+extern unsigned int t_ui, t_file;
+static unsigned char tt_was;
+
+static void tt_watch(void)
+{
+    if (fop == OP_RETR || fop == OP_STOR) {
+        if (!tt_op) {
+            tt_op = ser_frames;
+            tt_ns = net_stats;
+            t_ui = t_file = 0;
+        }
+        if (!tt_data && xf_pos)
+            tt_data = ser_frames;
+        if (xfer_data)
+            tt_dend = ser_frames, ++tt_passes;
+        tt_was = 1;
+    } else if (tt_was && !tt_end)
+        tt_end = ser_frames;
+}
+
+static void __fastcall__ tt_one(const char *a, const char *k, unsigned int v)
+{
+    strcpy(tl, a);
+    strcat(tl, k);
+    strcat(tl, " ");
+    logn(tl, v);
+}
+
+static void __fastcall__ tt_report(const char *k)
+{
+    tt_one("FTP TIME ", k, tt_end - tt_op);
+    tt_one("FTP TDATA ", k, tt_dend - tt_data);
+    logn(k[0] == 'D' ? "FTP TBYTES DOWN " : "FTP TBYTES UP ", xf_pos);
+    tt_one("FTP TPULLS ", k, net_stats.pulls - tt_ns.pulls);
+    tt_one("FTP TPACKETS ", k, net_stats.packets - tt_ns.packets);
+    tt_one("FTP TEMPTIES ", k, net_stats.empties - tt_ns.empties);
+    tt_one("FTP TSENDS ", k, net_stats.sends - tt_ns.sends);
+    tt_one("FTP TRETRIES ", k, net_stats.xon_retries - tt_ns.xon_retries);
+    tt_one("FTP TPASSES ", k, tt_passes);
+    tt_one("FTP TUI ", k, t_ui);
+    tt_one("FTP TFILE ", k, t_file);
+    tt_op = tt_data = tt_end = tt_dend = tt_passes = 0;
+    tt_was = 0;
+}
+
 void ftp_test_tick(void)
 {
     unsigned char h;
+    if (sess == 't')
+        tt_watch();
     if (t_boxed)
         t_boxed = tlast = 0;            /* (no main loop while a box is open) */
     if (tlast && ser_frames - tlast > tmax)
@@ -303,7 +359,7 @@ void ftp_test_tick(void)
     }
     if (step == 0xFF)
         return;
-    if (ser_frames - tstep_t > 60u * 90) {
+    if (ser_frames - tstep_t > (sess == 't' ? 60u * 600 : 60u * 90)) {
         logn("FTP TEST STUCK AT STEP ", step);
         snap("FAIL.RAW");
         fail("TIMEOUT");
@@ -340,6 +396,15 @@ void ftp_test_tick(void)
             return;
         if (!logged)
             fail("NOT CONNECTED");
+        if (sess == 't') {              /* (V211) the timing session */
+            if (!pick(10, REMOTE, "t300.bin"))
+                fail("NO t300.bin");
+            M(30, 2, 0);
+            go();
+            step = 30;
+            tstep_t = ser_frames;
+            return;
+        }
         snap("CONN.RAW");
         say("FTP TEST CONNECTED");
         h = row_of(REMOTE, "dosdir");
@@ -472,6 +537,22 @@ void ftp_test_tick(void)
         C(100, 2 * 8 + 30, 344 + 8);
         go();
         break;
+    case 30:                            /* (timing) downloaded: t300up.bin from the card */
+        if (!idle() || !tt_end)
+            return;
+        tt_report("DOWN");
+        if (!pick(10, LOCAL, "t300up.bin"))
+            fail("NO t300up.bin");
+        M(30, 2, 1);
+        go();
+        break;
+    case 31:                            /* (timing) uploaded */
+        if (!idle() || !tt_end)
+            return;
+        tt_report("UP");
+        logn("FTP MAXGAP ", tmax);
+        the_end();
+        return;
     case 17:
         if (!idle() || !logged)
             return;

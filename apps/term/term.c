@@ -936,6 +936,11 @@ static struct menu4 mbar = { 0, 14, 0, 0, HORIZONTAL | UN_CONSTRAINED | 4, {
     { "Options", SUB_MENU, &mopts } } };
 static const char *const barnames[4] = { "Term", "File", "Connection", "Options" };
 
+/* (V212) strw and layout run once, at the start: in overlay 3 (main's
+   call maps it), for the resident program's room */
+#pragma code-name (push, "OVERLAY3")
+#pragma rodata-name (push, "OVL3RO")
+
 /* an item's width: a tab 24 pixels, $1F nothing (shell/look3.c's mwidth) */
 static unsigned int strw(const char *s)
 {
@@ -946,7 +951,11 @@ static unsigned int strw(const char *s)
     return w;
 }
 
+#pragma code-name (pop)
+#pragma rodata-name (pop)
 static unsigned int barx[4];    /* the bar's items' middles (the test build clicks them) */
+#pragma code-name (push, "OVERLAY3")
+#pragma rodata-name (push, "OVL3RO")
 
 /* the lists' widths in the UI font (the menus' font, theme_menus); the
    kernel puts each under its bar item (vr_bar_end: where the items are) */
@@ -971,6 +980,8 @@ static void layout(void)
     mbar.right = barend = vr_bar_end(barnames, 4);
     UseSystemFont();
 }
+#pragma code-name (pop)
+#pragma rodata-name (pop)
 
 /*---------------------------------------------------------------
   keys
@@ -1075,7 +1086,7 @@ static void test_tick(void);
 static void tick(void)
 {
     unsigned int n;
-    unsigned char i;
+    unsigned char i, got = rx_total;
     term_wake();                        /* (after the switcher: V91) */
     if (tcp > TCP_WAIT || (tcp && !syncing))
         tcp_tick();                     /* (V112: the line is tcp.c's) */
@@ -1097,7 +1108,7 @@ static void tick(void)
         o_info_pump();
     }
     if (!vt_hold && !vt_back)
-        vt_render();
+        vt_pass(got != (unsigned char)rx_total);
     /* the I-beam over the terminal's text, the arrow over the pages and
        elsewhere (DECISIONS V51) */
     SetPointer(!vt_hold && mouseYPosW >= TY && mouseYPosW < TY + ROWS * 8 ? PTR_IBEAM : PTR_ARROW);
@@ -1158,7 +1169,9 @@ int main(void)
     }
     nouart = ser_start();
     frame();
+    MAPBANK(ovl3);
     layout();
+    MAPBANK(ovl);
     theme_load();
     theme_menus();                      /* the menu bar (V74; black and white: the ANSI colours) */
     DoMenu((void *)&mbar, 0);

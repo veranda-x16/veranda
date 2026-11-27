@@ -52,6 +52,7 @@ static unsigned char ns;
 static unsigned int tplay, tlen;        /* the script's start (ser_frames), its last frame */
 static unsigned char step, sess;
 static unsigned int t0, tmax, tlast, tstep_t;    /* (tmax: the main loop's longest gap) */
+static unsigned int tlong;              /* (V211) the long text's request (GO TIME LONG: frames to its end) */
 static char tl[100];
 static char port[8];
 static unsigned char mshot = 0;         /* (V149, main RAM's DATA) the Go menu's picture: 1 open, 2 taken */
@@ -474,10 +475,12 @@ void gt_tick(void)
             return;
         click(10, "A long text");
         go_();
+        tlong = ser_frames;
         break;
     case 9:                             /* cut: End */
         if (!idle())
             return;
+        logn("GO TIME LONG ", ser_frames - tlong);
         snap("LONG.RAW");
         bench();
         logn("GO TEST LONG FULL ", doc_full);

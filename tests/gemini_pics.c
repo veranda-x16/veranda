@@ -601,3 +601,123 @@ void page_log7(void)
     unum(line + strlen(line), doc_len);
     gt_log(line);
 }
+
+/*---------------------------------------------------------------
+  (V211) the timing session (gemini_play.c's sess 't', here for overlay
+  8's room): /t/page.gmi, /t/big.bin (saved: its box, Yes), /t/big.jpg
+  (shown), each one's frames from its request (gbusy) to its last byte
+  and from its first body byte, vrnet's XONs and packets (GE TIME ...);
+  t_url (main RAM) "gemini://127.0.0.1:<port>"; t_time_done 1 at the end
+ ---------------------------------------------------------------*/
+extern unsigned char t_time_done;
+#pragma data-name ("OVL9DATA")          /* (initialised: loaded with the overlay, as its BSS is not cleared) */
+static char t_url[48] = { 0 };          /* "gemini://127.0.0.1:<port>" */
+static unsigned char t_ts = 0;
+static unsigned int t_tt[5] = { 0 };
+#pragma data-name ("DATA")
+#define ts t_ts
+#define tt_a t_tt[0]
+#define tt_b t_tt[1]
+#define tt_c t_tt[2]
+#define tt_pulls t_tt[3]
+#define tt_packets t_tt[4]
+
+static unsigned int tnow(void)
+{
+    unsigned int t;
+    asm("sei");
+    t = ser_frames;
+    asm("cli");
+    return t;
+}
+
+static void __fastcall__ turl(const char *path)
+{
+    unsigned int f = 30;
+    strcpy(pl, t_url);
+    strcat(pl, path);
+    strcat(pl, "\r");
+    for (path = pl; *path; ++path, f += 3)
+        S(f, *path, 0, F_KEY);
+}
+
+static void __fastcall__ tlog(const char *a, const char *k, unsigned long v)
+{
+    strcpy(pl, a);
+    strcat(pl, k);
+    unum(pl + strlen(pl), v);
+    gt_log(pl);
+}
+
+static void __fastcall__ treport(const char *k)
+{
+    tlog("GE TIME ", k, tt_b - tt_a);
+    tlog("GE TBODY ", k, tt_b - tt_c);
+    tlog("GE TBYTES ", k, grx);
+    tlog("GE TPULLS ", k, net_stats.pulls - tt_pulls);
+    tlog("GE TPACKETS ", k, net_stats.packets - tt_packets);
+    tt_a = tt_c = 0;
+}
+
+void t_timing(void)
+{
+    if (gbusy) {
+        if (!tt_a) {
+            tt_a = tnow();
+            tt_pulls = net_stats.pulls;
+            tt_packets = net_stats.packets;
+        }
+        tt_b = tnow();
+        if (!tt_c && grx)
+            tt_c = tnow();
+    }
+    switch (ts) {
+    case 0:
+        if (net_state() != NET_READY || gbusy || !doc_done)
+            return;
+        {                               /* the port: GEMINI.TST's second word (rel: main RAM, for the kernel) */
+            unsigned char h, n, i;
+            strcpy(rel, VR_ROOTPATH "GEMINI.TST");
+            h = FOpen(rel, 'r');
+            n = FRead(h, rel, 40);
+            FClose(h);
+            rel[n] = 0;
+            for (i = 0; rel[i] && rel[i] != ' '; ++i)
+                ;
+            strcpy(pl, rel + i + 1);
+            for (i = 0; pl[i] >= '0' && pl[i] <= '9'; ++i)
+                ;
+            pl[i] = 0;
+            strcpy(t_url, "gemini://127.0.0.1:");
+            strcat(t_url, pl);
+        }
+        turl("/t/page.gmi");
+        go_();
+        break;
+    case 1:
+        if (!idle() || !doc_done || !tt_a)
+            return;
+        treport("PAGE ");
+        tlog("GE TLINES ", "", doc_lines);
+        turl("/t/big.bin");
+        W();
+        C(tlen + 30, YESX, 272);
+        go_();
+        break;
+    case 2:
+        if (!idle_box() || !tt_a)
+            return;
+        treport("BIN ");
+        turl("/t/big.jpg");
+        go_();
+        break;
+    case 3:
+        if (gbusy || viewing != 2 || !tt_a)
+            return;
+        tlog("GE TSHOWN ", "", tnow() - tt_a);
+        treport("JPG ");
+        t_time_done = 1;
+        return;
+    }
+    ++ts;
+}

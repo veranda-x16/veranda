@@ -29,9 +29,11 @@
    Lines scrolled off the top go to the scrollback in RAM banks (51 lines
    a bank, characters and attributes). */
 #include <string.h>
+#include <vrser.h>
 #include "term.h"
 
 #define SLOTB   51              /* slots a bank */
+
 
 static unsigned char mbank;     /* the model's first bank */
 static unsigned char rowmap[ROWS];
@@ -541,6 +543,35 @@ void vt_put(unsigned char c)
     }
 }
 
+/* (V212) n printable characters (32-126, from below $A000) as vt_put
+   takes them one at a time, a run of them copied into the row at once
+   (vt_put's path took some 1,000 cycles a character): in the ground
+   state with no DEC graphics set, up to the next to last column; the
+   rest (a pending wrap, the last column) through vt_put */
+void __fastcall__ vt_text(const unsigned char *s, unsigned char n)
+{
+    unsigned char k, *p;
+    while (n) {
+        k = COLS - 1 - vt_cx;
+        if (k > n)
+            k = n;
+        if (!k || state || wrapnext || (gl ? g1 : g0)) {
+            vt_put(*s++);
+            --n;
+            continue;
+        }
+        p = row(vt_cy) + vt_cx;
+        memcpy(p, s, k);
+        memset(p + COLS, cattr, k);
+        if (cattr & A_COL)
+            hascol[rowmap[vt_cy]] = 1;
+        dirty[vt_cy] = 1;
+        vt_cx += k;
+        s += k;
+        n -= k;
+    }
+}
+
 void vt_write(const unsigned char *p, unsigned int n)
 {
     while (n--)
@@ -649,6 +680,21 @@ static unsigned char flush(void)
 void vt_render(void)
 {
     flush();
+}
+
+/* (V212) the main loop's drawing: at once when nothing came in this
+   pass (a key's echo, the end of a burst), else at most every 3 frames,
+   so that a stream's lines are scrolled in together (one ScrollRect of
+   the window, some 40 ms, for all of them) and the line is read again
+   sooner (a TCP session pulls its next packet after the pass) */
+static unsigned int drawn;
+
+void __fastcall__ vt_pass(unsigned char got)
+{
+    if (!got || ser_frames - drawn >= 3) {
+        flush();
+        drawn = ser_frames;             /* (from the drawing's end) */
+    }
 }
 
 /* the window's colours back to the normal paper (a page over it) */

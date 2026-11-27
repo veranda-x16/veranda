@@ -6,7 +6,7 @@
 SDK      ?= ../../build/sdk
 OUT      ?= .
 CC65     := cl65 -t none --cpu 65C02 -Ors -Cl -I $(SDK)/include --asm-include-dir $(SDK)/include
-SRC      := term.c vt.c net.c xmodem.c ui.c sync.c tcp.c hosts.c
+SRC      := term.c vt.c vtrun.s net.c xmodem.c ui.c sync.c tcp.c hosts.c
 TEST_SRC ?= ../../tests/term_play.s
 # the clipboard: the SDK's scrap library compiled into overlay 1 (with
 # options/copy screen, ui.c), not linked from veranda.lib into the

@@ -323,10 +323,32 @@ static void deliver(unsigned char c)
         vt_put(c);
 }
 
+/* (V212) a run of printable characters (32-126) where only deliver's
+   ground path would take them (no rate looked for, no XMODEM, Telnet in
+   its ground state): as rx takes them one by one (counted, captured, the
+   modem's line, tn_cr cleared, the model: vt_text), in one go, not some
+   2,700 cycles a character through rx, deliver and vt_put */
 void net_rx(const unsigned char *p, unsigned int n)
 {
-    while (n--)
-        rx(*p++);
+    unsigned char k, c;
+    while (n) {
+        k = syncing | xm_active | tn_state ? 0 : net_run(p, n);
+        if (!k) {
+            rx(*p++);
+            --n;
+            continue;
+        }
+        rx_total += k;
+        tn_cr = 0;
+        for (c = 0; c < k; ++c) {
+            capture_byte(p[c]);
+            if (!tcp && net_mlen < sizeof mline - 1)
+                mline[net_mlen++] = p[c];
+        }
+        vt_text(p, k);
+        p += k;
+        n -= k;
+    }
 }
 
 void sends(const char *s)

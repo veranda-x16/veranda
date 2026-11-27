@@ -60,6 +60,7 @@
 #define T_PULL    30            /* an XON's packet: 0.5 s (Packet16's pull_timeout) */
 #define T_RECOVER 1800          /* the modem answering again after a timeout: 30 s */
 #define PULL_TRIES 4
+#define T_SPULL   10            /* (V211) sends in a row with nothing coming: a pull at least every 1/6 s */
 
 struct sock sk[NET_SOCKS];      /* (vrnetp.h's struct; not static since V210: vrahead.c reads them) */
 
@@ -248,8 +249,7 @@ static void op_ok(void)
     if (op == OP_SEND) {
         if (cmdp < cmdl || sendp < sendn)
             return;             /* (not ours: the payload is not all out) */
-        s->txt += sendn;
-        ++net_stats.sends;
+        ++net_stats.sends;      /* (V211: its bytes left the ring as they were pushed) */
     } else if (op != OP_CMD)
         return;
     else if (kind == K_SETUP) {
@@ -513,8 +513,8 @@ static void push(void)
     s = &sk[osk];
     t = TXBUF(osk);
     while (sendp < sendn && ser_txroom()) {
-        ser_byte(t[(unsigned char)(s->txt + sendp)]);
-        ++sendp;
+        ser_byte(t[s->txt++]);  /* (V211: its place free at once, so that the */
+        ++sendp;                /* next packet is in the ring when this one's OK comes) */
     }
 }
 
@@ -539,10 +539,7 @@ static void schedule(void)
             return;
         }
         if (s->st == NET_OPENING) {
-            p = cmd;
-            *p++ = 'A';
-            *p++ = 'T';
-            *p++ = 'C';
+            p = strcpy(cmd, "ATC") + 3;
             strcpy(p, HOST(i));         /* (its '"', after V114's S if TLS) */
             p += strlen(p);
             *p++ = ':';
@@ -561,7 +558,9 @@ static void schedule(void)
                 room = 0;
         }
     }
-    if (snd >= 0 && (flip || !pull || !room)) {
+    /* a send, or a pull (they take turns); (V211) while the pulls bring
+       nothing, sends follow one another, a pull every T_SPULL frames */
+    if (snd >= 0 && (flip || !pull || !room || (lastempty && ser_frames - idle_t < T_SPULL))) {
         flip = 0;
         s = &sk[osk = snd];
         if (cur != s->id) {
@@ -611,7 +610,12 @@ static void step(void)
         } else if (n == 2)
             fault(NET_ENOMODEM);
     }
-    if (op != OP_NONE && ser_frames - ot > olen)
+    /* (V211) a deadline only when the ring has been read to its end:
+       bytes still waiting there are the answer. After a long pass of the
+       program (0.5 s and more: Gemini's picture) with an XON ahead, two
+       packets wait, more than these 8 reads take: the second was cut
+       short by its deadline (NET_EIO) before its rest was read */
+    if (op != OP_NONE && ser_frames - ot > olen && i < 8)
         timeout();
     if (op == OP_NONE && !draining && gst == NET_SETUP)
         command(profile[setup_i], K_SETUP);
