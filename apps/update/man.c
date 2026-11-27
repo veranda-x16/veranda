@@ -10,6 +10,11 @@
    letters, digits and "._+-". A manifest with anything else, or without
    its end line (cut short), is refused whole.
 
+   (V210) A release's "pack <asset> <size>" line names its pack, and a
+   "z <offset> <zsize>" line after a file says where that file's deflated
+   bytes are in it (job.c fetches them with a Range); a z line that is not
+   two numbers leaves the file out of the pack (its own asset is fetched).
+
    MIT licence (see LICENSE). */
 #include <veranda.h>
 #include <string.h>
@@ -20,6 +25,7 @@
 struct ent E;
 unsigned char nents, tbank;
 char nbuild[16], ndate[11], ntag[48];
+char npack[14];
 char nver[16], iver[16];
 #pragma bss-name ("OVL2BSS")
 char notes[NOTES][77];             /* (overlay 2's: only ui.c reads them) */
@@ -101,6 +107,21 @@ static unsigned char __fastcall__ okpath(const char *p, unsigned char kind)
     return 1;
 }
 
+/* (V210) a decimal number at *p, then past one space: 0xFFFFFFFF if none */
+static unsigned long __fastcall__ dnum(char **pp)
+{
+    char *p = *pp;
+    unsigned long v = 0;
+    if (*p < '0' || *p > '9')
+        return 0xFFFFFFFFUL;
+    while (*p >= '0' && *p <= '9')
+        v = v * 10 + (*p++ - '0');
+    if (*p == ' ')
+        ++p;
+    *pp = p;
+    return v;
+}
+
 /* "file <size> <crc> <kind> <min> <asset> <path>" into E: 0 if bad */
 static unsigned char file_line(char *p)
 {
@@ -108,11 +129,9 @@ static unsigned char file_line(char *p)
     unsigned char i, c;
     char *w;
     memset(&E, 0, sizeof E);
-    for (v = 0; *p >= '0' && *p <= '9'; ++p)
-        v = v * 10 + (*p - '0');
-    if (*p++ != ' ')
+    E.size = dnum(&p);
+    if (E.size == 0xFFFFFFFFUL || p[-1] != ' ')
         return 0;
-    E.size = v;
     for (v = 0, i = 0; i < 8; ++i, ++p) {
         c = *p;
         if (c >= '0' && c <= '9')
@@ -173,7 +192,7 @@ const char *__fastcall__ man_load_o(const char *dir, const char *name)
     char *p;
     unsigned int k;
     nents = nnotes = 0;
-    nbuild[0] = ndate[0] = ntag[0] = nver[0] = 0;
+    nbuild[0] = ndate[0] = ntag[0] = nver[0] = npack[0] = 0;
     if (ChDir((char *)dir))
         return "no manifest";
     ih = FOpen((char *)name, 'r');
@@ -221,10 +240,26 @@ const char *__fastcall__ man_load_o(const char *dir, const char *name)
             if (xmode && (memcmp(E.path, X_DIR, sizeof X_DIR - 1) || E.kind != K_APP))
                 return bad("a file outside VERANDA/DICT");     /* (V198: the dictionaries' list) */
             ent_put(nents++);
+        } else if (!memcmp(ln, "pack ", 5)) {
+            p = strchr(ln + 5, ' ');
+            if (p)
+                *p = 0;
+            if (okname(ln + 5, 13, 0))
+                strcpy(npack, ln + 5);
+        } else if (ln[0] == 'z' && ln[1] == ' ' && nents) {
+            unsigned long o, z;
+            p = ln + 2;
+            o = dnum(&p);
+            z = dnum(&p);
+            if (o != 0xFFFFFFFFUL && z != 0xFFFFFFFFUL && !*p) {
+                ent_get(nents - 1);
+                E.zoff = o;
+                E.zsize = z;
+                ent_put(nents - 1);
+            }
         } else if (!memcmp(ln, "end ", 4)) {
-            for (k = 0, p = ln + 4; *p >= '0' && *p <= '9'; ++p)
-                k = k * 10 + (*p - '0');
-            if (k != nents)
+            p = ln + 4;
+            if (dnum(&p) != nents)
                 return bad("its end line does not count its files");
             ended = 1;
         }

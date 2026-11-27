@@ -64,6 +64,7 @@ connection the modem holds).
 | `net_start(port, baud100)` | The UART at `$9F00 + port` (`0`: the first one found, `$9F60-$9FF0` by `$10`), two RAM banks, the interrupt routine. Returns `NET_OK`, `NET_ENOCARD` (no UART) or `NET_ENOBANKS`. The rest happens in `net_poll`: the modem's rate is found and moved to `baud100` x 100 (`0`: 576, 57600 baud), then its profile is sent. |
 | `net_state()` | `NET_SYNC` (looking for the modem's rate), `NET_SETUP` (its profile), `NET_READY`, `NET_FAULT` (`net_error()` says why), `NET_OFF`. |
 | `net_poll()` | One step. Call it on every pass of `appMain`. |
+| `net_ahead_on()` | (V210) From now on, the next XON goes as soon as a packet's header comes in (one XON ahead), so the next packet follows on the line with no gap. Links `vrahead.c` (about 200 bytes); a program that never calls it is as before. See "Speed" below. |
 | `net_stop()` | `ATH0` sent, the UART off, the banks freed, `intFirstVector` and `asideVector` cleared. |
 | `net_xtal` | Set it before `net_start` for another crystal (Hz / 1600; `SER_X14`, 14.7456 MHz, the TexElec card's, is the default; `SER_X1` 1.8432 MHz). |
 
@@ -79,6 +80,28 @@ new rate. With nothing on the line, after about 2.5 s: `NET_FAULT`,
 delimiters cleared, which would delete payload bytes), `ATS40=254S45=0S0=0`
 (packets of at most 254 bytes, raw binary), `ATF3` (one packet for each
 XON), `ATH0` (connections left by an earlier program hung up).
+
+**Speed** (DECISIONS V210). With an XON after each packet, the line
+stands still between packets while the modem turns round and while the
+program notices the packet's end: gate update measured 59 ms a packet in
+the emulator, against the 47 ms a 254-byte packet and its header take at
+57600. `net_ahead_on()` sends the next XON when a header comes in: the
+modem queues that packet behind the one it is sending (Zimodem 4.0.2's
+4 KB serial buffer: `sendNextPacket` returns without a packet only when
+that buffer has less room than a packet), so the turn-round is hidden
+and a download comes at the line's rate (49 ms a packet measured). It
+sends one ahead only while nothing else waits (a command, a send, a
+connection to make or close) and every open socket has room for two
+packets; with one always out, a pull's 0.5 s deadline counts from each
+header that comes, so a long pass of the program (a card write) is not
+taken for a modem that does not answer. The emulator's modem drops an
+XON that comes while more than a packet waits to go out (the firmware
+would keep it): one ahead never meets that. Also since V210 the serial
+ring is read in assembly (`ser_get`, some 40 cycles a byte; the C loop
+took 120) and the packets' CRC-8 too (`vrnetcrc.s`, 17 cycles a byte;
+60). For the most, read the socket on every pass with a buffer of 256
+bytes and keep each pass short (Veranda Update calls `net_poll()` again
+between the parts of its own work).
 
 **Rates.** 57600 is the default and the one proven on the card. The UART
 is read from VERA's line interrupt 16 times a frame (every 1.05 ms: 6
@@ -148,7 +171,8 @@ aside, its connections stay open in the modem.
 
 About 8.1 KB of code in the program (measured, cc65 -O: vrnet 6.0 KB,
 the serial driver 1.6 KB, the rate's sync 0.5 KB; Packet16's stack was
-7.3 KB) and 0.7 KB of data (the 256-byte transmit ring among it); two RAM
+7.3 KB; V210: 40 bytes less, and `vrahead.c`'s 200 only with
+`net_ahead_on`) and 0.7 KB of data (the 256-byte transmit ring among it); two RAM
 banks: the serial ring (8 KB) and
 the sockets' buffers (the CRC table, a packet, 4 x 1 KB to read,
 4 x 256 bytes to write, the host names). `intFirstVector` is vrnet's

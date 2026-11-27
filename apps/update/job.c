@@ -33,6 +33,22 @@
    Undo      OLD/LAST.UPD's folder: UNDO.LST's steps backwards (a new
              file deleted, a replaced one moved back), the folder removed.
 
+   (V210) The pack: a GitHub release from V210 on lists one (npack, its
+   pack line) and where each file's deflated bytes are in it (E.zoff,
+   E.zsize, its z line). Update then asks for those bytes (an HTTP
+   Range) instead of the file's own asset, inflates them as they come
+   (main.c's sink_z, inflate.s) into DL.TMP and checks the file's size
+   and CRC-32 as ever. The pack's address is asked of GitHub once (its
+   302, then the asset host's signed address, kept in hurl) and used for
+   the next files while it lasts (GitHub's last 5 minutes: asked again
+   after 4, or when one is refused). When the pack does not give a file
+   whole (an answer that is not 206, bytes that are not deflate, a size
+   or CRC-32 that is not the list's), its address is asked again if it
+   was kept, else that file and the rest come from their own assets,
+   checked as before. A dropped connection, a timeout or Esc stop the
+   update as they do without the pack. Not for the PC's source nor the
+   dictionaries (their lists have no pack).
+
    Nothing else is written: /DOCUMENTS (doc-sample files are listed, never
    written), the settings in /VERANDA/.SYSTEM and every file the manifest
    does not name stay as they are; a file no longer in the manifest is not
@@ -46,15 +62,45 @@
 #include <veranda.h>
 #include <string.h>
 #include "up.h"
+#include <vrser.h>
 
 #pragma code-name ("OVERLAY1")
 #pragma rodata-name ("OVL1RO")      /* (a string the kernel reads goes through K(): main RAM) */
+#ifdef UP_TEST
+#include <vrnet.h>
+
+/* (V210) the time an Update takes, in frames of the emulated machine:
+   the whole (UP TIME), each file's request to its first body byte (UP
+   TSETUP: the connections, the redirects, the headers), the bodies (UP
+   TBODY); vrnet's XONs, packets, empty packets and XONs sent again */
+static unsigned int t0, tfs, tfb, tsetup, tbody;
+static void __fastcall__ t_num(const char *a, unsigned int v)
+{
+    static char t[24];
+    strcpy(t, a);
+    ui_num(t + strlen(t), v);
+    up_log(t, "");
+}
+static void t_report(void)
+{
+    t_num("UP TIME ", ser_frames - t0);
+    t_num("UP TSETUP ", tsetup);
+    t_num("UP TBODY ", tbody);
+    t_num("UP TPULLS ", net_stats.pulls);
+    t_num("UP TPACKETS ", net_stats.packets);
+    t_num("UP TEMPTIES ", net_stats.empties);
+    t_num("UP TRETRIES ", net_stats.xon_retries);
+}
+#endif
 
 unsigned char job, checked, nchanged, nnew, nready, nsys, nskip, cur, slept, refused;
 unsigned long tchanged, tfetch, tdone;
 unsigned char ifetch, nfetch;
 
 static unsigned char fh;                /* the file being written (NEW.LST, DL.TMP), 0 none */
+static unsigned char zmode, zurl;       /* (V210) the pack in use; hurl is its address on the asset host */
+static unsigned int zurl_t;             /*   since (ser_frames) */
+static unsigned int tui;                /* (V210) the progress last shown (ser_frames) */
 static unsigned long dlgot;
 static unsigned char dlpass;            /* 0: the other files, 1: the system's */
 static unsigned char lastkb;
@@ -96,12 +142,16 @@ static unsigned char __fastcall__ sink_file(const unsigned char *b, unsigned int
 
 static unsigned char toolong;
 
-static unsigned char __fastcall__ sink_dl(const unsigned char *b, unsigned int n)
+unsigned char __fastcall__ sink_dl(const unsigned char *b, unsigned int n)
 {
     if (dlgot + n > E.size) {
         toolong = 1;
         return 0;
     }
+#ifdef UP_TEST
+    if (!dlgot)
+        tsetup += (tfb = ser_frames) - tfs;
+#endif
     if (!fh || FWrite(fh, (void *)b, n))
         return 0;
     crc_add(b, n);
@@ -160,6 +210,7 @@ static void man_start(void)
     }
     url_of(xmode ? X_LIST : "UPDATE.LST", 1);
     hsink = sink_file;
+    hrange = hkeep = 0;
     http_get();
     job = J_MAN;
     say("Asking for the list of files ...");
@@ -293,104 +344,7 @@ static unsigned char __fastcall__ todo(unsigned char pass)
 
 /* (swap.c, overlay 3: swap_go) */
 
-/* (V198) the dictionaries: which to get. The list's files go by their
-   name's first part ("EN" for EN.DIC and EN.DIC.txt, its licence): a box
-   for each part with something to fetch; a part not chosen is skipped
-   (as a doc-sample is). 0: nothing chosen */
-static char pk[8];
-
-static unsigned char __fastcall__ part_of(const char *path, char *out)
-{
-    const char *b = base_(path);
-    unsigned char n = 0;
-    while (b[n] && b[n] != '.' && n < sizeof pk - 1) {
-        out[n] = b[n];
-        ++n;
-    }
-    out[n] = 0;
-    return n;
-}
-
-static unsigned char choose(void)
-{
-    static char q[8];
-    static unsigned long sz;
-    unsigned char i, j, any = 0;
-    for (i = 0; i < nents; ++i) {
-        ent_get(i);
-        if (E.st != S_CHANGED && E.st != S_NEW)
-            continue;
-        part_of(E.path, pk);
-        for (j = 0; j < i; ++j) {        /* (a part asked about already) */
-            ent_get(j);
-            if ((E.st == S_CHANGED || E.st == S_NEW || E.st == S_SKIP) && part_of(E.path, q) && !strcmp(q, pk))
-                break;
-        }
-        if (j < i)
-            continue;
-        sz = 0;
-        for (j = i; j < nents; ++j) {
-            ent_get(j);
-            if ((E.st == S_CHANGED || E.st == S_NEW) && part_of(E.path, q) && !strcmp(q, pk))
-                sz += E.size;
-        }
-        strcpy(line, "Get the ");
-        strcat(line, !strcmp(pk, "EN") ? "English" : !strcmp(pk, "PL") ? "Polish" : pk);
-        strcat(line, " dictionary (");
-        ui_size(line + strlen(line), sz);
-        strcat(line, ")?");
-        if (up_confirm(line, "With its licence. Cancel: not this one.")) {
-            any = 1;
-            continue;
-        }
-        for (j = i; j < nents; ++j) {   /* (not this one) */
-            ent_get(j);
-            if ((E.st == S_CHANGED || E.st == S_NEW) && part_of(E.path, q) && !strcmp(q, pk)) {
-                if (E.st == S_CHANGED)
-                    --nchanged;
-                else
-                    --nnew;
-                tchanged -= E.size;
-                if (E.ready)
-                    --nready;
-                E.st = S_SKIP;
-                ++nskip;
-                ent_put(j);
-            }
-        }
-    }
-    ui_list();
-    if (!any) {
-        checked = 0;                    /* (Check again to choose again) */
-        say("No dictionary chosen: nothing fetched.");
-        up_log("UP NONE CHOSEN", "");
-    }
-    return any;
-}
-
-/* (V198) room on the card for what is to come (in UPD, then moved into
-   place: the old versions go to OLD on the same card), with 64 KB to
-   spare; CalcBlksFree's blocks of 254 bytes (65,535 at most: 16 MB,
-   enough to tell) */
-static unsigned char room(void)
-{
-    unsigned long f = (unsigned long)CalcBlksFree() * 254;
-#ifdef UP_TEST
-    if (t_free)
-        f = (unsigned long)t_free << 10;
-#endif
-    if (f >= tfetch + 65536UL)
-        return 1;
-    strcpy(line, "Not enough room on the card: ");
-    ui_size(line + strlen(line), tfetch + 65536UL);
-    strcat(line, " needed, ");
-    ui_size(line + strlen(line), f);
-    strcat(line, " free.");
-    up_log("UP NOROOM ", line);
-    up_message(line, "Nothing was fetched; make room and try again.");
-    say("Not enough room on the card: nothing fetched.");
-    return 0;
-}
+/* (choose, room: pick.c, overlay 4; V210) */
 
 /* the next file to fetch (cur on), or the swap */
 static void dl_next(void)
@@ -405,6 +359,10 @@ static void dl_next(void)
             break;
         if (dlpass) {
             job = J_NONE;
+            http_cancel();              /* (V210: the connection kept closed) */
+#ifdef UP_TEST
+            t_report();
+#endif
             swap_go();
             return;
         }
@@ -421,9 +379,30 @@ static void dl_next(void)
     }
     dlgot = 0;
     toolong = 0;
+#ifdef UP_TEST
+    tfs = ser_frames;
+#endif
     crc_start();
-    url_of(E.asset, 0);
     hsink = sink_dl;
+    hrange = hkeep = 0;
+    if (zmode && E.zsize) {
+        /* (V210) its bytes in the pack */
+        if (zurl && ser_frames - zurl_t > 4 * 60 * 60)
+            zurl = 0;                   /* (GitHub's signed address lasts 5 minutes) */
+        if (!zurl) {
+            url_of(npack, 0);
+            zurl_t = ser_frames;
+        }
+        hrange = hkeep = 1;             /* (one connection for the pack's files) */
+        hr0 = E.zoff;
+        hr1 = E.zoff + E.zsize - 1;
+        zbad = 0;
+        zstart(E.zsize);
+        hsink = sink_z;
+    } else {
+        zurl = 0;
+        url_of(E.asset, 0);
+    }
     http_get();
     up_log("UP FETCH ", E.path);
     ui_progress(base_(E.path));
@@ -474,9 +453,16 @@ void job_update(void)
     tdone = 0;
     ifetch = 0;
     dlpass = 0;
+    zmode = npack[0] && !xmode && C.src == SRC_GITHUB;
+    zurl = 0;
     cur = 0;
     lastkb = 0xFF;
     job = J_DL;
+#ifdef UP_TEST
+    t0 = ser_frames;
+    tsetup = tbody = 0;
+    memset(&net_stats, 0, sizeof net_stats);
+#endif
     ui_all();
     say("Fetching: the card changes when every file passed its CRC-32.");
     dl_next();
@@ -488,8 +474,9 @@ static void dl_tick(void)
     unsigned long c;
     if (r == H_RUN) {
         kb = (unsigned char)(tdone >> 10);
-        if (kb != lastkb) {
-            lastkb = kb;
+        if (kb != lastkb && ser_frames - tui >= 20) {
+            lastkb = kb;                /* (V210: three times a second at most: it takes 44 ms) */
+            tui = ser_frames;
             ui_progress(0);
         }
 #ifdef UP_TEST
@@ -502,8 +489,23 @@ static void dl_tick(void)
         return;
     }
     close_fh();
+    c = r == H_OK ? crc_end() : 0;
+    if (hrange && (r == H_OK ? dlgot != E.size || c != E.crc
+                   : zbad || toolong || r == H_E404 || r == H_ESTATUS || r == H_EREDIR || r == H_EURL || r == H_EHDR)) {
+        /* (V210) the pack did not give it whole: its address asked again
+           if it was kept, else this file and the rest from their own */
+        del(K(SYS_UPD "DL.TMP"));
+        up_log("UP NOT FROM THE PACK ", E.path);
+        if (zurl)
+            zurl = 0;
+        else
+            zmode = 0;
+        tdone -= dlgot;
+        --ifetch;
+        dl_next();
+        return;
+    }
     if (r == H_OK) {
-        c = crc_end();
         if (dlgot != E.size || c != E.crc) {
             del(K(SYS_UPD "DL.TMP"));
             refused = 1;
@@ -515,6 +517,10 @@ static void dl_tick(void)
             up_message(line, "Nothing on the card was changed.");
             return;
         }
+#ifdef UP_TEST
+        tbody += ser_frames - tfb;
+#endif
+        zurl = hrange;                  /* (V210: hurl the pack's address now) */
         ChDir(K(UPD_DIR));
         FDelete(E.asset);
         FRename(K("DL.TMP"), E.asset);

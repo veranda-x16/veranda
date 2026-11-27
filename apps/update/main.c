@@ -22,9 +22,11 @@
    menus, the keys and the switcher.
 
    Memory: main RAM (this file, http.c, crc.s, vrnet, sysui), overlay 1 as
-   appBank (job.c), overlay 2 (man.c, ui.c), overlay 3 (swap.c); RAM banks:
-   the overlays' 3, vrnet's 2 while the modem is on, 4 of the program's
-   (the list's two, a text's, the CRC's table): 9 at most of the 512 KB
+   appBank (job.c), overlay 2 (man.c, ui.c), overlay 3 (swap.c), overlay
+   4 (V210: inflate.s, the pack's files inflated; its window of 32 KB in
+   VRAM's back screen, which this program never draws to); RAM banks: the
+   overlays' 4, vrnet's 2 while the modem is on, 4 of the program's (the
+   list's two, a text's, the CRC's table): 10 at most of the 512 KB
    machine's 44. Alt+Tab puts it aside at any time but
    while the files are swapped (one pass of the main loop: the switcher
    acts only between passes): a file being fetched is closed, and fetched
@@ -48,7 +50,7 @@ unsigned char iobuf[IOBUF];
 unsigned char net_on;
 
 /*---------------------------------------------------------------- overlays */
-unsigned char bOv2, bOv3;
+unsigned char bOv2, bOv3, bOv4;
 
 char *__fastcall__ K(const char *s)
 {
@@ -108,6 +110,56 @@ unsigned char __fastcall__ fcheck(const char *p, unsigned long size, unsigned lo
     return r;
 }
 
+/*---------------------------------------------------------------- the pack (V210) */
+/* inflate.s (overlay 4) */
+void __fastcall__ z_start(unsigned long zsize);
+void __fastcall__ z_feed(const unsigned char *b, unsigned int n);
+unsigned char z_run(void);
+extern unsigned int zcount;
+#define Z_FULL 1
+#define Z_BAD  3
+unsigned char zbad;
+
+void __fastcall__ zstart(unsigned long zsize) OVX(bOv4, z_start(zsize))
+unsigned char choose(void)
+{
+    unsigned char r;
+    OVX(bOv4, r = choose_o());
+    return r;
+}
+unsigned char room(void)
+{
+    unsigned char r;
+    OVX(bOv4, r = room_o());
+    return r;
+}
+
+/* hsink for a file from the pack: the bytes (below $A000: http.c's) into
+   inflate's ring, inflated into iobuf, a run at a time to sink_dl
+   (overlay 1, mapped when http_poll runs) */
+unsigned char __fastcall__ sink_z(const unsigned char *b, unsigned int n)
+{
+    unsigned char k = RAMBANK, r;
+    unsigned int c;
+    RAMBANK = bOv4;
+    z_feed(b, n);
+    do {
+        r = z_run();
+        c = zcount;
+        RAMBANK = k;
+        if (c && !sink_dl(iobuf, c))
+            return 0;
+        net_poll();                     /* (the next XON while this one is inflated: the line kept busy) */
+        RAMBANK = bOv4;
+    } while (r == Z_FULL);
+    RAMBANK = k;
+    if (r == Z_BAD) {
+        zbad = 1;
+        return 0;
+    }
+    return 1;
+}
+
 /* the list's entries in their RAM banks */
 void __fastcall__ ent_get(unsigned char i)
 {
@@ -154,10 +206,10 @@ void __fastcall__ up_message(const char *a, const char *b)
 void __fastcall__ up_log(const char *a, const char *b)
 {
 #ifdef UP_TEST
-    static char t[150];
-    strcpy(t, a);
-    strncat(t, b, sizeof t - 1 - strlen(t));
-    LogText(t);
+    extern char ui_tl[140];             /* (sysui.c's test line, V210: 150 bytes of main RAM less) */
+    strcpy(ui_tl, a);
+    strncat(ui_tl, b, sizeof ui_tl - 1 - strlen(ui_tl));
+    LogText(ui_tl);
 #else
     (void)a;
     (void)b;
@@ -206,6 +258,7 @@ static void aside(void)
 void net_restart(void)
 {
     net_stop();
+    net_ahead_on();                     /* (V210: one XON ahead, the line kept full) */
     net_on = net_start(0, 576) == NET_OK;
     net_aside = net_on ? asideVector : 0;
     asideVector = VR_FN(aside);
@@ -316,6 +369,8 @@ int main(void)
     bOv2 = r1L;
     LoadOverlay(3, 0);                  /* (overlay 3: swap.c) */
     bOv3 = r1L;
+    LoadOverlay(4, 0);                  /* (overlay 4: inflate.s, V210) */
+    bOv4 = r1L;
     RAMBANK = appBank;
     dispBufferOn = ST_WR_FORE;          /* (the foreground only: menus and boxes save what they cover) */
     SetPattern(0);

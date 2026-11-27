@@ -49,6 +49,13 @@ extern signed char hnet;        /* vrnet's error */
 extern unsigned char net_on;
 /* the body's bytes go here (main RAM): 0 = a local error, the request stops */
 extern unsigned char __fastcall__ (*hsink)(const unsigned char *b, unsigned int n);
+/* (V210) 1: the request asks for bytes hr0 to hr1 (an HTTP Range) and
+   wants 206 for them */
+extern unsigned char hrange;
+extern unsigned long hr0, hr1;
+/* (V210) 1: "Connection: keep-alive", and the connection kept for the
+   next request to the same host (http.c) */
+extern unsigned char hkeep;
 enum { H_RUN, H_OK, H_ENOCARD, H_EMODEM, H_ECONN, H_EDROP, H_ETIMEOUT, H_E404, H_ESTATUS,
        H_EREDIR, H_EURL, H_ELOCAL, H_ECANCEL, H_EHDR };
 void http_get(void);            /* hurl, already set */
@@ -75,7 +82,7 @@ unsigned long crc_end(void);
 #define K_DOC    6              /* doc-sample: never written (the user's /DOCUMENTS) */
 #define K_OTHER  7
 
-/* an entry: 101 bytes in the table's RAM banks */
+/* an entry: 109 bytes in the table's RAM banks */
 #define S_UNKNOWN 0
 #define S_SAME    1
 #define S_CHANGED 2
@@ -83,14 +90,15 @@ unsigned long crc_end(void);
 #define S_SKIP    4
 struct ent {
     unsigned long size, crc;
+    unsigned long zoff, zsize;  /* (V210) its deflated bytes in the release's pack (zsize 0: not in one) */
     unsigned char kind, st, ready, shared;
     char min[11];               /* "-" or YYYY-MM-DD */
     char asset[14];
     char path[64];
 };
-#define ENT_SIZE 101
-#define ENT_PER_BANK 81
-#define ENT_MAX 162
+#define ENT_SIZE 109
+#define ENT_PER_BANK 75
+#define ENT_MAX 150
 extern struct ent E;            /* the one being looked at */
 extern unsigned char nents;
 extern unsigned char tbank;     /* the table's two banks (tbank, tbank + 1), the text's (tbank + 2), the CRC's (tbank + 3) */
@@ -98,6 +106,7 @@ void __fastcall__ ent_get(unsigned char i);
 void __fastcall__ ent_put(unsigned char i);
 
 extern char nbuild[16], ndate[11], ntag[48];
+extern char npack[14];          /* (V210) the release's pack (the list's pack line), "" none */
 extern char nver[16], iver[16];  /* the manifest's and the card's "version" line (0.N.M), "" none */
 #define NOTES 8
 extern char notes[NOTES][77];
@@ -128,6 +137,19 @@ void job_tick(void);
 void __fastcall__ job_stop(const char *why);
 void job_wake(void);            /* back from the switcher */
 void job_aside(void);           /* the switcher puts us aside */
+unsigned char __fastcall__ sink_dl(const unsigned char *b, unsigned int n);
+
+/*---------------------------------------------------------------- the pack (V210: main.c, inflate.s in overlay 4) */
+/* a file's deflated bytes from the pack, inflated as they come (sink_z),
+   then to sink_dl: z_start for each file first. zbad: they were not
+   deflate */
+extern unsigned char bOv4, zbad;
+void __fastcall__ zstart(unsigned long zsize);
+/* (pick.c, overlay 4) the dictionaries to get (V198): 0 none chosen; room
+   on the card for tfetch: 0 not (said) */
+unsigned char choose(void), room(void);
+unsigned char choose_o(void), room_o(void);
+unsigned char __fastcall__ sink_z(const unsigned char *b, unsigned int n);
 #define UPD_DIR "/VERANDA/.SYSTEM/UPD"
 #define OLD_DIR "/VERANDA/.SYSTEM/OLD"
 /* the paths job.c and swap.c take: from the card's top, no leading "/" */

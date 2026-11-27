@@ -102,6 +102,52 @@ def files_of(build, shell):
     return f
 
 
+# (V210) the timing session: build T, A with twelve applications more of
+# the sizes of twelve of Veranda 1.0.4's (616 KB; 1.0.3 to 1.0.4 changed
+# 47 files, 2,385 KB, some 51 KB a file, as these), their bytes made to
+# deflate about as the real ones do (2:1)
+TSIZES = (155956, 10656, 23680, 33932, 92456, 21889, 50950, 47902, 26895, 99568, 42060, 9990)
+# (a short text: zlib's fixed codes, as for the release's small files)
+TEXTRA = {'VERANDA/HELP/ERRORS.HLP': b'?SYNTAX ERROR: the line is not BASIC.\r\n?OUT OF DATA: READ past the last DATA.\r\n'}
+TNAMES = ('Veranda Write', 'Note Pad', 'Calendar', 'Archive', 'Bird Watch', 'Calculator', 'MIDI Player', 'Colour Paint',
+          'Preferences', 'VeraBASIC Run', 'Term', 'TextMgr')       # (release.allow's)
+
+
+def code(seed, n):
+    """n bytes that deflate about 2:1, as Veranda's programs do: words of a
+    small vocabulary, bytes at random between, now and then a run of
+    zeros (a buffer's room in a .cvt: matches of 258 at a distance of 1)"""
+    r = random.Random(seed)
+    voc = [bytes(r.getrandbits(8) for _ in range(r.randint(2, 7))) for _ in range(400)]
+    w = [1.0 / (i + 1) for i in range(len(voc))]
+    out = bytearray()
+    while len(out) < n:
+        x = r.random()
+        if x < 0.0007:
+            out += bytes(r.randint(100, 1500))
+        elif x < 0.35:
+            out += bytes(r.getrandbits(8) for _ in range(r.randint(1, 3)))
+        else:
+            out += r.choices(voc, w)[0]
+    return bytes(out[:n])
+
+
+def files_t(shell):
+    f = files_of('A', shell)
+    for i, n in enumerate(TSIZES):
+        f['VERANDA/APPS/%s.cvt' % TNAMES[i]] = code('t%d' % i, n)
+    f.update(TEXTRA)
+    return f
+
+
+def blocks(rel):
+    """(V210) the kinds of deflate blocks the release's pack starts its files
+    with: 0 stored, 1 fixed, 2 dynamic"""
+    head, ents = mkmanifest.parse(open(os.path.join(rel, 'UPDATE.LST'), encoding='latin-1').read())
+    p = open(os.path.join(rel, head['pack'][0]), 'rb').read()
+    return {(p[e['z'][0]] >> 1) & 3 for e in ents if 'z' in e}
+
+
 def write_tree(root, files):
     for p, b in files.items():
         full = os.path.join(root, *p.split('/'))
@@ -138,7 +184,7 @@ def fixture(fx, shell_path):
         # (the releases as they are published, V140: A with the tag
         # mkrelease gives by itself, B1 with release.yml's v<version>, At
         # the Test channel's pre-release, tagged "test")
-        rels = {'A': [('A', []), ('At', ['--channel', 'test'])], 'B1': [('B1', ['--tag', 'v1.0.1'])]}
+        rels = {'A': [('A', []), ('At', ['--channel', 'test'])], 'B1': [('B1', ['--tag', 'v1.0.1']), ('B1p', ['--tag', 'v1.0.1', '--no-pack'])]}
         for rel, extra in rels.get(name, []):
             out = subprocess.run([sys.executable, '-I', '-B', os.path.join(TOOLS, 'mkrelease.py'), pkg,
                                   os.path.join(fx, 'rel' + rel), '--repo', 'veranda-x16/veranda'] + extra,
@@ -150,6 +196,22 @@ def fixture(fx, shell_path):
             if '.DIC' in open(os.path.join(fx, 'rel' + rel, 'UPDATE.LST')).read() or \
                     'VERANDA/DICT/SPELL.OVL' not in open(os.path.join(fx, 'rel' + rel, 'UPDATE.LST')).read():
                 sys.exit('FAIL  release %s: a dictionary in it, or no SPELL.OVL (V198)' % rel)
+    # (V210) the timing session's build T and its release
+    pkg = os.path.join(fx, 'pkgT')
+    write_tree(pkg, files_t(shell))
+    subprocess.check_call([sys.executable, '-I', '-B', os.path.join(TOOLS, 'mkmanifest.py'), pkg, '--build', 'tttttt1',
+                           '--date', '2026-11-25', '--note', 'The timing session\'s build: twelve programs more.'],
+                          stdout=subprocess.DEVNULL)
+    for rel, extra in (('relT', []), ('relTp', ['--no-pack'])):     # (relTp: a release as before V210)
+        out = subprocess.run([sys.executable, '-I', '-B', os.path.join(TOOLS, 'mkrelease.py'), pkg,
+                              os.path.join(fx, rel), '--repo', 'veranda-x16/veranda', '--tag', 'v1.0.9'] + extra,
+                             capture_output=True, text=True)
+        if out.returncode:
+            sys.exit('mkrelease %s: %s' % (rel, out.stderr))
+    # (V210) every kind of deflate block in the packs the sessions inflate
+    kinds = blocks(os.path.join(fx, 'relT')) | blocks(os.path.join(fx, 'relB1'))
+    if kinds != {0, 1, 2}:
+        sys.exit('FAIL  the packs start their files with blocks %s, not stored, fixed and dynamic' % sorted(kinds))
     rd = os.path.join(fx, 'relD')
     os.makedirs(rd)
     ents = []
@@ -177,14 +239,15 @@ def fail(msg):
     sys.exit(1)
 
 
-def expected(fx, build, source):
-    """the card as it must be with build installed (paths of VERANDA/, PC/, DOCUMENTS/)"""
+def expected(fx, build, source, rel=None):
+    """the card as it must be with build installed (paths of VERANDA/, PC/, DOCUMENTS/); rel: the
+    release's folder when not rel<build>"""
     base = json.load(open(os.path.join(fx, 'card0.json')))
     exp = {p: tuple(v) for p, v in base.items()}
     if build == 'A':
         return exp
     pkg = os.path.join(fx, 'pkg' + build)
-    man = os.path.join(fx, 'rel' + build, 'UPDATE.LST') if source == 'github' else os.path.join(pkg, 'VERANDA', 'UPDATE.LST')
+    man = os.path.join(fx, rel or 'rel' + build, 'UPDATE.LST') if source == 'github' else os.path.join(pkg, 'VERANDA', 'UPDATE.LST')
     _, ents = mkmanifest.parse(open(man, encoding='latin-1').read())
     for e in ents:
         if e['kind'] == 'doc-sample':
@@ -294,13 +357,17 @@ def check(session, fx, card, logf, reqf):
         need(log, 'the release does not have it', session)
         need(log, 'BOX2 Refused: nothing on the card was changed.', session)
         compare(card, expected(fx, 'A', 'github'), session)
-        print('ok    3 changed files found (Paint.cvt of the same size: its CRC); a release missing one '
-              '(GitHub\'s 404): refused, the card unchanged')
+        if [x for x in reqs if x.get('status') == 206]:
+            fail('missing: a Range asked of a release without a pack')
+        print('ok    3 changed files found (Paint.cvt of the same size: its CRC); a release (V210: one without a pack, as '
+              'before V210) missing one (GitHub\'s 404): refused, the card unchanged')
     elif session == 'crc':
         need(log, 'UP REFUSED VERANDA/APPS/Paint.cvt', session)
         need(log, 'failed its CRC-32 check', session)
+        need(log, 'UP NOT FROM THE PACK VERANDA/APPS/Paint.cvt', session)
         compare(card, expected(fx, 'A', 'github'), session)
-        print('ok    a CRC mismatch (a byte changed on the way): refused, the card unchanged')
+        print('ok    a CRC mismatch (a byte changed on the way, in the pack and in the file\'s own asset): the pack\'s '
+              'part not taken, the file\'s own then refused, the card unchanged')
     elif session == 'drop':
         need(log, 'connection dropped', session)
         compare(card, expected(fx, 'A', 'github'), session)
@@ -330,7 +397,18 @@ def check(session, fx, card, logf, reqf):
         need(log, 'UP DONE ' + BUILDS['B1'][0], session)
         need(log, 'UP NO RESTART', session)
         got = compare(card, expected(fx, 'B1', 'github'), session)
-        names = [x['name'] for x in reqs if x['host'] == 'assets' and x.get('name') != 'UPDATE.LST']
+        # (V210: from the pack, each file's part of it: its seg)
+        names = [x.get('seg') or x['name'] for x in reqs
+                 if x['host'] == 'assets' and x.get('status') in (200, 206) and x.get('name') != 'UPDATE.LST']
+        packed = [x for x in reqs if x['host'] == 'assets' and x.get('status') == 206]
+        if not packed or any(x.get('status') == 200 and x.get('name') != 'UPDATE.LST' for x in reqs if x['host'] == 'assets'):
+            fail('resume: the files did not all come from the pack (V210): %s' % [x.get('name') for x in reqs])
+        expired = [x for x in reqs if x['host'] == 'assets' and x.get('status') == 403]
+        if not expired:
+            fail('resume: the pack\'s address never expired (fake.json\'s expire 1)')
+        need(log, 'UP NOT FROM THE PACK', session)
+        if not [x for x in reqs if x.get('closed_kept')]:
+            fail('resume: no kept connection was closed by the server (fake.json\'s keepmax 1)')
         if len(names) != len(set(names)) + 1:
             fail('resume: assets fetched %s (each once, the one put aside twice)' % names)
         if len(set(names)) != 3 - first_ready:
@@ -347,7 +425,9 @@ def check(session, fx, card, logf, reqf):
             fail('resume: .SYSTEM/UPD left behind')
         print('ok    resumed: %d file(s) kept from the dropped try not fetched again, %d fetched (one put aside with '
               'Alt+Tab half way and fetched again), the card at build %s, the old versions in .SYSTEM/OLD/%s, no restart '
-              '(no system file changed)' % (first_ready, len(set(names)), BUILDS['B1'][0], A))
+              '(no system file changed); (V210) each from the release\'s pack (%d Ranges, 206), its address asked '
+              'again after each of %d refusals (403: expired), a connection kept alive and closed by the server made '
+              'again' % (first_ready, len(set(names)), BUILDS['B1'][0], A, len(packed), len(expired)))
         return got
     elif session in ('undo', 'undo2'):
         need(log, 'UP UNDONE ' + A, session)
@@ -432,8 +512,36 @@ def check(session, fx, card, logf, reqf):
         if os.path.exists(os.path.join(card, 'VERANDA', '.SYSTEM', 'OLD', DTAG)):
             fail('dundo: OLD/%s left behind' % DTAG)
         print('ok    undo: the dictionaries fetched removed, the card as it was (the older PL.DIC kept)')
+    elif session in ('timing', 'timing0'):
+        need(log, 'UP DONE tttttt1', session)
+        if (session == 'timing') != bool([x for x in reqs if x.get('status') == 206]):
+            fail('%s: the pack %s' % (session, 'not used' if session == 'timing' else 'asked of a release without one'))
+        compare(card, expected(fx, 'T', 'github', 'relT' if session == 'timing' else 'relTp'), session)
+        t = {k: num_t(log, k) for k in ('TIME', 'TSETUP', 'TBODY', 'TPULLS', 'TPACKETS', 'TEMPTIES', 'TRETRIES')}
+        nb = sum(TSIZES) + sum(len(v) for v in TEXTRA.values())
+        wire = sum(x.get('sent', 0) for x in reqs)
+        print('ok    %s: %d files, %d bytes (%d on the line, the headers too) in %.1f s of the emulated X16 '
+              '(%.2f KB/s of files): %.1f s from the requests to the first body bytes (%.2f s a file), %.1f s of '
+              'bodies; %d XONs, %d packets (%.1f ms a packet), %d empty, %d XONs again'
+              % ('timing, from the pack' if session == 'timing' else 'timing0, a release without a pack',
+                 len(TSIZES) + len(TEXTRA), nb, wire, t['TIME'] / 60, nb / 1024 / (t['TIME'] / 60), t['TSETUP'] / 60,
+                 t['TSETUP'] / 60 / len(TSIZES), t['TBODY'] / 60, t['TPULLS'], t['TPACKETS'],
+                 t['TIME'] / 60 * 1000 / max(1, t['TPACKETS']), t['TEMPTIES'], t['TRETRIES']))
+        if t['TRETRIES']:
+            fail('timing: XONs sent again (an XON lost)')
+        ranges = [x for x in reqs if x.get('status') == 206]
+        conns = [x for x in ranges if x.get('conn_req') == 1]
+        if ranges:
+            print('      (the pack: %d Ranges on %d connections to the asset host)' % (len(ranges), len(conns)))
     else:
         fail('no session %s' % session)
+
+
+def num_t(log, key):
+    v = lines(log, 'UP %s ' % key)
+    if not v:
+        fail('timing: no "UP %s" in the log' % key)
+    return int(v[-1].split()[-1])
 
 
 def main():

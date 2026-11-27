@@ -109,9 +109,13 @@ bad = [r for r in reqs if r.get('bad') or (r.get('host') == 'github' and r.get('
 if bad:
     sys.exit('FAIL  requests GitHub would refuse or not answer: %s' % bad[:3])
 tags = {r.get('tag') for r in gh if r.get('name') != 'UPDATE.LST'}
+packed = sum(1 for r in reqs if r.get('host') == 'assets' and r.get('status') == 206)
+if 'pack' in head and not packed:
+    sys.exit('FAIL  the release has a pack (%s) but no file came from it (V210)' % head['pack'][0])
 if tags != {head['tag']}:
     sys.exit('FAIL  the files asked under the tags %s, not %s' % (sorted(tags), head['tag']))
 print('ok    Veranda Update installed the release (%s, tag %s, build %s): %d files fetched, verified and in place, '
-      'from %s' % (chan, head['tag'], head['build'], n, want))
+      'from %s%s' % (chan, head['tag'], head['build'], n, want,
+                     ' (V210: %d from the pack %s)' % (packed, head['pack'][0]) if packed else ''))
 EOF
 echo "UPDCHECK: PASS"

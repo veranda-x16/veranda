@@ -39,8 +39,14 @@ static unsigned int t_prog;
 static unsigned char pos, wait_;
 static char w[24];
 
+/* (V210) the C stack's deepest: its 512 bytes below $8800 filled at the start,
+   what is still as it was counted at the end (UP CSTACK: bytes used) */
+#define CSTK ((unsigned char *)0x8600)
 void up_test_start(void)
 {
+    unsigned int i;
+    for (i = 0; i < 0x1C0; ++i)         /* (main's own frame above it) */
+        CSTK[i] = 0xA5;
     t_read("UPDATE.TST");
     t_say(t_session);
     t_say(t_arg);
@@ -90,6 +96,9 @@ void up_test_tick(void)
     }
     if (!word()) {
         t_say(t_restarted ? "UP RESTARTED" : "UP NO RESTART");
+        for (t_prog = 0; CSTK[t_prog] == 0xA5; ++t_prog)
+            ;
+        t_saynum("UP CSTACK ", 0x200 - t_prog);
         t_end("UP");
         return;
     }

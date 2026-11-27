@@ -66,6 +66,20 @@
 #                English fetched; Quit brings the stand-in back
 #    after each: the user's files (/DOCUMENTS, .SYSTEM's settings, an
 #    application of the user's own, README.txt) checksummed against the start
+#    (V210) the pack: B1's release has one (crc: its part and the file's
+#    own corrupt; drop: its connection dropped; resume: from it, its
+#    address refused once (expire 1) and its kept connection closed by
+#    the server (keepmax 1)); missing runs on B1 without a pack
+#    (B1p, as releases before V210)
+# 4. (V210, first) the time of an update, on a card of its own: build T,
+#    A with twelve programs of the sizes of twelve of 1.0.4's (616 KB,
+#    bytes that deflate about 2:1) and a short help file, GitHub's header
+#    lengths (realheaders): timing0 from a release without a pack,
+#    timing with one; each reports the emulated X16's seconds, the
+#    seconds before each file's first body byte, vrnet's XONs and
+#    packets (UP TIME ...). The emulated modem answers an XON at once
+#    and makes no TLS, so these are this side's and the line's times.
+#    ONLY=timing: these two sessions only.
 # Screenshots: $OUT/check.png, progress.png, done.png, lan.png.
 set -e
 cd "$(dirname "$0")/.."
@@ -102,17 +116,19 @@ def sizes(d):
     m = open(d + '/update.map').read()
     seg = {g[0]: int(g[3], 16) for g in re.findall(r'^(\w+)\s+([0-9A-F]{6})\s+([0-9A-F]{6})\s+([0-9A-F]{6})', m, re.M)}
     end = max(int(g[1], 16) for g in re.findall(r'^(CODE|RODATA|DATA|BSS)\s+[0-9A-F]{6}\s+([0-9A-F]{6})', m, re.M))
-    o = [sum(seg.get(s % n, 0) for s in ('OVERLAY%d', 'OVL%dRO', 'OVL%dDATA', 'OVL%dBSS')) for n in (1, 2, 3)]
+    o = [sum(seg.get(s % n, 0) for s in ('OVERLAY%d', 'OVL%dRO', 'OVL%dDATA', 'OVL%dBSS')) for n in (1, 2, 3, 4)]
     return end, o
 end, o = sizes(sys.argv[1])
 tend, to = sizes(sys.argv[2])
 cvt = len(open(sys.argv[1] + '/Update.cvt', 'rb').read())
-print('ok    the sizes: Update.cvt %d bytes; main RAM $0801-$%04X (%d bytes; the C stack 1 KB below $8800: %d free; '
+print('ok    the sizes: Update.cvt %d bytes; main RAM $0801-$%04X (%d bytes; the C stack, 512 bytes below $8800: %d free; '
       'the test build to $%04X, %d free); overlay 1 (Check, Update) %d bytes (%d spare), overlay 2 (the list, the '
-      'window) %d (%d spare), overlay 3 (the files, the swap, Undo) %d (%d spare); RAM banks: the overlays 3, the '
-      'list 2, a text 1, the CRC table 1, vrnet 2 while the modem is on: 9'
-      % (cvt, end, end - 0x801, 0x8400 - end - 1, tend, 0x8400 - tend - 1, o[0], 8192 - o[0], o[1], 8192 - o[1], o[2], 8192 - o[2]))
-if end >= 0x8400 or tend >= 0x8400 or max(o + to) > 8192:
+      'window) %d (%d spare), overlay 3 (the files, the swap, Undo) %d (%d spare), overlay 4 (V210: inflate) %d '
+      '(%d spare below its ring at $B800); RAM banks: the overlays 4, the list 2, a text 1, the CRC table 1, vrnet 2 '
+      'while the modem is on: 10'
+      % (cvt, end, end - 0x801, 0x8600 - end - 1, tend, 0x8600 - tend - 1, o[0], 8192 - o[0], o[1], 8192 - o[1], o[2],
+         8192 - o[2], o[3], 6144 - o[3]))
+if end >= 0x8600 or tend >= 0x8600 or max(o[:3] + to[:3]) > 8192 or max(o[3], to[3]) > 6144:
     sys.exit('FAIL  out of room')
 EOF
 $PY "$SDK/tools/vpack.py" --list "$A/rel/Update.cvt" > "$A/list.txt" || fail "vpack --list"
@@ -197,14 +213,29 @@ run() {
 GH='source=github\r\ngithub=127.0.0.1:%s\r\n'
 GHOLD='source=github\r\nrepo=sandlbn/veranda-x16\r\ngithub=127.0.0.1:%s\r\n'
 
+echo "== (V210) the time of an update: build T (twelve programs and a help file more, 616 KB) through the emulated modem at 57600, GitHub's headers as long as its own; a release without a pack (as before V210), then with one"
+CARD0=$CARD
+for s in timing0 timing; do
+	CARD=$OUT/card_t
+	rm -rf "$CARD"
+	cp -r "$FX/card0" "$CARD"
+	fake "$OUT/$s/srv" "$FX/$( [ $s = timing ] && echo relT || echo relTp )" ", \"realheaders\": true"
+	run $s "check update" "$(printf "$GH" "$GPORT")"
+	server_end
+	$PY tests/check_update.py check $s "$FX" "$CARD" "$OUT/$s/log.txt" "$OUT/$s/srv/requests.log" || { grep -a "^UP\|^BOX" "$OUT/$s/log.txt" | tail -30; fail "$s"; }
+	rm -rf "$CARD"
+done
+CARD=$CARD0
+if [ "$ONLY" = timing ]; then echo "GATE update: the timing session only (ONLY=timing)"; exit 0; fi
+
 echo "== the sessions (one card): up to date, a CRC mismatch, a missing file, a dropped connection, resumed, undo, the PC source, undo"
 for s in uptodate crc missing drop resume undo; do
 	case $s in
 	uptodate) fake "$OUT/$s/srv" "$FX/relA" ""; steps="check" ;;
 	crc) fake "$OUT/$s/srv" "$FX/relB1" ', "corrupt": ["'$($PY -c "import zlib,sys; print('%08x.bin' % (zlib.crc32(open(sys.argv[1],'rb').read()) & 0xffffffff))" "$FX/pkgB1/VERANDA/APPS/Paint.cvt")'"]'; steps="check update" ;;
-	missing) fake "$OUT/$s/srv" "$FX/relB1" ', "missing": ["'$($PY -c "import zlib,sys; print('%08x.bin' % (zlib.crc32(open(sys.argv[1],'rb').read()) & 0xffffffff))" "$FX/pkgB1/VERANDA/APPS/Veranda Gemini.cvt")'"]'; steps="check update" ;;
+	missing) fake "$OUT/$s/srv" "$FX/relB1p" ', "missing": ["'$($PY -c "import zlib,sys; print('%08x.bin' % (zlib.crc32(open(sys.argv[1],'rb').read()) & 0xffffffff))" "$FX/pkgB1/VERANDA/APPS/Veranda Gemini.cvt")'"]'; steps="check update" ;;
 	drop) fake "$OUT/$s/srv" "$FX/relB1" ', "drop": ["'$($PY -c "import zlib,sys; print('%08x.bin' % (zlib.crc32(open(sys.argv[1],'rb').read()) & 0xffffffff))" "$FX/pkgB1/VERANDA/APPS/Veranda Gemini.cvt")'"]'; steps="check update" ;;
-	resume) fake "$OUT/$s/srv" "$FX/relB1" ""; steps="check snap:CK aside:8 prog:20 update snap:DN" ;;
+	resume) fake "$OUT/$s/srv" "$FX/relB1" ", \"expire\": 1, \"keepmax\": 1"; steps="check snap:CK aside:8 prog:20 update snap:DN" ;;
 	undo) fake "$OUT/$s/srv" "$FX/relB1" ""; steps="undo" ;;
 	esac
 	g=$GH

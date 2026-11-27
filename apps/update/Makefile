@@ -6,20 +6,22 @@
 SDK      ?= ../../build/sdk
 OUT      ?= .
 CC65     := cl65 -t none --cpu 65C02 -O -I $(SDK)/include --asm-include-dir $(SDK)/include
-SRC      := main.c http.c crc.s job.c man.c ui.c swap.c ../sysui/sysui.c
+SRC      := main.c http.c crc.s job.c man.c ui.c swap.c inflate.s pick.c ../sysui/sysui.c
 TEST_SRC ?= ../../tests/update_play.c ../../tests/sysui_test.c ../../tests/term_play.s
 # main RAM: main.c (with the overlays' wrappers), http.c, crc.s, vrnet and
 # sysui (veranda.lib, sysui.c); overlay 1 (appBank, mapped for good):
 # job.c; overlay 2: man.c, ui.c; overlay 3: swap.c (a string the kernel
-# reads stays in main RAM or goes through K()); a C stack of 1 KB
+# reads stays in main RAM or goes through K()); overlay 4 (V210):
+# inflate.s, pick.c; a C stack of 512 bytes (V210: gate update measures
+# its deepest, UP CSTACK, under 100 bytes)
 
 all: $(OUT)/Update.cvt
 
 $(OUT)/update.bin: $(SRC) up.h ../sysui/sysui.h app.hdr
-	$(CC65) $(CFLAGS) -C $(SDK)/cfg/app-c-ovl.cfg -Wl -D,__STACKSIZE__=0x0400 -m $(OUT)/update.map -o $@ $(SRC) $(EXTRA) $(SDK)/lib/veranda.lib
+	$(CC65) $(CFLAGS) -C $(SDK)/cfg/app-c-ovl.cfg -Wl -D,__STACKSIZE__=0x0200 -m $(OUT)/update.map -o $@ $(SRC) $(EXTRA) $(SDK)/lib/veranda.lib
 
 $(OUT)/Update.cvt: $(OUT)/update.bin icon.pbm tile.txt
-	python3 -I -B $(SDK)/tools/vpack.py --load 0x0801 -o $@ app.hdr $(OUT)/update.bin $(OUT)/update.bin.1 $(OUT)/update.bin.2 $(OUT)/update.bin.3 $(OVLT)
+	python3 -I -B $(SDK)/tools/vpack.py --load 0x0801 -o $@ app.hdr $(OUT)/update.bin $(OUT)/update.bin.1 $(OUT)/update.bin.2 $(OUT)/update.bin.3 $(OUT)/update.bin.4 $(OVLT)
 
 test:
 	rm -f $(OUT)/update.bin

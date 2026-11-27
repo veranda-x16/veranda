@@ -17,7 +17,11 @@ DOCUMENTS/ at its top). The manifest goes to <pkg-dir>/VERANDA/UPDATE.LST
                                          from before it skips the line
     tag <tag>                            (a release's: its GitHub tag)
     note <text>                          "what's new", up to 8 lines of 76
+    pack <asset> <size>                  (a release's, V210) its pack: every
+                                         file deflated, one after another
     file <size> <crc32> <kind> <min> <asset> <path>
+    z <offset> <zsize>                   (V210, after a file of the pack)
+                                         where its deflated bytes are in it
     ...
     end <files>                          (a manifest cut short has none)
 
@@ -27,6 +31,18 @@ build date the file may be put over ("-": any); asset the file's name in
 a release and on the PC's update server: its CRC-32 and ".bin" (the same
 bytes, the same asset: VERANDA.PRG and AUTOBOOT.X16 share one); path from
 the card's top, "/" between folders, spaces allowed (the line's rest).
+
+(V210) A release also has a pack (tools/mkrelease.py; pack()): each
+file but the doc-samples, once for each asset, deflated (RFC 1951, raw,
+zlib's level 9) and put one after another, in the list's order, its name
+its own CRC-32 and ".pak". A Veranda Update from V210 on fetches the
+files it needs from it, each with an HTTP Range of its z line, through
+one address it asked GitHub for (GitHub's 302 and its 5.7 KB of headers
+once, not for every file), and inflates them as they come: about half
+the bytes. It checks each file's own CRC-32 as before, and fetches the
+file's own asset when the pack does not give it whole. An older Veranda
+Update skips the pack and z lines (words it does not know) and fetches
+the files' own assets, which a release still has.
 
 Only VERANDA/, PC/ and DOCUMENTS/ are listed (anything else in the folder
 is left out with a warning), never VERANDA/.SYSTEM (the user's settings)
@@ -146,7 +162,26 @@ def wrap_notes(notes):
     return lines[:NOTE_LINES]
 
 
-def render(build, date, ents, notes=(), tag=None, version=None):
+def pack(ents, data_of):
+    """(V210) the pack's bytes and {asset: (offset, zsize)}: each listed
+    file but the doc-samples, once for each asset, deflated raw at level
+    9, in the list's order; data_of(entry) gives its bytes"""
+    out, where = bytearray(), {}
+    for e in ents:
+        if e['kind'] == 'doc-sample' or e['asset'] in where:
+            continue
+        c = zlib.compressobj(9, zlib.DEFLATED, -15, 9)
+        z = c.compress(data_of(e)) + c.flush()
+        where[e['asset']] = (len(out), len(z))
+        out += z
+    return bytes(out), where
+
+
+def pack_name(data):
+    return '%08x.pak' % crc32(data)
+
+
+def render(build, date, ents, notes=(), tag=None, version=None, pak=None, where=None):
     if version is not None and (len(version) > 15 or not VERSION_RE.match(version)):
         raise ManifestError('version %r: N.M or N.M.P (digits; a -suffix of up to 6 letters and digits)' % version)
     if not BUILD_RE.match(build):
@@ -159,8 +194,12 @@ def render(build, date, ents, notes=(), tag=None, version=None):
     if tag:
         out.append('tag %s' % tag)
     out += ['note ' + l for l in wrap_notes(notes)]
+    if pak:
+        out.append('pack %s %d' % pak)
     for e in ents:
         out.append('file %d %08x %s %s %s %s' % (e['size'], e['crc'], e['kind'], e['min'], e['asset'], e['path']))
+        if where and e['kind'] != 'doc-sample' and e['asset'] in where:
+            out.append('z %d %d' % where[e['asset']])
     out.append('end %d' % len(ents))
     return '\n'.join(out) + '\n'
 
@@ -184,6 +223,14 @@ def parse(text):
             head['version'] = rest
         elif w == 'note':
             head['notes'].append(rest)
+        elif w == 'pack':
+            n, sz = rest.split(' ')
+            head['pack'] = (n, int(sz))
+        elif w == 'z':
+            if not ents:
+                raise ManifestError('a z line before any file')
+            o, z = rest.split(' ')
+            ents[-1]['z'] = (int(o), int(z))
         elif w == 'file':
             f = rest.split(' ', 5)
             ents.append({'size': int(f[0]), 'crc': int(f[1], 16), 'kind': f[2], 'min': f[3], 'asset': f[4], 'path': f[5]})

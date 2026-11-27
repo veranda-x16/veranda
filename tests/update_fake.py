@@ -10,12 +10,29 @@ Update's test build. No real server is contacted.
      "corrupt": [asset, ...],   one byte changed (the CRC must refuse it)
      "drop": [asset, ...],      the connection closed half way, once each
      "latest": true,            (false: no release, 404 for UPDATE.LST)
-     "repos": {"owner/repo": "<folder>", ...}}
+     "realheaders": true,       (V210) the headers as long as GitHub's
+                                (its 302: 5.7 KB, most of it its
+                                Content-Security-Policy, after the
+                                Location; the asset host's 200: 0.9 KB)
+     "repos": {"owner/repo": "<folder>", ...},
                                 (V198) more repositories, each with one
                                 release (its tag its list's: UPDATE.LST's
                                 or DICT.LST's, Veranda Write's
                                 dictionaries); missing, corrupt and drop
                                 name their assets too
+     "expire": n,               (V210) a signed address serves n requests,
+                                then 403 (GitHub's last 5 minutes)
+     "keepmax": n}              (V210) a connection kept alive is closed,
+                                without a word, after its n-th answer
+
+(V210) The release's pack (<crc32>.pak, its UPDATE.LST's pack line) is an
+asset as the others; a request with a Range (bytes=a-b) gets 206 and
+those bytes (Content-Range, Content-Length), as GitHub's asset host
+answers. corrupt and drop name a file's own asset and act on its bytes in
+the pack too (a Range that starts at its z line's offset); missing names
+the pack itself to make it 404. A request with a Range may ask for
+"Connection: keep-alive" (any other must say close): its 206 then keeps
+the connection for the next request, as the asset host does.
 
 The release is served as GitHub serves a published one (V140): its tag
 is the one its UPDATE.LST names (mkrelease.py's --tag v<version>, the
@@ -55,6 +72,7 @@ LOCK = threading.Lock()
 DROPPED = set()
 COUNT = [0]
 TOKENS = {}
+USES = {}
 
 
 def log(**k):
@@ -90,16 +108,51 @@ def check(line, hdr, who):
         bad.append('no User-Agent')
     if hdr.get('accept-encoding') != 'identity':
         bad.append('Accept-Encoding %r' % hdr.get('accept-encoding'))
-    if hdr.get('connection', '').lower() != 'close':
+    if hdr.get('connection', '').lower() not in (('close', 'keep-alive') if hdr.get('range') else ('close',)):
         bad.append('Connection %r' % hdr.get('connection'))
     if not hdr.get('host'):
         bad.append('no Host')
     return (m.group(1) if m else ''), bad
 
 
+# (V210) GitHub's own headers after a 302's Location (measured 2026-11-26:
+# 5,739 bytes in all) and the asset host's after its status (874)
+GH_PAD = ['Cache-Control: no-cache', 'Strict-Transport-Security: max-age=31536000; includeSubdomains; preload',
+          'X-Frame-Options: deny', 'X-Content-Type-Options: nosniff', 'X-XSS-Protection: 0',
+          'Referrer-Policy: no-referrer-when-downgrade',
+          'Content-Security-Policy: default-src \'none\'; ' + ' '.join(
+              'productionresultssa%d.blob.core.windows.net' % i for i in range(95)),
+          'X-GitHub-Request-Id: 9100:354488:13DA75:2AB691:6B08C637', 'X-GitHub-Edge-Region: westus2']
+AS_PAD = ['Last-Modified: Thu, 26 Nov 2026 23:13:16 GMT', 'ETag: "0x8DF4C12DA7F2411"',
+          'Server: Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0', 'x-ms-request-id: 3a436ffe-501e-006a-2afc-7d397d000000',
+          'x-ms-version: 2018-11-09', 'x-ms-creation-time: Thu, 26 Nov 2026 23:13:16 GMT',
+          'x-ms-blob-content-md5: zDae4wdIVa3ibcdJ1DEgUQ==', 'x-ms-lease-status: unlocked',
+          'x-ms-lease-state: available', 'x-ms-blob-type: BlockBlob', 'x-ms-server-encrypted: true',
+          'x-ms-access-tier: Hot', 'x-ms-access-tier-inferred: true', 'Via: 1.1 varnish, 1.1 varnish', 'Age: 1766',
+          'Date: Thu, 26 Nov 2026 23:52:43 GMT', 'X-Served-By: cache-iad-kcgs7270035-IAD, cache-pdx12331-PDX',
+          'X-Cache: HIT, HIT', 'X-Cache-Hits: 1, 0', 'X-Timer: S1795737164.609340,VS0,VE1',
+          'Content-Disposition: attachment; filename=UPDATE.LST']
+
+
+class Counted:
+    """a connection that counts the bytes sent on it (V210: the timing)"""
+
+    def __init__(self, c):
+        self.c, self.n = c, 0
+
+    def sendall(self, b):
+        self.n += len(b)
+        self.c.sendall(b)
+
+    def recv(self, n):
+        return self.c.recv(n)
+
+
 def send(c, code, reason, body=b'', extra=()):
     h = ['HTTP/1.1 %d %s' % (code, reason), 'Server: GitHub.com', 'Content-Type: text/html; charset=utf-8']
     h += list(extra)
+    if CFG.get('realheaders'):
+        h += GH_PAD
     h += ['Content-Length: %d' % len(body), 'Connection: close', '', '']
     c.sendall('\r\n'.join(h).encode() + body)
 
@@ -175,20 +228,76 @@ def github(c, aport):
     send(c, 302, 'Found', b'<html><body>You are being redirected.</body></html>', ['Location: ' + url])
 
 
+def segments(rel):
+    """(V210) {offset in the pack: the asset} from the release's z lines"""
+    out, last = {}, None
+    for n in ('UPDATE.LST', 'DICT.LST'):
+        if os.path.isfile(os.path.join(rel, n)):
+            for l in open(os.path.join(rel, n), encoding='latin-1'):
+                f = l.split()
+                if f and f[0] == 'file':
+                    last = f[5]
+                elif f and f[0] == 'z' and last:
+                    out[int(f[1])] = last
+    return out
+
+
 def assets(c):
+    n = 0
+    while asset1(c, n):
+        n += 1
+
+
+def asset1(c, n):
+    """one request on the asset host's connection c (its n-th): True if the
+    connection is kept for another"""
     line, hdr = read_request(c)
     if line is None:
-        return
+        return False
     path, bad = check(line, hdr, 'assets')
     m = re.match(r'^/github-production-release-asset-2e65be/\d+/[0-9a-f]+\?.*X-Amz-Signature=([0-9a-f]{64})&', path)
     name = TOKENS.get(m.group(1)) if m else None
     rel = RELS.get(m.group(1)) if m else None
+    if name and CFG.get('expire'):
+        with LOCK:
+            USES[m.group(1)] = USES.get(m.group(1), 0) + 1
+            if USES[m.group(1)] > CFG['expire']:
+                name = None
     if not name:
-        log(host='assets', path=path[:80], status=403, line_len=len(line), bad=bad)
-        send(c, 403, 'Forbidden', b'<Error>AccessDenied</Error>')
-        return
+        log(host='assets', path=path[:80], status=403, line_len=len(line), bad=bad, conn_req=n + 1)
+        send(c, 403, 'Forbidden', b'<Error>AuthenticationFailed</Error>')
+        return False
     body = open(os.path.join(rel, name), 'rb').read()
     how = []
+    rg = re.match(r'^bytes=(\d+)-(\d+)$', hdr.get('range', ''))
+    if rg:
+        # (V210) a part of the pack: 206, as GitHub's asset host
+        a, b = int(rg.group(1)), int(rg.group(2))
+        seg = segments(rel).get(a)
+        part = bytearray(body[a:b + 1])
+        if seg in CFG.get('corrupt', []):
+            part[len(part) // 2] ^= 0x5A
+            how.append('corrupt')
+        with LOCK:
+            drop = seg in CFG.get('drop', []) and seg not in DROPPED
+            if drop:
+                DROPPED.add(seg)
+        keep = hdr.get('connection', '').lower() == 'keep-alive' and not drop
+        h = ['HTTP/1.1 206 Partial Content', 'Content-Type: application/octet-stream', 'Accept-Ranges: bytes',
+             'Content-Range: bytes %d-%d/%d' % (a, a + len(part) - 1, len(body)), 'Content-Length: %d' % len(part),
+             'Connection: ' + ('keep-alive' if keep else 'close')] + (AS_PAD if CFG.get('realheaders') else [])
+        c.sendall('\r\n'.join(h + ['', '']).encode())
+        if drop:
+            how.append('dropped')
+            c.sendall(bytes(part[:len(part) // 2]))
+        else:
+            c.sendall(bytes(part))
+        log(host='assets', name=name, seg=seg, range=[a, b], status=206, line_len=len(line), how=how, bad=bad,
+            hosthdr=hdr.get('host'), conn_req=n + 1, keep=keep)
+        if keep and CFG.get('keepmax') and n + 1 >= CFG['keepmax']:
+            log(host='assets', closed_kept=n + 1)
+            return False
+        return keep
     if name in CFG.get('corrupt', []):
         body = bytearray(body)
         body[len(body) // 2] ^= 0x5A
@@ -202,7 +311,7 @@ def assets(c):
             DROPPED.add(name)
     chunked = n % 2 == 1
     h = ['HTTP/1.1 200 OK', 'Content-Type: application/octet-stream', 'Accept-Ranges: bytes',
-         'x-ms-request-id: 0', 'Connection: close']
+         'x-ms-request-id: 0', 'Connection: close'] + (AS_PAD if CFG.get('realheaders') else [])
     if chunked:
         h.append('Transfer-Encoding: chunked')
         how.append('chunked')
@@ -218,7 +327,7 @@ def assets(c):
         else:
             c.sendall(body[:cut])
         log(host='assets', name=name, status=200, line_len=len(line), how=how, bad=bad, hosthdr=hdr.get('host'))
-        return
+        return False
     if chunked:
         i, k = 0, 0
         while i < len(body):
@@ -232,6 +341,7 @@ def assets(c):
     else:
         c.sendall(body)
     log(host='assets', name=name, status=200, line_len=len(line), how=how, bad=bad, hosthdr=hdr.get('host'))
+    return False
 
 
 def serve(sock, fn, *a):
@@ -239,12 +349,14 @@ def serve(sock, fn, *a):
         c, _ = sock.accept()
 
         def run(c=c):
+            k = Counted(c)
             try:
                 c.settimeout(60)
-                fn(c, *a)
+                fn(k, *a)
             except OSError:
                 pass
             finally:
+                log(host='wire', sent=k.n)
                 try:
                     c.shutdown(socket.SHUT_RDWR)
                 except OSError:

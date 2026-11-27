@@ -31,8 +31,10 @@
 ; It returns c set: what it serves needs nothing more, so the kernel ends
 ; an interrupt that VERA did not raise (V41).
 ;
-; The C side (vrserc.c, vrser.h) programs the chip and reads the ring;
-; this file has no entry points but SerIrq.
+; The C side (vrserc.c, vrser.h) programs the chip; this file has no entry
+; points but SerIrq and (V210) ser_get, the ring read, moved here from
+; vrserc.c: its C loop took some 120 cycles a byte, this one some 40
+; (vrnet reads every byte of a download through it).
 
 .export _SerIrq
 .export _ser_on, _ser_lo, _ser_rxbank, _ser_rxhead, _ser_rxtail
@@ -40,6 +42,9 @@
 .export _ser_frames, _ser_mcr, _ser_ier, _ser_flow
 .export _ser_sbank, _ser_saddr, _ser_send, _ser_rate, _ser_logbank, _ser_logpos
 .export _ser_polls, _ser_fast
+.export _ser_get
+.import popax
+.importzp ptr1, ptr2, ptr3, ptr4, tmp1
 
 ram_bank  = $00
 VERA_IEN  = $9F26
@@ -273,6 +278,75 @@ Flow:	lda _ser_rxhead+1
 	sty @mcr+1
 @mcr:	sta U_MCR + $E0         ; (its low byte: ser_lo + 4, V91)
 @r:	rts
+
+; (V210) unsigned int __fastcall__ ser_get(unsigned char *buf, unsigned int max):
+; up to max received bytes into buf (below $A000), the count; the RAM
+; bank kept
+_ser_get:
+	sta ptr4
+	stx ptr4+1
+	jsr popax
+	sta ptr1
+	stx ptr1+1
+	lda ram_bank
+	pha
+	sei                     ; (the head as it is now: ptr3)
+	lda _ser_rxhead
+	sta ptr3
+	lda _ser_rxhead+1
+	cli
+	ora #$A0
+	sta ptr3+1
+	lda _ser_rxtail         ; ptr2: the tail, in the ring's bank
+	sta ptr2
+	lda _ser_rxtail+1
+	ora #$A0
+	sta ptr2+1
+	lda _ser_rxbank
+	sta ram_bank
+	ldy #0                  ; (the count: gc, y its low byte)
+	stz tmp1
+@l:	cpy ptr4                ; max taken?
+	bne @1
+	lda tmp1
+	cmp ptr4+1
+	beq @f
+@1:	lda ptr2                ; the head reached?
+	cmp ptr3
+	bne @2
+	lda ptr2+1
+	cmp ptr3+1
+	beq @f
+@2:	lda (ptr2)
+	sta (ptr1)
+	inc ptr1
+	bne @3
+	inc ptr1+1
+@3:	iny
+	bne @4
+	inc tmp1
+@4:	inc ptr2
+	bne @l
+	inc ptr2+1
+	lda ptr2+1
+	cmp #$C0
+	bne @l
+	lda #$A0
+	sta ptr2+1
+	bra @l
+@f:	pla
+	sta ram_bank
+	lda ptr2+1
+	and #$1F
+	tax
+	lda ptr2
+	sei
+	sta _ser_rxtail
+	stx _ser_rxtail+1
+	cli
+	tya
+	ldx tmp1
+	rts
 
 ; the script: ser_rate bytes a frame; what was sent into the log
 Script:	lda _ser_rate

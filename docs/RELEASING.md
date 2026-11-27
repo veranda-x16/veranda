@@ -249,6 +249,19 @@ release, at a moment when no one is updating.
 The release `test` is not created until you publish a test build. Until
 then, Test's Check says "the repository has no release with UPDATE.LST".
 
+**The pack** (V210). Every release has one more asset, `<crc32>.pak`:
+its files deflated one after another (`tools/mkrelease.py`, the pack and
+z lines of its UPDATE.LST; mkrelease checks that each file's part
+inflates to that file). Veranda Update from V210 on fetches the files it
+needs from it (HTTP Range, one connection, about half the bytes) and
+falls back to the `<crc32>.bin` assets, which every release still has
+and which an older Veranda Update fetches as before. The workflows upload
+`*.pak` with the rest. On the Test channel each test build adds a new
+pack (named by its CRC-32, as the assets are, so an X16 half way through
+an update keeps the one its list names); the old ones collect like the
+old assets: delete them the same way. `--no-pack` makes a release without
+one.
+
 ## Rolling back
 
 - **A bad release on GitHub:**

@@ -173,26 +173,7 @@ unsigned char ser_msr(void)
     return ser_on == 1 ? REG(6) : 0xB0;
 }
 
-unsigned int __fastcall__ ser_get(unsigned char *buf, unsigned int max)
-{
-    unsigned int head, tail = ser_rxtail, n = 0;
-    unsigned char *p;
-    unsigned char b = RAMBANK;
-    asm("sei");
-    head = ser_rxhead;
-    asm("cli");
-    RAMBANK = ser_rxbank;
-    while (tail != head && n < max) {
-        p = (unsigned char *)0xA000 + tail;
-        buf[n++] = *p;
-        tail = (tail + 1) & 0x1FFF;
-    }
-    RAMBANK = b;
-    asm("sei");
-    ser_rxtail = tail;
-    asm("cli");
-    return n;
-}
+/* (ser_get: vrser.s since V210) */
 
 void __fastcall__ ser_byte(unsigned char c)
 {

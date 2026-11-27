@@ -78,6 +78,13 @@ signed char __fastcall__ net_open(const char *host, unsigned int port);
    check the server's certificate); the program speaks plain bytes over
    it. 0 (the default): plain TCP */
 extern unsigned char net_tls;
+/* (V210) from now on, when a packet's header comes in, the next XON is
+   sent at once, so that the next packet follows on the line with no gap
+   (one XON ahead, while nothing else waits and every open socket has
+   room for two packets): a download comes at the line's rate. Without
+   it, an XON after each packet, as before (vrahead.c, about 150 bytes,
+   is linked only by a program that calls this) */
+void net_ahead_on(void);
 unsigned char __fastcall__ net_sock(signed char s);
 signed char __fastcall__ net_sockerr(signed char s);
 /* up to n received bytes into buf: the count (0: none yet), or

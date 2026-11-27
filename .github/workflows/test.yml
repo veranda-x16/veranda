@@ -118,9 +118,9 @@ jobs:
           cd rel
           title="Veranda test build $(sed -n 's/^build \([0-9a-f]*\) \(.*\)/\1 (\2)/p' UPDATE.LST)"
           if gh release view test >/dev/null 2>&1; then
-            gh release upload test --clobber UPDATE.LST *.bin *.zip SHA256SUMS
+            gh release upload test --clobber UPDATE.LST *.bin *.pak *.zip SHA256SUMS
             gh release edit test --title "$title" --notes-file NOTES.md --prerelease --latest=false
           else
             gh release create test --target next --title "$title" --notes-file NOTES.md --prerelease --latest=false \
-              UPDATE.LST *.bin *.zip SHA256SUMS
+              UPDATE.LST *.bin *.pak *.zip SHA256SUMS
           fi

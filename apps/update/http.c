@@ -19,9 +19,18 @@
    new one opened to the new address, another host or the same (GitHub's
    release download answers 302 with a signed address on
    release-assets.githubusercontent.com or objects.githubusercontent.com),
-   at most 6 times. A relative Location keeps the host. 200: the body;
-   404: H_E404 (a file the release does not have); anything else
-   H_ESTATUS. A connection that ends before its Content-Length or its
+   at most 6 times. A relative Location keeps the host. (V210) A
+   redirect is followed as soon as its Location has come: GitHub's 302
+   has 4.7 KB of headers after it (its Content-Security-Policy), which are
+   not waited for. 200: the body; 404: H_E404 (a file the release does
+   not have); anything else H_ESTATUS. (V210) With hrange, the request
+   asks for bytes hr0 to hr1 (Range) and only 206 is the body. (V210)
+   With hkeep, it asks for "Connection: keep-alive", and a connection
+   whose answer ended with its Content-Length (and no "Connection:
+   close") is kept for the next request to the same host, port and TLS
+   (the pack's files, one after another: one TLS connection to the asset
+   host, not one a file); a kept connection the server has closed
+   meanwhile is made again, and the request sent again, at once. A connection that ends before its Content-Length or its
    last chunk: H_EDROP. Nothing for 30 s: H_ETIMEOUT.
 
    MIT licence (see LICENSE). */
@@ -37,6 +46,8 @@ unsigned long hgot, hlen;
 unsigned char hredir, hchunked;
 signed char hnet;
 unsigned char __fastcall__ (*hsink)(const unsigned char *b, unsigned int n);
+unsigned char hrange, hkeep;
+unsigned long hr0, hr1;
 
 #define T_IDLE 1800             /* frames with nothing coming (30 s) */
 #define REDIR_MAX 6
@@ -50,6 +61,9 @@ static char host[64];
 static unsigned int port;
 static char portstr[7];
 static unsigned int pathat;     /* the path's start in hurl */
+static signed char ksk = -1;    /* (V210) the connection kept */
+static unsigned int kh, hh;     /*   its host's hash (the host, the port, TLS); this request's */
+static unsigned char reused, hclose;
 
 /* the request's parts */
 static const char *pp;
@@ -57,7 +71,7 @@ static unsigned char pi;
 static const char r_get[] = "GET ";
 static const char r_ver[] = " HTTP/1.1\r\nHost: ";
 static const char r_tail[] = "\r\nUser-Agent: VerandaUpdate/1.0 (Commander X16)\r\nAccept: */*\r\n"
-                             "Accept-Encoding: identity\r\nConnection: close\r\n\r\n";
+                             "Accept-Encoding: identity\r\nConnection: ";
 
 /* the reply */
 static char hl[64];             /* a header line, lower case (what does not fit is dropped) */
@@ -70,8 +84,13 @@ static unsigned char rb[256];
 
 static void __fastcall__ fin(unsigned char e)
 {
-    if (sk >= 0)
-        net_close(sk);
+    if (sk >= 0) {
+        if (e == H_OK && hkeep && !hclose && !hchunked && hlen != 0xFFFFFFFFUL) {
+            ksk = sk;           /* (V210: kept for the next request) */
+            kh = hh;
+        } else
+            net_close(sk);
+    }
     sk = -1;
     hs = HS_DONE;
     hres = e;
@@ -106,7 +125,7 @@ static unsigned char parse(void)
     for (n = 0; *p && *p != '/' && *p != ':' && *p != '?'; ++p) {
         if (n == 61)
             return 0;
-        *h++ = *p;
+        hh = hh << 1 ^ (*h++ = *p);
         ++n;
     }
     *h = 0;
@@ -120,6 +139,7 @@ static unsigned char parse(void)
         port = v;
     }
     pathat = p - hurl;
+    hh ^= port + tls;
     portstr[0] = 0;
     if (port != (tls ? 443 : 80)) {
         portstr[0] = ':';
@@ -136,7 +156,7 @@ static void open_(void)
     hchunked = 0;
     hln = 0;
     firstline = 1;
-    loc = hasloc = 0;
+    loc = hasloc = hclose = reused = 0;
     tlast = ser_frames;
     if (!net_on || net_state() == NET_FAULT)
         net_restart();
@@ -144,17 +164,36 @@ static void open_(void)
         fin(H_ENOCARD);
 }
 
+/* (V210) this request's connection: the kept one if it is to the same
+   host and has nothing more to read, else a new one */
+static void go(void)
+{
+    open_();
+    if (ksk >= 0) {
+        if (hkeep && kh == hh && hs == HS_WAIT && net_sock(ksk) == NET_OPEN && !net_avail(ksk)) {
+            sk = ksk;
+            reused = 1;
+            hs = HS_SEND;
+            pi = 0;
+            pp = "";
+        } else
+            net_close(ksk);
+        ksk = -1;
+    }
+}
+
 void http_get(void)
 {
     hredir = 0;
     hgot = 0;
     hnet = 0;
+    hh = 0;
     if (!parse()) {
         hs = HS_DONE;
         hres = H_EURL;
         return;
     }
-    open_();
+    go();
 }
 
 void http_cancel(void)
@@ -162,18 +201,30 @@ void http_cancel(void)
     if (hs != HS_IDLE && hs != HS_DONE)
         fin(H_ECANCEL);
     hs = HS_IDLE;
+    if (ksk >= 0)
+        net_close(ksk);         /* (V210: the kept one too) */
+    ksk = -1;
 }
 
 /* the next part of the request; 0 at its end */
 static const char *part(void)
 {
+    char *p;
     switch (pi++) {
     case 0: return r_get;
     case 1: return hurl[pathat] ? hurl + pathat : "/";
     case 2: return r_ver;
     case 3: return host;
     case 4: return portstr;
-    case 5: return r_tail;
+    case 5:                     /* (V210; in rb, not read while the request goes) */
+        if (!hrange)
+            return "";
+        p = ui_num(strcpy((char *)rb, "\r\nRange: bytes=") + 15, hr0);
+        *p++ = '-';
+        ui_num(p, hr1);
+        return (char *)rb;
+    case 6: return r_tail;
+    case 7: return hkeep ? "keep-alive\r\n\r\n" : "close\r\n\r\n";
     }
     return 0;
 }
@@ -226,6 +277,8 @@ static void header(void)
             hlen = hlen * 10 + (*p - '0');
     } else if (!memcmp(hl, "transfer-encoding:", 18) && strstr(hl + 18, "chunked"))
         hchunked = 1;
+    else if (!memcmp(hl, "connection:", 11) && strstr(hl + 11, "close"))
+        hclose = 1;             /* (V210: not kept) */
 }
 
 /* the headers have ended */
@@ -239,18 +292,19 @@ static void headers_end(void)
             fin(H_EREDIR);
             return;
         }
+        hh = 0;
         if (!parse()) {
             fin(H_EURL);
             return;
         }
-        open_();
+        go();
         return;
     }
     if (hstatus == 404) {
         fin(H_E404);
         return;
     }
-    if (hstatus != 200) {
+    if (hstatus != (hrange ? 206 : 200)) {
         fin(H_ESTATUS);
         return;
     }
@@ -306,6 +360,8 @@ static void feed(unsigned int n)
                     loc = 0;
                     hasloc = locn > 0;
                     hln = 0;
+                    if (hasloc && hstatus >= 300 && hstatus < 400)
+                        headers_end();  /* (V210: the redirect at once) */
                     break;
                 }
                 if (!hln) {
@@ -439,6 +495,12 @@ unsigned char http_poll(void)
         return H_RUN;
     }
     d = net_sock(sk);
+    if (reused && firstline && (d >= NET_CLOSING || d == NET_FREE) && !net_avail(sk)) {
+        net_close(sk);          /* (V210: the kept connection closed meanwhile: a new one) */
+        sk = -1;
+        open_();
+        return H_RUN;
+    }
     if (d == NET_FAILED || d == NET_FREE) {
         hnet = net_sockerr(sk);
         fin(hs == HS_SEND ? H_ECONN : H_EDROP);

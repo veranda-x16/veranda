@@ -3,7 +3,8 @@
 # kernel, the shell, the SDK and the programs with the pinned cc65, the
 # sibling repositories at the same tag, runs the fast gates under the
 # official x16emu R49, and publishes the release: Veranda Update's files
-# (UPDATE.LST and the <crc32>.bin assets: tools/release.allow, the port
+# (UPDATE.LST, the <crc32>.bin assets and, V210, the <crc32>.pak pack:
+# tools/release.allow, the port
 # guard), the SD-card zip and SHA256SUMS; Veranda Update's test build
 # installs that release folder from GitHub played on localhost
 # (tools/ci/updcheck.sh), and the release is not made unless it can.
@@ -96,11 +97,11 @@ jobs:
           cd rel
           V=${TAG#v}
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" --clobber UPDATE.LST *.bin *.zip SHA256SUMS
+            gh release upload "$TAG" --clobber UPDATE.LST *.bin *.pak *.zip SHA256SUMS
             gh release edit "$TAG" --notes-file NOTES.md --latest
           else
             gh release create "$TAG" --verify-tag --title "Veranda $V" --notes-file NOTES.md --latest \
-              UPDATE.LST *.bin *.zip SHA256SUMS
+              UPDATE.LST *.bin *.pak *.zip SHA256SUMS
           fi
       - name: The website (a repository_dispatch, when the token is there)
         env:

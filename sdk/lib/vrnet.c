@@ -43,15 +43,13 @@
 #include <string.h>
 #include "vrser.h"
 #include "vrnet.h"
+#include "vrnetp.h"
 
 #define RAMBANK (*(volatile unsigned char *)0)
-#define XON     0x11
-#define PKT     254             /* ATS40 */
 
 /* the sockets' bank ($A000) */
 #define CRCTAB  ((unsigned char *)0xA000)       /* 256: the CRC-8 table */
 #define STAGE   ((unsigned char *)0xA100)       /* 256: a packet's payload */
-#define RXSZ    1024
 #define RXBUF(s) ((unsigned char *)0xA200 + ((unsigned int)(s) << 10))
 #define TXBUF(s) ((unsigned char *)0xB200 + ((unsigned int)(s) << 8))
 #define HOST(s)  ((char *)0xB600 + ((unsigned int)(s) << 6))
@@ -63,17 +61,11 @@
 #define T_RECOVER 1800          /* the modem answering again after a timeout: 30 s */
 #define PULL_TRIES 4
 
-struct sock {
-    unsigned char st, id;
-    signed char err;
-    unsigned int port;
-    unsigned int rxh, rxt;      /* the receive ring (RXSZ) */
-    unsigned char txh, txt;     /* the send ring (256) */
-};
-static struct sock sk[NET_SOCKS];
+struct sock sk[NET_SOCKS];      /* (vrnetp.h's struct; not static since V210: vrahead.c reads them) */
 
 unsigned int net_xtal = SER_X14;
 unsigned char net_tls;
+void (*net__ahead)(void);       /* (V210: vrahead.c's, once net_ahead_on is called) */
 struct net_stats net_stats;
 
 static unsigned char rbank, nbank;
@@ -93,17 +85,20 @@ static unsigned char setup_i;
 #define K_HANGUP   2
 #define K_ORPHAN   3
 #define K_RECOVER  4
-static unsigned char op, kind, osk, tries, draining;
-static unsigned int ot, olen;   /* its start (ser_frames) and its deadline */
+static unsigned char op, kind, osk, tries;
+unsigned char draining;
+unsigned int ot;                /* its start (ser_frames) */
+static unsigned int olen;       /*   its deadline */
 static unsigned char cur = 0xFF;        /* the modem's current channel */
-static unsigned char orphan;            /* a late CONNECT's channel, to hang up */
+unsigned char orphan;                   /* a late CONNECT's channel, to hang up */
 static unsigned char sendn, sendp;      /* ATT's payload: its size, pushed so far */
 static char cmd[80];
 static unsigned char cmdl, cmdp;        /* the command line: its length, pushed so far */
 static unsigned char lastempty, flip;
+unsigned char nxt;                      /* (V210) an XON sent ahead: its answer comes after this one's */
 static unsigned int idle_t;
 static unsigned char reply;             /* the sync: 1 OK, 2 ERROR seen */
-static unsigned char hold;              /* no new pull yet: just back */
+unsigned char hold;                     /* no new pull yet: just back */
 static unsigned int hold_t;
 #define HOLD 10
 
@@ -134,16 +129,9 @@ static void crc_table(void)
     } while (++i);
 }
 
-/* over STAGE's first n bytes (n <= 256; the firmware's byte length) */
-static unsigned char crc8(unsigned int n)
-{
-    unsigned char c = 0, i = 0;
-    if (n > 255)
-        return 0;               /* (256: the firmware's CRC covers nothing) */
-    while (i != (unsigned char)n)
-        c = CRCTAB[c ^ STAGE[i++]];
-    return c;
-}
+/* over STAGE's first n bytes (n <= 255; the firmware's byte length):
+   vrnetcrc.s's loop (V210: some 17 cycles a byte, the C one's 60) */
+unsigned char __fastcall__ net_crc8(unsigned char n);
 
 /*---------------------------------------------------------------
   helpers
@@ -242,6 +230,18 @@ static void done(void)
     op = OP_NONE;
 }
 
+/* (V210) a pull's answer has come: the pull ends, or, with an XON sent
+   ahead, goes on for that one's answer (it follows on the line) */
+static void answered(void)
+{
+    tries = 0;
+    if (nxt) {
+        nxt = 0;
+        ot = ser_frames;
+    } else
+        done();
+}
+
 static void op_ok(void)
 {
     struct sock *s = &sk[osk];
@@ -295,6 +295,7 @@ static void timeout(void)
     struct sock *s = &sk[osk];
     unsigned char k = kind, o = op;
     done();
+    nxt = 0;                    /* (an answer to the one sent ahead may still come: as one late) */
     if (o == OP_PULL) {
         if (pst) {              /* a packet cut short: its data lost */
             pst = 0;
@@ -375,7 +376,7 @@ static void on_line(void)
                     fail(&sk[i], NET_ECLOSED);
         }
         if (op == OP_PULL)
-            done();             /* (it used up the XON) */
+            answered();         /* (it used up the XON) */
     }
 }
 
@@ -412,8 +413,7 @@ static unsigned char header(void)
         if (op == OP_PULL) {
             lastempty = 1;
             idle_t = ser_frames;
-            tries = 0;
-            done();
+            answered();
         }
         return 1;
     }
@@ -422,6 +422,8 @@ static unsigned char header(void)
         return 1;
     }
     pst = 1;
+    if (net__ahead && op == OP_PULL && !nxt)
+        net__ahead();           /* (V210: vrahead.c, the next XON at once) */
     return 1;
 }
 
@@ -433,11 +435,10 @@ static void packet(void)
     pst = 0;
     llen = 0;
     if (op == OP_PULL) {
-        tries = 0;
         lastempty = 0;
-        done();
+        answered();
     }
-    if (hascrc && crc8(plen) != crcw) {
+    if (hascrc && (plen > 255 ? 0 : net_crc8(plen)) != crcw) {    /* (256: the firmware's CRC covers nothing) */
         ++net_stats.badcrc;
         if (s)
             fail(s, NET_EBADCRC);
@@ -660,7 +661,7 @@ signed char __fastcall__ net_start(unsigned char port, unsigned int baud100)
     memset(&net_stats, 0, sizeof net_stats);
     op = OP_NONE;
     cur = 0xFF;
-    orphan = pst = llen = trunc = cmdl = cmdp = lastempty = draining = 0;
+    orphan = pst = llen = trunc = cmdl = cmdp = lastempty = draining = nxt = 0;
     gerr = 0;
     want = baud100 ? baud100 : 576;
     ser_fast = 1;

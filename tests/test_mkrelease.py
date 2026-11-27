@@ -295,3 +295,57 @@ if h.get('tag') != 'test' or 'gh release create test ' not in cmd or '--prerelea
 no_port(os.path.join(W, 'rel'))
 print('ok    the version: UPDATE.LST\'s "version 1.0" line (N.M or N.M.P only), the tag v1.0 (--latest, by default or with --tag); '
       'the Test channel: the tag "test", a pre-release, never latest, its assets replaced (--clobber)')
+
+# (V210) the pack: every listed file but the doc-samples, once for each
+# asset, deflated one after another; its pack line and each file's z line
+# (before the end line, right after its file line); mkrelease's verify
+# refuses a pack whose bytes are not the files'; --no-pack makes a release
+# as before; the list an older Veranda Update reads (without the pack and
+# z lines, the words it skips) is the one --no-pack writes
+R = os.path.join(W, 'rel')
+shutil.rmtree(R, ignore_errors=True)
+text, cmd = mkrelease.build(P, R, log=lambda m: None, tag='v1.0')
+h, ents = mkmanifest.parse(text)
+if 'pack' not in h:
+    fail('no pack line')
+pn, psize = h['pack']
+pdata = open(os.path.join(R, pn), 'rb').read()
+if len(pdata) != psize or pn != '%08x.pak' % (zlib.crc32(pdata) & 0xFFFFFFFF) or pn not in cmd:
+    fail('the pack %s: its size, its name or the gh command' % pn)
+seen = set()
+for e in ents:
+    if e['kind'] == 'doc-sample':
+        if 'z' in e:
+            fail('a doc-sample in the pack: %s' % e['path'])
+        continue
+    o, z = e['z']
+    d = zlib.decompressobj(-15)
+    got = d.decompress(pdata[o:o + z]) + d.flush()
+    if not d.eof or got != open(os.path.join(R, e['asset']), 'rb').read():
+        fail('%s: its part of the pack is not its bytes' % e['path'])
+    seen.add((o, z))
+if sum(z for _, z in seen) != psize:
+    fail('the pack is not its files one after another')
+ls = text.split('\n')
+if any(l.startswith('z ') and not ls[i - 1].startswith('file ') for i, l in enumerate(ls)) or \
+        ls.index([l for l in ls if l.startswith('pack ')][0]) > ls.index([l for l in ls if l.startswith('file ')][0]):
+    fail('the pack and z lines out of place')
+bad = bytearray(pdata)
+bad[len(bad) // 2] ^= 0x5A
+open(os.path.join(R, pn), 'wb').write(bytes(bad))
+try:
+    mkrelease.verify(R)
+    fail('a pack with a byte changed passed verify')
+except mkrelease.ReleaseError:
+    pass
+shutil.rmtree(R)
+plain, _ = mkrelease.build(P, R, log=lambda m: None, tag='v1.0', packed=False)
+if 'pack ' in plain or '\nz ' in plain or any(f.endswith('.pak') for f in os.listdir(R)):
+    fail('--no-pack made a pack')
+if '\n'.join(l for l in ls if not l.startswith(('pack ', 'z '))) != plain.rstrip('\n') + '\n' and \
+        '\n'.join(l for l in ls if not l.startswith(('pack ', 'z '))) != plain:
+    fail('the list an older Veranda Update reads is not the one without a pack')
+uniq = {e['asset']: e['size'] for e in ents if e['kind'] != 'doc-sample'}
+print('ok    (V210) the pack: %d files deflated into %s (%d bytes of %d), each z line\'s part inflating to its asset; '
+      'a changed byte refused; --no-pack as before; without its pack and z lines the list is --no-pack\'s'
+      % (len(uniq), pn, psize, sum(uniq.values())))

@@ -38,15 +38,15 @@ cp build/gen/veranda.h build/gen/veranda.inc inc/macros.inc inc/x16hw.inc sdk/li
 cp sdk/cfg/app.cfg sdk/cfg/app-c.cfg sdk/cfg/app-c-ovl.cfg "$DEST/cfg/"
 O=$(mktemp -d)
 python3 -I -B tools/splitc.py build/gen/veranda_c.s "$O/src"     # one object a call
-for s in "$O"/src/*.s sdk/lib/crt0.s sdk/lib/irq.s sdk/lib/vrfile.s sdk/lib/vrdlg.s sdk/lib/vrtramp.s sdk/lib/fontpick.s sdk/lib/vrser.s sdk/lib/vrpic.s sdk/lib/vrcanvas.s sdk/lib/vrcs.s sdk/lib/vrkbd.s sdk/lib/vrkmap.s sdk/lib/vrroom.s; do
+for s in "$O"/src/*.s sdk/lib/crt0.s sdk/lib/irq.s sdk/lib/vrfile.s sdk/lib/vrdlg.s sdk/lib/vrtramp.s sdk/lib/fontpick.s sdk/lib/vrser.s sdk/lib/vrnetcrc.s sdk/lib/vrpic.s sdk/lib/vrcanvas.s sdk/lib/vrcs.s sdk/lib/vrkbd.s sdk/lib/vrkmap.s sdk/lib/vrroom.s; do
 	ca65 --cpu 65C02 -I "$DEST/include" -I "$CC65_HOME/asminc" "$s" -o "$O/$(basename "$s" .s).o"
 done
-for c in sdk/lib/scrapio.c sdk/lib/scraptbeg.c sdk/lib/scraptput.c sdk/lib/scraptget.c sdk/lib/scrapphoto.c sdk/lib/vrchoose.c sdk/lib/theme.c sdk/lib/themedraw.c sdk/lib/themecov.c sdk/lib/vrpath.c sdk/lib/vrwin.c sdk/lib/vrscroll.c sdk/lib/vralert.c sdk/lib/vrbar.c sdk/lib/vrtile.c sdk/lib/vrserc.c sdk/lib/vrsync.c sdk/lib/vrnet.c; do     # the clipboard (scrap.h)
+for c in sdk/lib/scrapio.c sdk/lib/scraptbeg.c sdk/lib/scraptput.c sdk/lib/scraptget.c sdk/lib/scrapphoto.c sdk/lib/vrchoose.c sdk/lib/theme.c sdk/lib/themedraw.c sdk/lib/themecov.c sdk/lib/vrpath.c sdk/lib/vrwin.c sdk/lib/vrscroll.c sdk/lib/vralert.c sdk/lib/vrbar.c sdk/lib/vrtile.c sdk/lib/vrserc.c sdk/lib/vrsync.c sdk/lib/vrnet.c sdk/lib/vrahead.c; do     # the clipboard (scrap.h)
 	cl65 -t none --cpu 65C02 -O -I "$DEST/include" --asm-include-dir "$DEST/include" -c -o "$O/$(basename "$c" .c).o" "$c"
 done
 ar65 a "$DEST/lib/veranda.lib" "$O"/*.o
 rm -rf "$O"
-cp sdk/lib/scrap*.c sdk/lib/vrchoose.c sdk/lib/vrwin.c sdk/lib/vrscroll.c sdk/lib/vralert.c sdk/lib/vrtile.c sdk/lib/vrserc.c sdk/lib/vrsync.c sdk/lib/vrnet.c sdk/lib/vrcs.s "$DEST/src/"   # (to compile into an overlay of one's own)
+cp sdk/lib/scrap*.c sdk/lib/vrchoose.c sdk/lib/vrwin.c sdk/lib/vrscroll.c sdk/lib/vralert.c sdk/lib/vrtile.c sdk/lib/vrserc.c sdk/lib/vrsync.c sdk/lib/vrnet.c sdk/lib/vrahead.c sdk/lib/vrnetp.h sdk/lib/vrcs.s "$DEST/src/"   # (to compile into an overlay of one's own)
 mkdir -p "$DEST/src/textkit"
 cp sdk/lib/textkit/*.c sdk/lib/textkit/*.s sdk/lib/textkit/textkit.h "$DEST/src/textkit/"   # (Veranda Edit's text parts: V93)
 cp tools/vrcs.py tools/vpack.py tools/mkicons3.py tools/vicon.py tools/vcard.py tools/vram2png.py tools/mkwall.py tools/wallkit.py tools/wall_dusk.py tools/wallcv.c tools/vrun "$DEST/tools/"

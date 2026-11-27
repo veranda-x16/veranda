@@ -99,6 +99,20 @@ personal-use ports (geoWrite, TopDesk, geoChess) never are, and the
 programs whose licences are not settled (MOD Player, Solitaire) are left
 out for now.
 
+**The pack (V210).** A release also has `<crc32>.pak`: every file of it
+deflated, one after another (its list's `pack` line, and a `z <offset>
+<zsize>` line after each file). Veranda Update asks GitHub for the pack's
+address once (one 302: its 5.7 KB of headers once, not for every file),
+keeps the asset host's connection open (`Connection: keep-alive`: one
+TLS connection, not one for every file), fetches each file's part with
+an HTTP `Range`, and inflates it as it comes (`inflate.s`, the window in
+VRAM's back screen); each file's size and CRC-32 are checked as before.
+About half the bytes come over the modem. GitHub's signed address lasts
+5 minutes: it is asked for again after 4, or when the asset host refuses
+it. When the pack does not give a file whole, that file and the rest come
+from their own assets, as before V210. A release without a pack (before
+V210), the PC source and the dictionaries are fetched file by file.
+
 **A PC on your network.** For your own builds, ports and all. Copy
 `PC/update_server.py` from the card (or `tools/update_server.py` from
 the source) to a PC with a package folder (`tools/mkdist.sh` makes one)
@@ -131,8 +145,9 @@ for the Test channel (the tag `test`, a pre-release, its assets replaced).
    It keeps only the files `tools/release.allow` names (and refuses a
    port even if it were named there), writes `UPDATE.LST` with the
    release's tag, one asset `<crc32>.bin` for each distinct file (the
-   bytes as they are: the X16 fetches each whole, with nothing to
-   unpack), `NOTES.md`, and prints what it left out.
+   bytes as they are: an older Veranda Update fetches each whole), the
+   pack `<crc32>.pak` (V210: the same files deflated; `--no-pack`: none),
+   `NOTES.md`, and prints what it left out.
 3. Make sure your public repository (`~/Projects/veranda-x16`) has the
    source of that build pushed, then run the `gh release create ...`
    command it printed (signed in with `gh auth login`). The release is
@@ -152,7 +167,9 @@ Plain text (`tools/mkmanifest.py`):
     version 1.0                             (Veranda's version: VERSION)
     tag v1.0                                (a release's)
     note What's new, up to 8 lines of 76 characters
+    pack 5e6f7a8b.pak 1384720               (a release's, V210)
     file 6203 1a2b3c4d system - 1a2b3c4d.bin VERANDA/VERANDA.PRG
+    z 0 4127                                (V210: its part of the pack)
     ...
     end 61
 
@@ -160,20 +177,28 @@ Plain text (`tools/mkmanifest.py`):
 `font`, `help`, `wallpaper`, `pc` or `doc-sample`; min the oldest build
 date the file may go over (`-`: any); the asset is named by the CRC-32
 (files of the same bytes share one); the path from the card's top. A
-list without its `end` line was cut short and is refused.
+list without its `end` line was cut short and is refused. A Veranda
+Update from before V210 skips the `pack` and `z` lines (words it does not
+know).
 
 ## Building
 
     make SDK=../../build/sdk           # Update.cvt
     make test SDK=../../build/sdk      # the test build (gate update)
 
-Main RAM holds `main.c` (the menus, the overlays' wrappers),
-`http.c` (HTTP/1.1 on vrnet: redirects, Content-Length, chunked),
-`crc.s` (CRC-32, table-driven, about 50 cycles a byte; its table in a
-RAM bank), vrnet and sysui; overlay 1 (appBank) `job.c` (Check, Update);
+Main RAM holds `main.c` (the menus, the overlays' wrappers, the pack's
+`sink_z`), `http.c` (HTTP/1.1 on vrnet: redirects, Content-Length,
+chunked; V210: Range, keep-alive), `crc.s` (CRC-32, table-driven, about
+50 cycles a byte; its table in a RAM bank), vrnet (with `vrahead.c`: one
+XON ahead) and sysui; overlay 1 (appBank) `job.c` (Check, Update);
 overlay 2 `man.c` and `ui.c` (the list, the window, the settings since
-V198); overlay 3 `swap.c` (the card's files, the swap, Undo, a request). RAM banks: the overlays' 3, 4 of its
-own (the list's 2, a text's, the CRC table's), vrnet's 2 while the modem
-is on. Its gate: `tools/gate_update.sh`.
+V198); overlay 3 `swap.c` (the card's files, the swap, Undo, a request);
+overlay 4 (V210) `inflate.s` and `pick.c` (the dictionaries to get, the
+card's room). The C stack is 512 bytes (V210; gate update measures its
+deepest at under 100). RAM banks: the overlays' 4, 4 of its own (the
+list's 2, a text's, the CRC table's), vrnet's 2 while the modem is on;
+VRAM's back screen ($09600-$12BFF) for inflate's window and code lengths.
+Its gate: `tools/gate_update.sh` (`ONLY=timing`: only its timing
+sessions, a release without a pack and one with).
 
 MIT licence (see LICENSE).
