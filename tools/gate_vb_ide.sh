@@ -214,6 +214,21 @@ $PY "$SDK/tools/vram2png.py" --color "$OUT/s/scroll/dump.bin" "$OUT/scroll.png" 
 ok "editing after scrolling (Down, Page Down, the wheel, the scroll bar, keys together): each change at the line"
 ok "  clicked or reached, the saved program as the model's, the screen as a full redraw's: $OUT/scroll.png"
 
+# 3b2. a click on an empty line (V216; tests/vbasic/ide_blank.py): every
+# fourth line empty; clicks on them at the top, after the wheel and the
+# scroll bar, a character typed at each: the cursor's lines, the saved file
+C=$OUT/s/blank
+rm -rf "$C"
+mkdir -p "$C/VERANDA/HELP"
+cp "$T" "$C/AUTOSTART.cvt"
+cp "$K/VERANDA.SYS" "$K/VERANDA.PRG" "$C/"
+cp vbasic/gen/HELP/*.HLP "$C/VERANDA/HELP/"
+$PY tests/vbasic/ide_blank.py "$C" || fail "tests/vbasic/ide_blank.py"
+(cd "$C" && SDL_VIDEODRIVER=dummy timeout -s INT 300 "$EMU" -rom "$R49" -prg VERANDA.PRG -run \
+	-warp -sound none -echo -dump V > console.txt 2>&1)
+$PY tests/vbasic/ide_blank.py check "$C" || fail "a click on an empty line"
+ok "a click on an empty line (at the top, after the wheel, after the scroll bar): the cursor there, the typing there"
+
 # 3c. scrolling's speed (V215; tests/scroll_speed.py): a 200-line program
 # in colour, each way of scrolling timed exactly at 8 MHz (from the record
 # played to the text drawn: the status bar waits while keys come), a line

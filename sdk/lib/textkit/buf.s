@@ -124,6 +124,8 @@ room:	.res 2                  ; bytes from ph to the end of its bank
 run:	.res 2                  ; the reader: bytes left at bp
 rl:	.res 3                  ; the reader: the logical position
 t3:	.res 3
+atp:	.res 3                  ; gb_at_col: the position before the character read (not t3:
+				; RdSeek's, which a new run's first read clobbers; V216)
 gap:	.res 3
 cnt:	.res 3
 col:	.res 2
@@ -1291,7 +1293,7 @@ _gb_at_col:
 	lda col
 	cmp _gb_n
 	bcs @d
-@go:	Copy24 rl, t3           ; (the position before this character)
+@go:	Copy24 rl, atp          ; (the position before this character)
 	lda col
 	sta pcol
 	lda col+1
@@ -1313,13 +1315,13 @@ _gb_at_col:
 	cmp _gb_n
 	bcc @l
 	beq @d
-@tb:	Copy24 t3, rl
+@tb:	Copy24 atp, rl
 	lda pcol
 	sta col
 	lda pcol+1
 	sta col+1
 	bra @d
-@back:	Copy24 t3, rl           ; the LF stays after the cursor
+@back:	Copy24 atp, rl          ; the LF stays after the cursor
 @d:	Copy24 rl, _gb_a
 	jsr Leave
 	lda col
