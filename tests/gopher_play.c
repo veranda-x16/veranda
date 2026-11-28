@@ -17,6 +17,13 @@
               the end
      reread   GOPHER.MARKS read back: the bookmarks page, its gate
               bookmark followed (the root), the end
+     quux     (V230) gopher.quux.org's shapes: its root, a text whose
+              selector has spaces, Back, Archives, Mailing Lists (a
+              space), Back, Usenet Archives from 1981 (121 items),
+              FA.apollo, an article, Back, Back, the copyright text,
+              Back, End (the last item, as it would be followed), the
+              group of 995 typed (a key first: the address line new), its
+              first article; the end
      nomodem  (no modem on the port) the address typed: the box, the end
    Screens (snap: the foreground's 480 rows of 80 bytes, the cards'
    paper colours, 60 rows of 80, the palette's 16 entries): BOOK.RAW,
@@ -378,6 +385,120 @@ void gt_tick(void)
             if (!idle_box())
                 return;
             say("GO TEST NOMODEM BOX");
+            the_end();
+            return;
+        }
+        ++step;
+        tstep_t = ser_frames;
+        return;
+    }
+    if (sess == 'q') {                  /* (V230) quux: gopher.quux.org's shapes */
+        switch (step) {
+        case 1:
+            if (net_state() != NET_READY || gbusy || !doc_done)
+                return;
+            C(10, 300, 40);
+            strcpy(tl, "gopher://127.0.0.1:");
+            strcat(tl, port);
+            strcat(tl, "/1/quux\r");
+            typed(30, tl);
+            go_();
+            break;
+        case 2:                         /* its root: a text whose selector has spaces */
+            if (!idle() || !cur.host[0])
+                return;
+            snap("QROOT.RAW");
+            click(10, "About This Server");
+            go_();
+            break;
+        case 3:
+        case 6:
+        case 10:
+        case 11:
+        case 13:
+            if (!idle())
+                return;
+            if (step == 10)
+                snap("QART.RAW");
+            BACKBTN();
+            go_();
+            break;
+        case 4:
+            if (!idle())
+                return;
+            click(10, "Archives");
+            go_();
+            break;
+        case 5:                         /* a menu whose selector has a space */
+            if (!idle())
+                return;
+            click(10, "Mailing Lists");
+            go_();
+            break;
+        case 7:
+            if (!idle())
+                return;
+            click(10, "Usenet Archives from 1981");
+            go_();
+            break;
+        case 8:                         /* 121 items */
+            if (!idle())
+                return;
+            snap("QNEWS.RAW");
+            click(10, "FA.apollo");
+            go_();
+            break;
+        case 9:                         /* an article: selectors of 68 characters */
+            if (!idle())
+                return;
+            click(10, "  Digest for workstation discussion");
+            go_();
+            break;
+        case 12:                        /* a text that starts with an empty line, Latin-1 */
+            if (!idle())
+                return;
+            click(10, "Copyright and History");
+            go_();
+            break;
+        case 14:                        /* the 121 items' end */
+            if (!idle())
+                return;
+            keys(10, 0x04, 1);
+            go_();
+            break;
+        case 15:
+            if (!idle())
+                return;
+            logn("GO TEST QTOP ", v_top);
+            logn("GO TEST QLINES ", doc_lines);
+            item(doc_lines - 1);        /* (the last item as it is followed) */
+            strcpy(tl, "GO TEST QLAST ");
+            strcat(tl, gtitle);
+            strcat(tl, "|");
+            strncat(tl, go.sel, 50);
+            strcat(tl, "|");
+            strcat(tl, go.host);
+            strcat(tl, ":");
+            unum(tl + strlen(tl), go.port);
+            say(tl);
+            strcpy(tl, "gopher://127.0.0.1:");      /* a group of 995 articles (117 KB: cut); */
+            strcat(tl, port);                       /* (a key, not a click: the address line new) */
+            strcat(tl, "/1/Archives/usenet-a-news/NET.general\r");
+            typed(10, tl);
+            go_();
+            break;
+        case 16:                        /* its first article */
+            if (!idle())
+                return;
+            logn("GO TEST QBIG FULL ", doc_full);
+            click(10, " Source Code Control System Questionaire");
+            go_();
+            break;
+        case 17:
+            if (!idle())
+                return;
+            snap("QART2.RAW");
+            say("GO TEST QART2");
             the_end();
             return;
         }

@@ -85,7 +85,7 @@ the gap between lines, so boxes and pictures made of them stay joined.
 
 ## Limits
 
-- A page keeps 48 KB (6 RAM banks) and 4,000 lines; a longer one is cut,
+- A page keeps 64 KB (8 RAM banks) and 4,000 lines; a longer one is cut,
   and says so at its end (File > Download saves all of it).
 - Text is UTF-8, or Latin-1 where a byte is not UTF-8, shown in
   Veranda's set, ISO-8859-16 (DECISIONS V143: Polish and the other

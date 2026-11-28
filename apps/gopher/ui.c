@@ -481,6 +481,50 @@ static void __fastcall__ follow(unsigned int i)
     open_go();
 }
 
+/*---------------------------------------------------------------- (V230) a menu's line kept short */
+
+/* (doc.c's mend; here for main RAM's room) a menu line from the network,
+   ln's n bytes (its CR gone), shortened in place: an info line to its
+   text; Gopher+'s fields after the port dropped; the host and port
+   dropped where they are the page's own (item.c: no host, the page's
+   server); a selector that starts with the page's own and a '/' with
+   MSEL for that part (item.c puts it back). Its new length. */
+unsigned char __fastcall__ mshort(unsigned char n)
+{
+    char *s, *d, *h, *e;
+    unsigned char cl = strlen(cur.sel), hl;
+    unsigned int port = 0;
+    ln[n] = 0;
+    s = strchr(ln, '\t');
+    if (!s)
+        return n;
+    if (ln[0] == 'i')
+        return s - ln;
+    d = ++s;                            /* the selector */
+    if (cl && !strncmp(s, cur.sel, cl) && s[cl] == '/' && !strchr(cur.sel, '\t')) {
+        *d++ = MSEL;
+        s += cl;
+    }
+    while (*s && *s != '\t')
+        *d++ = *s++;
+    if (!*s)
+        return d - ln;
+    h = s + 1;                          /* the host, the port */
+    e = strchr(h, '\t');
+    hl = e ? e - h : strlen(h);
+    if (e) {
+        for (++e; *e && *e != '\t'; ++e)
+            if (*e >= '0' && *e <= '9')
+                port = port * 10 + *e - '0';
+    } else
+        e = h + hl;
+    if (hl == strlen(cur.host) && !memcmp(h, cur.host, hl) && (port ? port : 70) == cur.port)
+        return d - ln;                  /* (the page's server) */
+    while (s < e)
+        *d++ = *s++;
+    return d - ln;
+}
+
 /*---------------------------------------------------------------- the address line */
 
 static void __fastcall__ edit(unsigned char on)

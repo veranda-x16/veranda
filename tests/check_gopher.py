@@ -115,48 +115,6 @@ atc = [a for a in ats if a.startswith('ATC"')]
 need(all(a.startswith('ATC"127.0.0.1:') for a in atc), 'ATC: %s' % atc[:3])
 P = pages()
 
-if SESS == 'reread':
-    need(P and P[0][0] == '', 'the first page is not the bookmarks page: %s' % (P[:1],))
-    want = ['iYour bookmarks: click one. Bookmarks > Add this page adds one.', 'i', '1Gate root', '0Gate text']
-    need(P[0][1] == want, 'the bookmarks read back: %s' % P[0][1])
-    need(slog == [''], 'the selectors: %s' % slog)
-    need(len(P) == 2 and P[1][0] == 'gopher://127.0.0.1:%d/' % PORT, 'the bookmark followed: %s' % [p[0] for p in P])
-    ok('GOPHER.MARKS written as on a PC (LF only, a line that is not an item) read back: its two items listed, '
-       '"Gate root" followed (selector "", 127.0.0.1:%d): the root menu' % PORT)
-    sys.exit(0)
-
-# ---------------------------------------------------------------- main
-D = os.path.join(R, 'srv', 'files')
-book0 = ['iYour bookmarks: click one. Bookmarks > Add this page adds one.', 'i',
-         '1Floodgap Systems', '7Veronica-2: search Gopherspace', '1Quux.org',
-         '1SDF Public Access UNIX System', '1Bitreich']
-need(P[0][0] == '' and P[0][1] == book0, 'the bookmarks page (the defaults): %s' % (P[0],))
-ok('no GOPHER.MARKS: the bookmarks page shows the defaults (Floodgap, Veronica-2, Quux.org, SDF, Bitreich)')
-
-ROOT = 'gopher://127.0.0.1:%d/' % PORT
-root = ['iWelcome to the gate\'s Gopher server.', 'i', '1A submenu', '0A text file', '0A long text',
-        '7Search the gate', '9A binary file', 'gA picture', 'hThe web',
-        '3An error line: this item is gone', '1A closed port', '1A menu that stalls',
-        ''.join(con(c) for c in conv('i╔══╗ box lines ░▒▓'.encode())),
-        ''.join(con(c) for c in conv('iPolish (V143): Zażółć gęślą jaźń, ZAŻÓŁĆ GĘŚLĄ JAŹŃ'.encode()))]
-roots = [p for p in P if p[0] == ROOT]
-need(roots and roots[0][1] == root, 'the root menu: %s' % (roots[:1],))
-need(all(p[1] == root for p in roots), 'the root menu again')
-need(roots[0][2][1] == 0, 'the root: cut?')
-ok('the address typed (gopher://127.0.0.1:%d/1): the root menu, %d lines: info lines (one empty, one of box lines and one of Polish in UTF-8: V143), '
-   'the marks DIR TXT ? BIN IMG WWW ERR, Gopher\'s "." dropped; shown %d times (Back, the item '
-   'with no host)' % (PORT, len(root), len(roots)))
-
-sub = [p for p in P if p[0] == ROOT + '1/sub']
-need(len(sub) == 2 and sub[0][1] == ['iThe submenu', '0The text again', '1Back to the top'],
-     'the submenu: %s' % sub)
-need(val('GO TEST BACK SEL ') == 2, 'Back: the selection kept (%s)' % val('GO TEST BACK SEL '))
-need(val('GO TEST HPOS ') == 3 and val('GO TEST HN ') == 4, 'the history: %s %s' % (val('GO TEST HPOS '), val('GO TEST HN ')))
-ok('a submenu followed (a click); the toolbar\'s Back: the root, its selection where it was; Go > Forward: the '
-   'submenu; "Back to the top" (no host, no port: the page\'s server): the root, a new entry (the history: '
-   '4 entries, the 4th shown, Forward\'s dropped)')
-
-
 def wrap(data, w=76):                   # (WRAPW: 78 before V149's Sunroom scroll bar)
     """doc.c's wrap: the starts of the lines shown, then the lines rendered"""
     starts, ls, sp, col, spcol = [0], 0, 0, 0, 0
@@ -204,6 +162,112 @@ def wrap(data, w=76):                   # (WRAPW: 78 before V149's Sunroom scrol
     return lines
 
 
+if SESS == 'quux':
+    Q = os.path.join(R, 'srv', 'quux')
+    ROOT = 'gopher://127.0.0.1:%d/' % PORT
+
+    def sent(sel):
+        return open(os.path.join(Q, sel.replace('/', '_')), 'rb').read()
+
+    def menu(sel):
+        """the menu's lines as page_log shows them (the first 80)"""
+        out = []
+        for l in ''.join(con(c) for c in conv(sent(sel))).split('\r\n'):
+            if l in ('.', ''):
+                continue
+            out.append((l[0] + ''.join('?' if ord(c) < 32 else c for c in l[1:].split('\t')[0][:73])).rstrip(' '))
+        return out
+
+    def page(addr):
+        got = [p for p in P if p[0] == ROOT + addr]
+        need(got, 'no page %s: %s' % (addr, [p[0] for p in P]))
+        return got
+
+    for sel in ('/quux', '/Archives', '/Archives/Mailing Lists', '/Archives/usenet-a-news',
+                '/Archives/usenet-a-news/FA.apollo', '/Archives/usenet-a-news/NET.general'):
+        data = sent(sel)
+        need(not data.endswith(b'.\r\n') and b'\t+\r\n' in data, 'the server\'s %s is not quux\'s shape' % sel)
+        want = menu(sel)
+        for g in page('1' + sel):
+            need(g[1] == want[:80], '%s: %s\nwanted %s' % (sel, g[1], want[:80]))
+            need(g[2][0] == len(want) and g[2][1] == 0, '%s: %s lines, cut %s (wanted %d, not cut)' % (sel, g[2][0], g[2][1], len(want)))
+    big = sent('/Archives/usenet-a-news/NET.general')
+    nb = page('1/Archives/usenet-a-news/NET.general')[0][2]
+    need(len(big) > 100000 and nb[0] == 995 and nb[2] < 65535 and val('GO TEST QBIG FULL ') == 0,
+         'the group of 995: %s (%d bytes sent)' % (nb, len(big)))
+    ok('menus as gopher.quux.org sends them (CR LF, Gopher+\'s "+" field, "fake (NULL) 0" info lines, no "." '
+       'line: the server closes): the root, Archives, "Mailing Lists" (a selector with a space), Usenet Archives '
+       'from 1981 (121 items), FA.apollo (75 articles), NET.general (995 articles, %d bytes sent, kept in %d: '
+       'whole, not cut); every line shown as sent' % (len(big), nb[2]))
+    for sel in ('/About This Server.txt', '/Archives/usenet-a-news/FA.apollo/81.06.11_ucbvax.1600_fa.apollo.txt',
+                '/Archives/usenet-a-news/copyright.txt'):
+        data = sent(sel)
+        need(b'\r' not in data and not data.endswith(b'\n.\n'), 'the server\'s %s is not quux\'s shape' % sel)
+        want = wrap(conv(data))
+        g = page('0' + sel.replace('\t', '%09'))
+        need(g[0][1] == want[:80] and g[0][2][0] == len(want), '%s: %s\nwanted %s' % (sel, g[0][1], want))
+    ok('texts as it sends them (LF only, no "." line): "/About This Server.txt" (a selector with spaces), an '
+       'article (a selector of 68 characters), the copyright (an empty first line, Latin-1): every line shown')
+    last = re.search(r'^GO TEST QLAST (.*)$', raw, re.M)
+    need(last and last.group(1) == 'utils|/Archives/usenet-a-news/utils|127.0.0.1:%d' % PORT,
+         'the 121st item followed: %s' % (last.group(1) if last else None))
+    need(val('GO TEST QTOP ') == 121 - 25, 'End: the top %s' % val('GO TEST QTOP '))
+    order = ['/quux', '/About This Server.txt', '/quux', '/Archives', '/Archives/Mailing Lists', '/Archives',
+             '/Archives/usenet-a-news', '/Archives/usenet-a-news/FA.apollo',
+             '/Archives/usenet-a-news/FA.apollo/81.06.11_ucbvax.1600_fa.apollo.txt',
+             '/Archives/usenet-a-news/FA.apollo', '/Archives/usenet-a-news', '/Archives/usenet-a-news/copyright.txt',
+             '/Archives/usenet-a-news', '/Archives/usenet-a-news/NET.general',
+             '/Archives/usenet-a-news/NET.general/81.01.01_site0.100_net.general,fa.unix-wizards.txt']
+    need(slog == order, 'the selectors: %s' % slog)
+    ok('the selectors sent as the server gave them (spaces, a comma, 68 and more characters; the host and port '
+       'and the page\'s own selector taken back from the page where the line was kept short); End: the 121st '
+       'item, "utils", followed as /Archives/usenet-a-news/utils at 127.0.0.1:%d' % PORT)
+    lost, oe, bad = val('GO LOST '), val('GO OE '), val('GO BADCRC ')
+    need(lost == 0 and oe == 0 and bad == 0, 'lost %s, overruns %s, bad CRC %s' % (lost, oe, bad))
+    sys.exit(0)
+
+if SESS == 'reread':
+    need(P and P[0][0] == '', 'the first page is not the bookmarks page: %s' % (P[:1],))
+    want = ['iYour bookmarks: click one. Bookmarks > Add this page adds one.', 'i', '1Gate root', '0Gate text']
+    need(P[0][1] == want, 'the bookmarks read back: %s' % P[0][1])
+    need(slog == [''], 'the selectors: %s' % slog)
+    need(len(P) == 2 and P[1][0] == 'gopher://127.0.0.1:%d/' % PORT, 'the bookmark followed: %s' % [p[0] for p in P])
+    ok('GOPHER.MARKS written as on a PC (LF only, a line that is not an item) read back: its two items listed, '
+       '"Gate root" followed (selector "", 127.0.0.1:%d): the root menu' % PORT)
+    sys.exit(0)
+
+# ---------------------------------------------------------------- main
+D = os.path.join(R, 'srv', 'files')
+book0 = ['iYour bookmarks: click one. Bookmarks > Add this page adds one.', 'i',
+         '1Floodgap Systems', '7Veronica-2: search Gopherspace', '1Quux.org',
+         '1SDF Public Access UNIX System', '1Bitreich']
+need(P[0][0] == '' and P[0][1] == book0, 'the bookmarks page (the defaults): %s' % (P[0],))
+ok('no GOPHER.MARKS: the bookmarks page shows the defaults (Floodgap, Veronica-2, Quux.org, SDF, Bitreich)')
+
+ROOT = 'gopher://127.0.0.1:%d/' % PORT
+root = ['iWelcome to the gate\'s Gopher server.', 'i', '1A submenu', '0A text file', '0A long text',
+        '7Search the gate', '9A binary file', 'gA picture', 'hThe web',
+        '3An error line: this item is gone', '1A closed port', '1A menu that stalls',
+        ''.join(con(c) for c in conv('i╔══╗ box lines ░▒▓'.encode())),
+        ''.join(con(c) for c in conv('iPolish (V143): Zażółć gęślą jaźń, ZAŻÓŁĆ GĘŚLĄ JAŹŃ'.encode()))]
+roots = [p for p in P if p[0] == ROOT]
+need(roots and roots[0][1] == root, 'the root menu: %s' % (roots[:1],))
+need(all(p[1] == root for p in roots), 'the root menu again')
+need(roots[0][2][1] == 0, 'the root: cut?')
+ok('the address typed (gopher://127.0.0.1:%d/1): the root menu, %d lines: info lines (one empty, one of box lines and one of Polish in UTF-8: V143), '
+   'the marks DIR TXT ? BIN IMG WWW ERR, Gopher\'s "." dropped; shown %d times (Back, the item '
+   'with no host)' % (PORT, len(root), len(roots)))
+
+sub = [p for p in P if p[0] == ROOT + '1/sub']
+need(len(sub) == 2 and sub[0][1] == ['iThe submenu', '0The text again', '1Back to the top'],
+     'the submenu: %s' % sub)
+need(val('GO TEST BACK SEL ') == 2, 'Back: the selection kept (%s)' % val('GO TEST BACK SEL '))
+need(val('GO TEST HPOS ') == 3 and val('GO TEST HN ') == 4, 'the history: %s %s' % (val('GO TEST HPOS '), val('GO TEST HN ')))
+ok('a submenu followed (a click); the toolbar\'s Back: the root, its selection where it was; Go > Forward: the '
+   'submenu; "Back to the top" (no host, no port: the page\'s server): the root, a new entry (the history: '
+   '4 entries, the 4th shown, Forward\'s dropped)')
+
+
 TEXT = conv(open(os.path.join(D, 'text.txt'), 'rb').read() + b'.\r\n')
 want = wrap(TEXT)
 tx = [p for p in P if p[0] == ROOT + '0/text.txt']
@@ -213,16 +277,16 @@ ok('a text: %d lines as wrapped at 76 columns (a paragraph at its spaces, a 98-c
    'columns of 8, CR LF and LF, UTF-8 (box lines, Polish) and Latin-1 in Veranda\'s set (V143), "." dropped; equal to the gate\'s own wrap' % len(want))
 
 lg = [p for p in P if p[0] == ROOT + '0/long.txt']
-need(lg and lg[0][2][1] == 1 and lg[0][2][2] == 49152, 'the long text: %s' % (lg[0][2] if lg else None,))
+need(lg and lg[0][2][1] == 1 and lg[0][2][2] == 65535, 'the long text: %s' % (lg[0][2] if lg else None,))
 need(val('GO TEST LONG FULL ') == 1, 'the long text not cut')
 lines = lg[0][2][0]
 need(val('GO TEST LONG TOP ') == lines + 2 - 34, 'End: the top %s (lines %d)' % (val('GO TEST LONG TOP '), lines))
-LONG = b''.join(b'Line %05d: the quick brown fox jumps over the lazy dog.\r\n' % i for i in range(1, 2000))[:49152]
+LONG = b''.join(b'Line %05d: the quick brown fox jumps over the lazy dog.\r\n' % i for i in range(1, 2000))[:65535]
 need(lg[0][1] == wrap(LONG)[:80], 'the long text\'s first lines')
-ok('a long text (80,000 bytes): 49,152 kept (6 RAM banks), %d lines, the rest not read (the connection closed), '
+ok('a long text (80,000 bytes): 65,535 kept (8 RAM banks), %d lines, the rest not read (the connection closed), '
    'the note "Cut here" after them; End shows the last 34 lines (12 pixels a line)' % lines)
 if val('GO TIME LONG ') is not None:
-    print('      (V211) the long text: %.1f s of the emulated X16 from its click to its end (49,152 bytes)' % (val('GO TIME LONG ') / 60))
+    print('      (V211) the long text: %.1f s of the emulated X16 from its click to its end (65,535 bytes)' % (val('GO TIME LONG ') / 60))
 
 se = [p for p in P if p[0] == ROOT + '7/search%09veranda']
 need(se and se[0][1] == ['iYou searched for: veranda', '0A result'], 'the search: %s' % [p[0] for p in P])

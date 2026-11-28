@@ -6,8 +6,9 @@ only.
 usage: gopher_server.py <folder>   writes <folder>/ready (the port, then
                                    a port nothing listens on), <folder>/
                                    gopher.log (every selector) and the
-                                   files it serves (<folder>/files/), so
-                                   the gate can compare
+                                   files it serves (<folder>/files/; V230:
+                                   the quux pages as sent, <folder>/quux/),
+                                   so the gate can compare
 
 The selectors:
   ""            the root menu: info lines (one empty, one of CP437 box
@@ -26,6 +27,11 @@ The selectors:
   /slow         a menu's first lines, then nothing for 120 s
   /many         a long menu (V110: the timings, a screenshot): a banner of
                 CP437 box characters, info lines, every kind of item
+  /quux, /Archives..., "/About This Server.txt"
+                (V230) gopher.quux.org's shapes (quux() below): its root,
+                Archives, "Mailing Lists", Usenet Archives from 1981 (121
+                items), a group of 75 articles and one of 995 (113 KB), an
+                article, texts; no "." line on any of them
   anything else "3" an error line
 """
 import os
@@ -115,6 +121,93 @@ def many(port):
     return out + b'.\r\n'
 
 
+# (V230) gopher.quux.org's shapes (its "Usenet Archives from 1981" and the
+# pages on the way): menus with CR LF, a Gopher+ "+" fifth field on most
+# items, info lines "fake (NULL) 0", selectors up to 70 characters, some
+# with spaces, a directory of 121 items; texts with LF only, one that
+# starts with an empty line and has Latin-1; and no "." line at the end
+# of any of them: the server sends the page and closes
+GROUPS = ('FA.apollo FA.arms-d FA.arpa-bboard FA.digest-p FA.dungeon FA.editor-p FA.energy FA.human-nets '
+          'FA.info-cpm FA.info-micro FA.info-terms FA.info-vax FA.poli-sci FA.printers FA.railroad FA.sf-lovers '
+          'FA.space FA.tcp-ip FA.telecom FA.test FA.unix-cpm FA.unix-wizards FA.works NET.ALL NET.adm.site NET.ao '
+          'NET.apl.lang NET.applic NET.arpa-uucp NET.auto NET.aviation NET.blfp NET.bugs NET.bugs.2bsd NET.bugs.4bsd '
+          'NET.bugs.uucp NET.bugs.v7 NET.chess NET.cms NET.columbia NET.cooks NET.crap NET.cse NET.csfrp NET.cycle '
+          'NET.db NET.dbms NET.dcom NET.draw NET.eunice NET.flame NET.followup NET.games NET.gdead NET.general '
+          'NET.groups.control NET.ham-radio NET.info-cpm NET.info-micro NET.info-terms NET.jobs NET.jokes NET.junk '
+          'NET.lan NET.lang.apl NET.lisp NET.lsi NET.man NET.map NET.math NET.mc NET.micro NET.misc NET.motorcycles '
+          'NET.movies NET.msg.ctl NET.music NET.news NET.news.b NET.news.directory NET.news.groups NET.news.map '
+          'NET.news.newsite NET.oa NET.periphs NET.railroad NET.rec.birds NET.rec.bridge NET.rec.photo NET.rec.scuba '
+          'NET.rec.ski NET.records NET.rumor NET.scuba NET.sf-lovers NET.skum NET.sources NET.space '
+          'NET.sport.baseball NET.sport.football NET.sport.hockey NET.suicide NET.swl NET.taxes NET.test NET.tools '
+          'NET.travel NET.trivia NET.ucds NET.unix NET.unix-wizards NET.usenix NET.video NET.vwrabbit NET.wanted '
+          'NET.wines NET.works NET.xbsd').split()
+SUBJECTS = ['  Digest for workstation discussion', '  The same is the same', ' Apollo Users Workshop (6/22 - 6/23)',
+            ' Execution speed of various machines', 'Are Windows Necessary?', 'Most recent IBM system\'s journal: '
+            'vol 20, # 2 1981', 'Preliminary results from the personal workstations survey',
+            'The Impact of Xerox on Lanugage Design -- ... on Mesa', 'Re: PERQ\'s and UNIX', 'Star/Mesa']
+ART = '/Archives/usenet-a-news/FA.apollo/81.06.%02d_ucbvax.%04d_fa.apollo.txt'
+
+
+def qitem(t, text, sel, port, plus=True):
+    return ('%s%s\t%s\t127.0.0.1\t%d%s\r\n' % (t, text, sel, port, '\t+' if plus else '')).encode('latin-1')
+
+
+def qinfo(text):
+    return ('i%s\tfake\t(NULL)\t0\r\n' % text).encode('latin-1')
+
+
+def quux(sel, port):
+    """the page for sel (bytes), None: not one of these"""
+    if sel == '/quux':                  # (its root)
+        return (qinfo('Welcome to gopher at quux.org!') + qinfo('') +
+                qinfo('This server has a lot of information of historic interest,') + qinfo('') +
+                qitem('0', 'About This Server', '/About This Server.txt', port) +
+                qitem('1', 'Archives', '/Archives', port) + qitem('1', 'Books', '/Books', port) +
+                qitem('1', 'Humor and Fun', '/Humor and Fun', port) +
+                qitem('1', 'Index to Quux.Org', '/Archives/index', port, False))
+    if sel == '/Archives':
+        return (qitem('1', 'Mailing Lists', '/Archives/Mailing Lists', port) +
+                qitem('0', 'Project Gutenberg Online Books', '/Archives/gutenberg', port, False) +
+                qitem('1', 'Usenet Archives from 1981', '/Archives/usenet-a-news', port) +
+                qitem('1', 'Wiretap Electronic Documents', '/Archives/mirrors/wiretap.area.com', port, False))
+    if sel == '/Archives/Mailing Lists':
+        return (qitem('1', '9-11peace', '/Archives/Mailing Lists/9-11peace', port) +
+                qitem('1', 'gopher', '/Archives/Mailing Lists/gopher', port))
+    if sel == '/Archives/usenet-a-news':
+        return (qitem('0', 'Introduction', '/Archives/usenet-a-news/intro.txt', port) +
+                qitem('0', 'Copyright and History', '/Archives/usenet-a-news/copyright.txt', port) +
+                b''.join(qitem('1', g, '/Archives/usenet-a-news/' + g, port) for g in GROUPS) +
+                qitem('1', 'utils', '/Archives/usenet-a-news/utils', port))
+    if sel == '/Archives/usenet-a-news/FA.apollo':
+        return b''.join(qitem('0', SUBJECTS[i % len(SUBJECTS)], ART % (11 + i % 7, 1600 + i), port) for i in range(75))
+    if sel == ART % (11, 1600):
+        return (b'Aucbvax.1600\nfa.apollo\nutzoo!duke!ucbvax!someone@Somewhere\nFri Jun 12 14:58:56 1981\n'
+                b'  Digest for workstation discussion\n\n'
+                b'I assumed that these discussions WOULD be a digest.  PLEASE make\n'
+                b'it a digest: forty or more messages a day are hard to follow.\n\n\n\n'
+                b'-----------------------------------------------------------------\n'
+                b' The Usenet Oldnews Archive: Compilation Copyright (C) 1981, 1996 \n'
+                b' Bruce Jones, Henry Spencer, David Wiseman.\n\n')
+    if sel == '/Archives/usenet-a-news/copyright.txt':
+        return (b'\nUsenet Oldnews Copyright \xa9 Notice\n\n    This archive of Usenet News articles represents the\n'
+                b'    resources and energy of many people.  It is under compilation copyright \xa9\n'
+                b'    by its compilers.\n')
+    if sel == '/Archives/usenet-a-news/NET.general':     # (995 articles, 117 KB: more than the reader keeps)
+        subj = [' Source Code Control System Questionaire', 'Re: Copyrights', 'net.general', 'UNIX on the VAX',
+                'Defy rabbit riders!']          # (its subjects' length, some 20 characters on the mean)
+        return b''.join(qitem('0', subj[i % 5], '/Archives/usenet-a-news/NET.general/8%d.%02d.%02d_site%d.%d_'
+                              'net.general%s.txt' % (1 + i % 2, 1 + i % 12, 1 + i % 28, i % 9, 100 + i,
+                                                     ',fa.unix-wizards' if i % 9 == 0 else ''), port)
+                        for i in range(995))
+    if sel.startswith('/Archives/usenet-a-news/NET.general/'):
+        return (b'Aazure.122\nnet.general,fa.unix-wizards\nucbvax!azure!someone\nMon Jul 27 10:00:00 1981\n'
+                b' Source Code Control System Questionaire\n\nWho uses SCCS on their systems?\n\n\n')
+    if sel == '/About This Server.txt':
+        return b''.join(b'Line %02d of a text about the server, with LF line ends and no "." line at the end.\n' % i
+                        for i in range(1, 50))
+    return None
+
+
 def serve(c, port, closed):
     try:
         req = b''
@@ -129,7 +222,12 @@ def serve(c, port, closed):
         q = None
         if '\t' in sel:
             sel, q = sel.split('\t', 1)
-        if sel == '':
+        qx = quux(sel, port)
+        if qx is not None:
+            os.makedirs(os.path.join(D, 'quux'), exist_ok=True)
+            open(os.path.join(D, 'quux', sel.replace('/', '_')), 'wb').write(qx)
+            c.sendall(qx)
+        elif sel == '':
             c.sendall(root(port, closed))
         elif sel == '/sub':
             c.sendall(info('The submenu') + item('0', 'The text again', '/text.txt', '127.0.0.1', port) +

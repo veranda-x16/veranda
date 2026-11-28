@@ -1,12 +1,12 @@
 /* Veranda Gopher: the document (main RAM; DECISIONS V109).
 
-   The page's bytes as they came, in DOCBANKS RAM banks (48 KB: more is
-   cut, and the page says so), and the start of each line shown, a word a
-   line, in the bank after them (LINEMAX lines). A menu's line is an item
-   (its text, selector, host and port are read from it when it is shown
-   or followed); a text's lines are wrapped to WRAPW columns as they come
-   (at the last space or tab, else where the line is full; a tab to the
-   next multiple of 8). So a line is drawn from its start to the next
+   The page's bytes as they came, in DOCBANKS RAM banks (64 KB; 48 KB
+   before V230: more is cut, and the page says so), and the start of each
+   line shown, a word a line, in the bank after them (LINEMAX lines). A
+   menu's line is an item (its text, selector, host and port are read
+   from it when it is shown or followed; V230: kept shortened); a text's
+   lines are wrapped to WRAPW columns as they come (at the last space or
+   tab, else where the line is full; a tab to the next multiple of 8). So a line is drawn from its start to the next
    one's, wherever the page is scrolled, and nothing else is kept. The
    history's entries (256 bytes each) are in the bank after that.
 
@@ -31,6 +31,7 @@ static unsigned int ls, sp;             /* the line's start, after its last spac
 static unsigned char col, spcol;
 static unsigned char *wp, wb;           /* where the next byte goes */
 static unsigned char u8n, u8l;          /* (V143, doc_text) UTF-8: continuation bytes to come, the bytes so far */
+static unsigned char mnet;              /* (V230) the page is from the network (doc_text): its menu kept short */
 
 /* offset o's bank (into RAMBANK) and address */
 static unsigned char *__fastcall__ at(unsigned int o)
@@ -70,7 +71,7 @@ void __fastcall__ doc_clear(unsigned char menu)
     doc_len = 0;
     doc_lines = 0;
     doc_full = doc_done = 0;
-    col = u8n = 0;
+    col = u8n = mnet = 0;
     wb = doc_bank;
     wp = (unsigned char *)0xA000;
     RAMBANK = doc_bank + DOCBANKS;
@@ -135,6 +136,48 @@ unsigned char __fastcall__ doc_feed(const unsigned char *b, unsigned int n)
     return !doc_full;
 }
 
+/*---------------------------------------------------------------- (V230) a menu's lines kept short */
+
+/* A menu from the network is kept shortened, a line at a time: its
+   line goes in as it comes; at its end (its LF, or the page's end: a
+   server that sends no "." line) it is read back into ln, shortened
+   there by ui.c's mshort (overlay 1: main RAM's room) and written again
+   over itself. gopher.quux.org's Usenet groups are lists of hundreds of
+   articles at some 118 bytes a line, 60 of them its host, its port, its
+   Gopher+ field and the group's own selector: NET.general's 995 (117
+   KB) were cut at the 426th; kept short they take some 61 bytes a line.
+   A line longer than ln is kept as it came. */
+unsigned char __fastcall__ mshort(unsigned char n);     /* (ui.c) */
+unsigned char __fastcall__ doc_copy(unsigned char count);   /* (copy.s) */
+extern unsigned char *doc_src;
+
+static unsigned char mend(void)
+{
+    unsigned int o = ls;
+    unsigned char n;
+    if (!mnet || doc_full || doc_len - o > LNMAX - 1 || doc_len == o)
+        return 1;
+    doc_src = at(o);
+    n = doc_copy(doc_len - o);          /* (the line into ln) */
+    RAMBANK = appBank;
+    n = mshort(n);
+    doc_len = o;                        /* (written again over itself) */
+    wp = at(o);
+    wb = RAMBANK;
+    for (o = 0; o < n; ++o)
+        if (!put1(ln[o]))
+            return 0;
+    return 1;
+}
+
+/* a byte of a page's text */
+static unsigned char __fastcall__ mput(unsigned char c)
+{
+    if (doc_menu && c == '\n' && !mend())
+        return 0;
+    return put1(c);
+}
+
 /*---------------------------------------------------------------- (V143) a page's text */
 
 /* A server's text into Veranda's set (ISO-8859-16): UTF-8 decoded; a
@@ -179,6 +222,7 @@ static unsigned char __fastcall__ latin(unsigned char c)
 unsigned char __fastcall__ doc_text(const unsigned char *b, unsigned int n)
 {
     unsigned char keep = RAMBANK, c, i, ok = 1;
+    mnet = 1;
     if (doc_full)
         return 0;
     while (n-- && ok) {
@@ -188,33 +232,30 @@ unsigned char __fastcall__ doc_text(const unsigned char *b, unsigned int n)
                 u8b[u8l++] = c;
                 u8 = u8 << 6 | (c & 0x3F);
                 if (!--u8n)
-                    ok = put1(u8l == 4 || u8 < 0x80 ? '?' : cpt(u8));
+                    ok = mput(u8l == 4 || u8 < 0x80 ? '?' : cpt(u8));
                 continue;
             }
             for (i = 0; i < u8l && ok; ++i)     /* (not UTF-8: Latin-1) */
-                ok = put1(latin(u8b[i]));
+                ok = mput(latin(u8b[i]));
             u8n = 0;
         }
         if (!ok)
             break;
         if (c < 0x80)
-            ok = put1(c);
+            ok = mput(c);
         else if (c >= 0xC2 && c < 0xF5) {
             u8b[0] = c;
             u8l = 1;
             u8n = c < 0xE0 ? 1 : c < 0xF0 ? 2 : 3;
             u8 = c & (c < 0xE0 ? 0x1F : 0x0F);
         } else
-            ok = put1(latin(c));
+            ok = mput(latin(c));
     }
     RAMBANK = keep;
     return !doc_full;
 }
 
 /* line i's bytes into ln */
-unsigned char __fastcall__ doc_copy(unsigned char count);   /* (copy.s) */
-extern unsigned char *doc_src;
-
 unsigned char __fastcall__ doc_line(unsigned int i)
 {
     unsigned char keep = RAMBANK, n;
@@ -249,6 +290,10 @@ unsigned char __fastcall__ doc_type(unsigned int i)
 /* the end: the last line's empty rest and Gopher's "." line dropped */
 void doc_end(void)
 {
+    unsigned char keep = RAMBANK;
+    if (doc_menu && !doc_done)         /* (V230) a menu's last line without its LF (no "." line) */
+        mend();
+    RAMBANK = keep;
     if (doc_lines && start(doc_lines - 1) >= doc_len)
         --doc_lines;
     if (doc_lines && doc_line(doc_lines - 1) == 1 && ln[0] == '.')

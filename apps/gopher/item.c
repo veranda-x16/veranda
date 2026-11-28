@@ -60,7 +60,7 @@ void __fastcall__ addr_of(const struct loc *l)
    expanded; a menu's item text, MTW characters (its kind's glyph is
    ui.c's), and its kind: the item's type, 'i' a line that is not an
    item, 0 nothing (an empty line, past the end) */
-static const char cut[] = "--- Cut here: longer than 48 KB (File > Download saves all of it) ---";
+static const char cut[] = "--- Cut here: longer than 64 KB (File > Download saves all of it) ---";
 
 unsigned char __fastcall__ render(unsigned int i)
 {
@@ -133,6 +133,7 @@ unsigned char __fastcall__ item(unsigned int i)
 {
     unsigned char n, k = 1, f = 0, j;
     char *d;
+    const char *s;
     unsigned int port = 0;
     if (!selectable(i))
         return 0;
@@ -154,6 +155,9 @@ unsigned char __fastcall__ item(unsigned int i)
             if (f == 3) {
                 if (ln[k] >= '0' && ln[k] <= '9')
                     port = port * 10 + ln[k] - '0';
+            } else if (f == 1 && ln[k] == MSEL) {   /* (V230: doc.c's) the page's own selector */
+                for (s = cur.sel; *s && j < SELMAX - 1; )
+                    d[j++] = *s++;
             } else if (j < (f == 1 ? SELMAX - 1 : HOSTMAX - 1))
                 d[j++] = ln[k];
         }

@@ -512,7 +512,7 @@ int main(void)
     RAMBANK = appBank;
     doc_bank = BankAlloc(DOCBANKS + 2);
     if (!doc_bank) {
-        message("Veranda Gopher needs more memory", "(8 RAM banks).");
+        message("Veranda Gopher needs more memory", "(10 RAM banks).");
         EnterDeskTop();
     }
     load_font();

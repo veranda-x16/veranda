@@ -66,8 +66,9 @@ extern struct hent H;           /* (an entry's copy) */
 extern unsigned char rows, rowh;        /* the page's (a menu's or a text's) */
 
 /*--------------------------------------------------------------- the document */
-#define DOCBANKS 6              /* 48 KB of text: more is cut ("truncated") */
-#define DOCMAX   ((unsigned int)DOCBANKS * 8192u)
+#define DOCBANKS 8              /* (V230; 6 before) 64 KB of text: more is cut ("truncated") */
+#define DOCMAX   0xFFFFu        /* (the offsets are 16 bits) */
+#define MSEL     1              /* (V230) in a menu's line as kept: the page's own selector */
 #define LINEMAX  4000           /* lines shown (a bank of starts) */
 #define WRAPW    76             /* a text's columns (cards 1-76; V149: card 77 the margin, 78-79 the scroll bar) */
 

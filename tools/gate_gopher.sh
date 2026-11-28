@@ -21,7 +21,7 @@
 #    (info lines, an empty one, CP437; 1, 0, 7, 9, g, h, 3 items, their
 #    marks); a submenu, Back (the toolbar), Go > Forward, an item with no
 #    host (the page's server); a text (tabs, wrapped at spaces, a long word
-#    cut, CR LF and LF, CP437); a long text (80,000 bytes: cut at 48 KB, the
+#    cut, CR LF and LF, CP437); a long text (80,000 bytes: cut at 64 KB, the
 #    note at its end, End); a search (the box, "veranda": the selector, a
 #    tab, the query); a web link (the box with its URL); an error line (the
 #    box); a port nothing listens on (the box); a menu that stalls, Esc;
@@ -36,10 +36,18 @@
 #    longest gap; nothing lost in the UART, no bad CRC
 # 3. reread: a GOPHER.MARKS written as on a PC (LF only, a line that is not
 #    an item): the page lists its items; the gate's bookmark followed
-# 4. nomodem (-uart 9FE0 file:, no modem): the address typed: the box
+# 4. quux (V230): gopher.quux.org's shapes, the way to its "Usenet Archives
+#    from 1981": menus with CR LF and Gopher+'s "+" field, texts with LF
+#    only, no "." line (the server closes), selectors with spaces and of
+#    68 characters and more, 121 items (End: the last followed), a group of
+#    995 articles (113 KB sent: kept whole, not cut), an article in it;
+#    every line shown as sent, every selector sent back as given
+# 5. nomodem (-uart 9FE0 file:, no modem): the address typed: the box
+# ONLY=main|reread|quux|nomodem: that session alone.
 # Screenshots: $OUT/book.png, menu.png, menus.png (V149: Go open), text.png, long.png, longend.png,
 # search.png, xfer.png, marks.png, end.png, many.png, dark.png (the long
-# menu in dark mode: Look 2's palette swapped), marks2.png.
+# menu in dark mode: Look 2's palette swapped), marks2.png, qroot.png,
+# qnews.png, qart.png, qart2.png.
 set -e
 cd "$(dirname "$0")/.."
 OUT=${OUT:-build/gate/gopher}
@@ -84,7 +92,7 @@ o2 = seg.get('OVERLAY2', 0) + seg.get('OVL2BSS', 0)
 cvt = len(open(d + '/Gopher.cvt', 'rb').read())
 print('ok    the sizes: Gopher.cvt %d bytes; main RAM $0801-$%04X (%d bytes; the C stack 1 KB below $8800: %d free), '
       'of it vrnet with the serial driver %d bytes of code; overlay 1 (the interface) %d bytes, overlay 2 '
-      '(the bookmarks, the window chrome, the scroll bar, the table) %d bytes; RAM banks: 8 (the page 6, its lines 1, the history 1), '
+      '(the bookmarks, the window chrome, the scroll bar, the table) %d bytes; RAM banks: 10 (the page 8, its lines 1, the history 1), '
       'vrnet 2, the overlays 2' % (cvt, end, end - 0x801, 0x8400 - end - 1, net, o1, o2))
 if end >= 0x8400 or o1 > 8191 or o2 > 8191:
     sys.exit('FAIL  out of room')
@@ -133,6 +141,9 @@ shots() {
 	rm -f "$R"/*.RAW
 }
 
+want() { [ -z "$ONLY" ] || [ "$ONLY" = "$1" ]; }
+
+if want main; then
 echo "== main: the bookmarks, the address, menus, Back and Forward, texts, a search, the boxes, Stop, downloads with Alt+Tab, bookmarks"
 R=$OUT/main
 S=$R/srv
@@ -147,7 +158,9 @@ $PY tests/check_glyphs.py "$R/TEXT.RAW" "$ROM" "the text's UTF-8 and Latin-1 (V1
 	"Polish: Zażółć gęślą jaźń, ZAŻÓŁĆ GĘŚLĄ JAŹŃ" "Latin-1: café crème à la française" || fail "the Polish glyphs"
 shots BOOK MENU MENUS TEXT LONG LONGEND SEARCH XFER MARKS END MANY DARK
 $PY tests/check_gopher.py main "$R" "$SPORT" "$CPORT" || fail "main"
+fi
 
+if want reread; then
 echo "== reread: GOPHER.MARKS read back (written as on a PC: LF only)"
 R=$OUT/reread
 S=$R/srv
@@ -159,7 +172,21 @@ server_end
 grep -q "^GO END$" "$R/log.txt" || { grep "^GO" "$R/log.txt" | tail -30; fail "reread: the test failed"; }
 shots MARKS2
 $PY tests/check_gopher.py reread "$R" "$SPORT" "$CPORT" || fail "reread"
+fi
 
+if want quux; then
+echo "== quux: gopher.quux.org's shapes (no \".\" line, LF texts, Gopher+ fields, selectors with spaces, 121 items)"
+R=$OUT/quux
+S=$R/srv
+server "$S"
+run "$R" "quux $SPORT" 600 "modem:baud=57600,log=$R/modem.log"
+server_end
+grep -q "^GO END$" "$R/log.txt" || { grep "^GO" "$R/log.txt" | tail -30; fail "quux: the test failed"; }
+shots QROOT QNEWS QART QART2
+$PY tests/check_gopher.py quux "$R" "$SPORT" "$CPORT" || fail "quux"
+fi
+
+if want nomodem; then
 echo "== nomodem: no modem on the port"
 R=$OUT/nomodem
 mkdir -p "$R"
@@ -167,6 +194,7 @@ mkdir -p "$R"
 run "$R" "nomodem 70" 300 "file:,$R/out.bin"
 grep -q "^GO END$" "$R/log.txt" || { grep "^GO" "$R/log.txt" | tail -30; fail "nomodem: the test failed"; }
 $PY tests/check_gopher.py nomodem "$R" 0 0 || fail "nomodem"
+fi
 rm -f "$OUT"/*/dump.bin
 
 echo "screenshots: $(ls "$OUT"/*.png | tr '\n' ' ')"
