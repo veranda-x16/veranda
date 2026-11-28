@@ -30,6 +30,9 @@
 #    mode), against goldens (tests/vbasic/ide/golden.txt: the bitmap, the
 #    colour map, the palette); screenshots of those, the help page, the
 #    program's console, the line stopped at, Format's result
+# 3c. (V215) scrolling's speed: tests/scroll_speed.py's session timed (a
+#    line within 50 ms, a page within 300 ms at 8 MHz) and again with the
+#    redraw check after every step (the window against a full drawing)
 # 4. the shell: a double click on a long-named .bas starts VeraBASIC with
 #    it, in a folder with VeraBASIC Run too (Run no longer says BAS)
 #    and the switcher (2 MB of RAM: tests/vbasic/ide_aside.py): put aside
@@ -185,6 +188,55 @@ ok "  (dark mode), help.png (F1 on PRINT), console.png (the program's), stopped.
 GOLD=$G/golden.txt
 $PY tests/vbasic/check_ui.py "$OUT/s" "$GOLD" colour error colourdark errordark || fail "the screens' goldens"
 ok "the colour map's goldens, light and dark (the colouring, the error's line): $GOLD"
+
+# 3b. editing after scrolling (V214; tests/vbasic/ide_scroll.py): 200
+# numbered lines scrolled by Down, Page Down, the wheel, the scroll bar's
+# arrow and track, keys that come together; a line clicked or reached,
+# characters typed and deleted, Return: the saved program as the model's,
+# the cursor's lines; the screen the one F1 and Esc's full redraw shows
+for v in scroll scrollredraw; do
+	C=$OUT/s/$v
+	rm -rf "$C"
+	mkdir -p "$C/VERANDA/HELP"
+	cp "$T" "$C/AUTOSTART.cvt"
+	cp "$K/VERANDA.SYS" "$K/VERANDA.PRG" "$C/"
+	cp vbasic/gen/HELP/*.HLP "$C/VERANDA/HELP/"
+	$PY tests/vbasic/ide_scroll.py "$C" $( [ $v = scrollredraw ] && echo --redraw) || fail "tests/vbasic/ide_scroll.py"
+	(cd "$C" && SDL_VIDEODRIVER=dummy timeout -s INT 600 "$EMU" -rom "$R49" -prg VERANDA.PRG -run \
+		-warp -sound none -echo -dump V > console.txt 2>&1) &
+done
+wait
+for v in scroll scrollredraw; do
+	[ -f "$OUT/s/$v/dump.bin" ] || { grep -a "IDE\|HUNG" "$OUT/s/$v/console.txt" | tail -5; fail "$v: the session did not end"; }
+done
+$PY tests/vbasic/ide_scroll.py check "$OUT/s/scroll" "$OUT/s/scrollredraw" || fail "editing after scrolling"
+$PY "$SDK/tools/vram2png.py" --color "$OUT/s/scroll/dump.bin" "$OUT/scroll.png" >/dev/null || fail "vram2png scroll"
+ok "editing after scrolling (Down, Page Down, the wheel, the scroll bar, keys together): each change at the line"
+ok "  clicked or reached, the saved program as the model's, the screen as a full redraw's: $OUT/scroll.png"
+
+# 3c. scrolling's speed (V215; tests/scroll_speed.py): a 200-line program
+# in colour, each way of scrolling timed exactly at 8 MHz (from the record
+# played to the text drawn: the status bar waits while keys come), a line
+# within 50 ms and a page within 300 ms; the same session again with the
+# redraw check after every step (the window as the steps drew it against
+# a full drawing, view_all: each text row's bitmap and colour map)
+for v in speed speedcheck; do
+	C=$OUT/s/$v
+	rm -rf "$C"
+	mkdir -p "$C/VERANDA/HELP"
+	cp "$T" "$C/AUTOSTART.cvt"
+	cp "$K/VERANDA.SYS" "$K/VERANDA.PRG" "$C/"
+	cp vbasic/gen/HELP/*.HLP "$C/VERANDA/HELP/"
+	$PY tests/scroll_speed.py ide "$C" $( [ $v = speedcheck ] && echo --check) || fail "tests/scroll_speed.py"
+	(cd "$C" && SDL_VIDEODRIVER=dummy timeout -s INT 600 "$EMU" -rom "$R49" -prg VERANDA.PRG -run \
+		-warp -sound none -echo -dump V > console.txt 2>&1) &
+done
+wait
+$PY tests/scroll_speed.py report "$OUT/s/speed" --max 50,300 > "$OUT/speed.txt" || { cat "$OUT/speed.txt"; fail "scrolling's speed"; }
+$PY tests/scroll_speed.py report "$OUT/s/speedcheck" --check > "$OUT/speedcheck.txt" \
+	|| { cat "$OUT/speedcheck.txt"; fail "the redraw check"; }
+ok "scrolling's speed (R49, 8 MHz; $OUT/speed.txt): $(sed -n 's/^Down at the last row: a line *//p' "$OUT/speed.txt") a line,"
+ok "  $(sed -n 's/^Page Down *//p' "$OUT/speed.txt") a page; $(tail -1 "$OUT/speedcheck.txt")"
 
 # 4. the shell: a double click on a .bas
 S=$OUT/shell

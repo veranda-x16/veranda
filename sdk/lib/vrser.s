@@ -42,7 +42,7 @@
 .export _ser_frames, _ser_mcr, _ser_ier, _ser_flow
 .export _ser_sbank, _ser_saddr, _ser_send, _ser_rate, _ser_logbank, _ser_logpos
 .export _ser_polls, _ser_fast
-.export _ser_get
+.export _ser_get, _ser_now
 .import popax
 .importzp ptr1, ptr2, ptr3, ptr4, tmp1
 
@@ -282,6 +282,19 @@ Flow:	lda _ser_rxhead+1
 ; (V210) unsigned int __fastcall__ ser_get(unsigned char *buf, unsigned int max):
 ; up to max received bytes into buf (below $A000), the count; the RAM
 ; bank kept
+; (V213) unsigned int ser_now(void): ser_frames read whole. A C read of it
+; is two loads (lda low, ldx high): the frame's interrupt can come between
+; them as the low byte carries, and that read is 256 frames late, so a
+; deadline 0.5 s off fired at once (gate ftp's longest gap of the main loop
+; came out as 256 frames, its own read of ser_frames)
+_ser_now:
+	php
+	sei
+	lda _ser_frames
+	ldx _ser_frames+1
+	plp
+	rts
+
 _ser_get:
 	sta ptr4
 	stx ptr4+1

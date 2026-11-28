@@ -10,13 +10,16 @@
             and menus' tables, the state the banks share (low.c), the calls
             between banks and the kernel's entries (low.s)
      B_VIEW the bank the kernel calls (appBank while the editor shows): the
-            window (textkit's view.c), keys, the pointer, the colouring
+            window (textkit's view.c, its rows' cards: putrow.s), keys, the
+            pointer
      B_FILE files (textkit's file.c), the clipboard (scrap.c), the menus'
-            layout, the text given to the runtime's side
+            layout, the text given to the runtime's side, a scroll's rows
+            moved (textkit's vmove.s, V215)
      B_DLG  the SDK's Open and Save dialog (vrchoose.c: a bank alone)
      B_HELP the help viewer, F1, the status bar's syntax lines
      B_FMT  find and replace (textkit's find.c), Format, the answers of a
-            Check or a run (the error jumps), the scroll bar (sbar.c, V149)
+            Check or a run (the error jumps), the scroll bar (sbar.c, V149),
+            the status bar and the title (bars.c, V215)
      B_DBG  the debugger (DECISIONS V97: dbg.c; its names in B_HELP's
             names.c, an expression's tokens in B_LEX's tok.c, an error's
             statement in B_FMT's fmt_quote, the trace pane in B_FILE's
@@ -42,7 +45,12 @@
 #define TK_GUTTER
 #define TK_PUT_SEG "CODE"              /* (tk_put_s, tk_put_ul in LOW: every bank uses them) */
 #define TK_ROW_HOOK ide_rowx
-#define TK_SCROLL_HOOK(d) memset(dirty, 1, ROWS)    /* (the colours do not scroll) */
+/* (V215) a scroll moves the colour map's paper with the rows (vmove.s);
+   not while a menu is down (the cards it covers keep their colours aside:
+   every row drawn again, as before) */
+#define TK_COLMOVE (colour_on && !menuNumber)
+#define TK_VMOVE() XCALL(B_FILE, tk_vmove_x)   /* (vmove.s: B_FILE's) */
+#define TK_SCROLL_HOOK(d) if (menuNumber) memset(dirty, 1, ROWS)
 #define TK_FRAME_HOOK() ide_frame()   /* (the window drawn: the scroll bar, the debugger's pane again: keys.c) */
 extern unsigned char pane_dirty;
 void ide_frame(void);
@@ -103,7 +111,8 @@ extern unsigned char vx_dbg;    /* (its runtime's side, overlay 12: what the two
 extern unsigned long sb_first, sb_total;
 extern unsigned int sb_at, sb_len, sb_y;
 extern unsigned char sb_part;
-void sb_draw(void), sb_hit(void);
+void sb_draw(void), sb_hit(void), sb_move(void);
+void ide_status(void), ide_title(void);  /* (B_FMT's bars.c: tk_status, tk_title's, V215) */
 /* the debugger's pane at the right of the text while a program is stopped */
 #define PANE_W 33
 #define PANE_X (SB_X - PANE_W)
@@ -151,7 +160,7 @@ void ide_logn(const char *s, unsigned long n);
 
 /* B_VIEW (keys.c, textkit's view.c) */
 void ide_tick(void), ide_key(void), ide_press(void), view_off(void);
-/* B_LEX (colour.c) */
+/* B_LEX (colour.c, lex.s: the colouring) */
 void ide_row(void);
 /* B_CMD (cmd2.c, textkit's find.c): the actions (LOW's mn_* stubs call
    do_*), the start, the answers */
@@ -229,6 +238,8 @@ void ide_request_x(void);
 extern unsigned long jump_line;         /* B_CMD's ide_toline: the cursor to that line */
 void ide_toline(void);
 void ide_banks_log(void);               /* (B_CMD; the test build's log) */
+void test_redraw_a(void), test_redraw_b(void);  /* (the test build's B_FILE: tests/vbasic/ide_redraw.c, V215) */
+void test_idle(void);                   /* (its tests/tk_hash.s: a timed record's end) */
 extern unsigned int trace_top;          /* B_FILE's trace.c: the trace pane, its first line shown */
 void trace_draw(void), trace_log(void);
 

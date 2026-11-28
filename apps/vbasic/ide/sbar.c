@@ -6,7 +6,9 @@
    hit test is 1,666 bytes, more than the banks that would call it have
    free. Its arguments in LOW (sb_first, sb_total: lines; ROWS of them
    shown); sb_draw leaves the thumb's place in sb_at, sb_len (pixels from
-   the bar's top), sb_hit the part at sb_y (VS_*, vrwin.h) in sb_part.
+   the bar's top), sb_hit the part at sb_y (VS_*, vrwin.h) in sb_part;
+   sb_move (V215) moves the thumb of the bar drawn when only sb_first
+   changed.
 
    MIT licence (LICENSE). */
 #include <theme.h>
@@ -36,10 +38,10 @@ static void arrow(unsigned int y, unsigned char down)
         across(y + (down ? 9 - i : 6 + i), 7 - i, 8 + i);
 }
 
-void sb_draw(void)
+/* the thumb's place (sb_first of sb_total): sb_at, sb_len */
+static void thumb(void)
 {
     unsigned int l = L - 32, n = l, p = 0;
-    dispBufferOn = ST_WR_FORE;
     if (sb_total > ROWS) {
         n = (unsigned int)((unsigned long)l * ROWS / sb_total);
         if (n < 16)
@@ -49,18 +51,47 @@ void sb_draw(void)
     }
     sb_at = p + 16;
     sb_len = n;
+}
+
+/* the thumb (sb_at, sb_len): a framed box, the grip */
+static void thumb_draw(void)
+{
+    unsigned int p;
+    if (sb_total > ROWS) {
+        box(sb_at, sb_at + sb_len - 1);
+        p = sb_at + (sb_len >> 1);      /* the grip: three lines across its middle */
+        across(p - 2, 5, 10);
+        across(p, 5, 10);
+        across(p + 2, 5, 10);
+    }
+}
+
+void sb_draw(void)
+{
+    dispBufferOn = ST_WR_FORE;
+    thumb();
     theme_rect(SB_X, 2, TROW, ROWS, CHROME);   /* (arrows too: textkit's column 79 is) */
     SetPattern(0);
     box(0, L - 1);
     arrow(0, 0);
     arrow(L - 16, 1);
-    if (sb_total > ROWS) {
-        box(sb_at, sb_at + n - 1);
-        p = sb_at + (n >> 1);           /* the grip: three lines across its middle */
-        across(p - 2, 5, 10);
-        across(p, 5, 10);
-        across(p + 2, 5, 10);
-    }
+    thumb_draw();
+}
+
+/* (V215) the same lines, sb_first alone changed since the bar was drawn:
+   the thumb where it was cleared inside the bar's frame (as the empty
+   track is), drawn where it goes */
+void sb_move(void)
+{
+    unsigned int a = sb_at, n = sb_len;
+    thumb();
+    if (a == sb_at && n == sb_len)
+        return;
+    dispBufferOn = ST_WR_FORE;
+    SetPattern(0);
+    if (sb_total > ROWS)
+        WRectangle(XP + 1, TY + a, XP + 14, TY + a + n - 1);
+    thumb_draw();
 }
 
 void sb_hit(void)

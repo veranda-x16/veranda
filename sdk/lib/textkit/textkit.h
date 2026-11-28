@@ -8,8 +8,10 @@
      text.c   the text's RAM banks (runs from BankAlloc)
      ops.c    editing and moving: the cursor, the selection, the line count
      undo.c   undo: a log in RAM banks of its own
-     view.c   the window: rows of 8 x 8 cells drawn with PutCards from the
+     view.c   the window: rows of 8 x 8 cells drawn with tk_putrow from the
               lines buf.s renders, the cursor, scrolling, the scroll bar
+     putrow.s a row's cards, each its style (main RAM: V215)
+     vmove.s  the rows moved by a scroll (with view.c; TK_BANK: its bank)
      find.c   find and replace (its dialog box), go to line
      scrap.c  cut, copy and paste through GEOS's Text Scrap (scrap.h)
      file.c   the document: a plain file read and written, its line ends
@@ -29,9 +31,18 @@
      unsigned char edit_idle;               set while the program waits
      unsigned char iobuf[TK_IOBUF];         file and scrap transfers
    and, when TK_ROW_HOOK is defined, void TK_ROW_HOOK(unsigned char r): row
-   r was drawn (gb_line, gb_mk... still its): the program's own
-   colouring of it; when TK_SCROLL_HOOK(d) is defined, it follows a scroll of
-   the rows by d (the colour map does not move with ScrollRect); when
+   r is about to be drawn (gb_line rendered, gb_mk... still its; tk_pc,
+   tk_px, tk_pn, tk_pf, tk_pa, tk_pb set for tk_putrow, which view.c calls
+   after the hook: tk_pn the text's cards drawn, as far as the row's ink
+   went or goes; tk_iw[r] the text's ink): the program's own colouring of
+   it (its cards' styles, a gutter at the left in the same call: then
+   tk_iw[r] counts from column 0, and the colour map of the cards drawn;
+   a row whose paper goes further: tk_iw[r] and tk_pn to the end); when
+   TK_COLMOVE is
+   defined (an expression, 1: the colour map's paper moves with the rows'
+   cards), a scroll moves the paper of the cards 0 .. X0 + COLS - 1 too;
+   when TK_SCROLL_HOOK(d) is defined, it follows a scroll of the rows by d
+   (what else must be drawn again: dirty rows); when
    TK_FRAME_HOOK() is defined, it follows view_frame (the window drawn:
    what the program draws beside the text, again).
 
@@ -107,6 +118,7 @@ extern unsigned char gb_line[80];
 extern unsigned long gb_mk[3];
 extern unsigned int gb_mkc[3];
 extern unsigned char gb_eof;
+extern unsigned char gb_tab;            /* (V215) gb_render: not 0, the line has a tab */
 extern unsigned int gb_lcols;
 extern unsigned char gb_pat[64], gb_plen, gb_ftab[256];
 
@@ -187,7 +199,7 @@ extern unsigned char bars_dirty;        /* 1 the status line, 2 the title, 4 the
 #define B_SCROLL 4
 extern const struct vrwin tk_win;       /* the window (vrwin.h) */
 extern char tk_line[81];
-extern unsigned char tk_sela, tk_selb;  /* (TK_ROW_HOOK: the selection's cards in the row, [a, b)) */                /* the bars' text (tk_status, tk_title) */
+                /* the bars' text (tk_status, tk_title) */
 void view_init(void);
 void view_frame(void);
 void view_all(void);
@@ -199,11 +211,33 @@ void view_blink(void);
 unsigned char tk_blink_due(void);    /* (buf.s) 1: half a second since its last 1 */
 void view_status_msg(const char *s);    /* (the program's) */
 unsigned int view_col(void);
+extern unsigned int tk_ccol;            /* (view_col's: other banks read it, V215) */
 unsigned char view_hit(unsigned int x, unsigned int y, unsigned long *pos);
-void put_text(const char *s, unsigned char x, unsigned int y, unsigned char flags);
 char *tk_put_ul(char *p, unsigned long v);      /* (for tk_status, tk_title; TK_PUT_SEG: their code's segment) */
 char *tk_put_s(char *p, const char *s);
 extern unsigned char cursor_on, thumb_n;
+/* (V215) putrow.s, main RAM: tk_pn cards of tk_pc (font tk_pfont) at card
+   column tk_px of text row r, each card's style from tk_pf (0: plain; 1
+   reversed, 2 bold), the cards [tk_pa, tk_pb) reversed too (the
+   selection: view.c sets them for a row's text); vmove.s, with view.c: the rows moved by d (|d| <
+   ROWS) as far as their ink, tk_iw (cards from column 0, at most tk_vlim),
+   and the colour map's paper with tk_vcol */
+void __fastcall__ tk_putrow(unsigned char r);
+extern const unsigned char *tk_pc, *tk_pf, *tk_pfont;
+extern unsigned char tk_px, tk_pn, tk_pa, tk_pb;
+unsigned char tk_jiffy(void);           /* (putrow.s) the jiffies' low byte */
+unsigned char tk_keys(void);            /* (putrow.s) keys still in the ROM's queue */
+/* (V215) tk_hold set: view_paint leaves the status bar and the title
+   (bars_dirty's B_STATUS, B_TITLE) for later: the program sets it while
+   input comes and draws them (view_paint again) when it pauses */
+extern unsigned char tk_hold;
+void __fastcall__ tk_vmove(signed char d);
+void tk_vmove_x(void);                  /* (d from tk_vd) */
+extern signed char tk_vd;
+extern unsigned char tk_iw[ROWS], tk_vlim, tk_vcol;
+#ifndef TK_VMOVE
+#define TK_VMOVE() tk_vmove_x()         /* (the program's: vmove.s in another bank) */
+#endif
 void tk_status(void);                   /* (the program's) */
 void tk_title(void);
 

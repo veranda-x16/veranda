@@ -49,6 +49,7 @@ ROM=${ROM:-$R49}
 EMU_NET=${EMU_NET:-$HOME/Projects/x16-emulator-modem/build/x16emu}
 export CC65_HOME=${CC65_HOME:-$HOME/.local/share/cc65}
 
+. tools/zimreal.inc.sh
 ok() { echo "ok    $*"; }
 fail() { echo "FAIL  $*"; exit 1; }
 
@@ -117,9 +118,11 @@ run() {
 	cp "$A/SHELL.cvt" "$dir/VERANDA/"
 	echo "$tst" > "$dir/GOPHER.TST"
 	local t0=$(date +%s.%N)
-	(cd "$dir" && SDL_VIDEODRIVER=dummy timeout -s INT "$secs" "$EMU_NET" -rom "$ROM" -prg VERANDA.PRG -run \
-		-warp -sound none -echo -dump V -uartclock 14.7456 -uart 9FE0 "$uart" \
+	zim_uart "$dir" "$uart"
+	(cd "$dir" && SDL_VIDEODRIVER=dummy timeout -s INT "$((secs * ZMUL))" "$EMU_NET" -rom "$ROM" -prg VERANDA.PRG -run \
+		$WARP -sound none -echo -dump V -uartclock 14.7456 -uart 9FE0 "$UART" \
 		> console.txt 2>&1) || true
+	zim_end
 	tr '\r' '\n' < "$dir/console.txt" > "$dir/log.txt"
 	echo "      ($(basename "$dir"): $(python3 -c "import time; print('%.1f' % (time.time() - $t0))") s)"
 }

@@ -24,6 +24,9 @@
 # 4. screenshots on the way (the session stopped there; check_vera.py):
 #    the chooser, a selection, the find dialog, Save as
 # 5. the session on an SD card image
+# 6. (V215) scrolling's speed: tests/scroll_speed.py's session timed (a
+#    line within 50 ms, a page within 300 ms at 8 MHz, R49) and again with
+#    the redraw check after every step (the window against a full drawing)
 set -e
 cd "$(dirname "$0")/.."
 OUT=build/gate/edit
@@ -105,6 +108,30 @@ ok "screenshots: $OUT/chooser.png, select.png, findfull.png, saveas2.png, newfol
 # ISO-8859-16 glyphs (the cursor is on the first line's Z)
 $PY tests/check_l10_text.py "$OUT/shot-polish/dump.bin" "$ROM" "ażółć gęślą jaźń" "ZAŻÓŁĆ GĘŚLĄ JAŹŃ" \
 	|| fail "the Polish text on the screen"
+
+# (V215) scrolling's speed (tests/scroll_speed.py): 3,000 lines of plain
+# text, each way of scrolling timed exactly at 8 MHz under R49 (a line
+# within 50 ms, a page within 300 ms), and again with the redraw check
+# after every step (the window against a full drawing, view_all)
+R49=${R49:-$HOME/Downloads/Release.R49.ROM.Image/rom.bin}
+if [ -f "$R49" ]; then
+	for v in speed speedcheck; do
+		C=$OUT/$v
+		rm -rf "$C"
+		mkdir -p "$C"
+		cp "$OUT/test/Edit.cvt" "$C/AUTOSTART.cvt"
+		cp build/VERANDA.PRG build/VERANDA.SYS "$C/"
+		$PY tests/scroll_speed.py edit "$C" $( [ $v = speedcheck ] && echo --check) || fail "tests/scroll_speed.py"
+		(cd "$C" && SDL_VIDEODRIVER=dummy timeout -s INT 600 "$EMU" -rom "$R49" -prg VERANDA.PRG -run \
+			-warp -sound none -echo -dump V > console.txt 2>&1) &
+	done
+	wait
+	$PY tests/scroll_speed.py report "$OUT/speed" --max 50,300 > "$OUT/speed.txt" || { cat "$OUT/speed.txt"; fail "scrolling's speed"; }
+	$PY tests/scroll_speed.py report "$OUT/speedcheck" --check > "$OUT/speedcheck.txt" \
+		|| { cat "$OUT/speedcheck.txt"; fail "the redraw check"; }
+	ok "scrolling's speed (R49, 8 MHz; $OUT/speed.txt): $(sed -n 's/^Down at the last row: a line *//p' "$OUT/speed.txt") a line,"
+	ok "  $(sed -n 's/^Page Down *//p' "$OUT/speed.txt") a page; $(tail -1 "$OUT/speedcheck.txt")"
+fi
 
 # the session on an SD card image: $1 the folder's name, $2 the ROM
 sdsession() {

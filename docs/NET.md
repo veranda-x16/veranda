@@ -92,8 +92,8 @@ that buffer has less room than a packet), so the turn-round is hidden
 and a download comes at the line's rate (49 ms a packet measured). It
 sends one ahead only while nothing else waits (a command, a send, a
 connection to make or close) and every open socket has room for two
-packets; with one always out, a pull's 0.5 s deadline counts from each
-header that comes, so a long pass of the program (a card write) is not
+packets; with one always out, a pull's deadline (0.5 s; V213: 3 s)
+counts from each header that comes, so a long pass of the program (a card write) is not
 taken for a modem that does not answer, and (V211) no deadline is
 checked while bytes still wait in the serial ring (after a pass of a
 second two packets may wait there, more than one step reads). The emulator's modem drops an
@@ -105,16 +105,30 @@ took 120) and the packets' CRC-8 too (`vrnetcrc.s`, 17 cycles a byte;
 bytes and keep each pass short (Veranda Update calls `net_poll()` again
 between the parts of its own work).
 
-**When to call `net_ahead_on()`** (DECISIONS V211). In any program whose
-downloads are more than a few packets (a file, a page, a picture): call
-it once, after `net_start()`; Veranda Update, FTP, Gemini and Gopher do.
-It costs its 200 bytes of main RAM and nothing else: sends, commands and
-connections still go first, and with a second socket open (FTP's control
-connection) it waits only while that socket's ring is fuller than
-1 KB - 2 packets, so read every open socket on every pass and the idle one
-never holds the data back. Leave it out where what comes is slower than
-the line anyway (Veranda Ask's and Claude's streamed answers, Chat) and
-the 200 bytes are worth more. Two more rules from V211's measurements:
+**When to call `net_ahead_on()`** (DECISIONS V211, V213). Since V213 no
+program calls it (it stays in the SDK, off). Veranda Update called it
+from V210, Veranda FTP, Gemini and Gopher in V211, and those three were
+reported broken on the user's card (Gemini's search "50", FTP's connection lost in the second
+folder) while every gate passed: the emulator's modem answers at once and
+its loop is never held, so a gate cannot show what one XON ahead does on
+the card, and V213 took it out of them again, and out of Update too
+(correctness first: its pack and its one kept connection are most of its
+gain). What is known
+(tests/zimreal.py, a model of the firmware with a Wi-Fi's latency;
+`MODEM=real` in gates ftp, gemini, gopher and update): with one ahead the
+modem reads the next packet from its connection while this one is still
+in its serial buffer, so any pause of its loop then (a TLS record not all
+in, the Wi-Fi) stops this packet half way on the line; before V213 a
+pause of more than 0.5 s cut it short (NET_EIO). Since V213 a pull whose
+packet has begun has 3 s (from its XON; with one ahead from each header,
+vrahead.c), and vrnet reads its clock whole (`ser_now()`: a read of
+`ser_frames` torn by the frame's interrupt was 256 frames late, and fired
+a 0.5 s deadline at once). Do not call it in
+a new program before it has been tried on the card; where it is used,
+read every open socket on every pass (with a second socket open it waits
+while that socket's ring is fuller than 1 KB - 2 packets). Leave it out
+where what comes is slower than the line anyway (Veranda Ask's and
+Claude's streamed answers, Chat). Two more rules from V211's measurements:
 the status line's text in the UI font takes some 55-65 ms each time it
 is drawn, and while it is drawn no packet is pulled and no send's OK is
 seen: draw a transfer's progress once a second, not more; and an upload
@@ -168,7 +182,7 @@ program is put aside.
 |---|---|---|
 | a command's `OK` | 3 s | the socket `NET_FAILED`, `NET_ETIMEOUT` |
 | a connection (`ATC`) | 15 s | the socket `NET_FAILED`, `NET_ETIMEOUT` |
-| an XON's packet | 0.5 s | XON again (the firmware drops an XON when its buffer is full), 4 tries |
+| an XON's packet | 0.5 s; (V213) 3 s once its header has come | XON again (the firmware drops an XON when its buffer is full), 4 tries; a packet cut short: NET_EIO |
 | after any timeout | 30 s | `AT` until the modem answers `OK` (it may still be busy with what timed out; a late `CONNECT` is hung up); else `NET_FAULT` |
 
 Your program keeps running through all of them.
@@ -220,3 +234,16 @@ connections from the host; `-uartclock 14.7456` for the card's crystal.
 Options: `baud=` the rate it starts at, `cts`, `stall=<port>` (a host
 that never answers), `ctimeout=` (the modem's own connect timeout),
 `log=<file>` (every command it got). `tools/gate_net.sh` is the gate.
+
+That modem answers at once and its loop is never held. (V213)
+`tests/zimreal.py` is a closer one: Zimodem's own `readSerialStream`,
+`sendNextPacket` (a `NO CARRIER` leaves the XON standing, so another
+answer follows it), `doTransmitCommand` (`ATT` to a connection that is
+gone: `ERROR` at once, its bytes read as commands), its 4 KB serial
+buffer sent on only from its loop, with a Wi-Fi's latency (`--loop`,
+`--write`, `--connect`, `--net`, `--jitter`), pauses of its loop
+(`--stallp`, `--stall`, `--stallall`) and a small receive buffer
+(`--rxcap`), reached through the emulator's `-uart 9FE0 tcp:` back-end in
+real time (no `-warp`). Gates ftp, gemini, gopher and update run on it
+with `MODEM=real` (`ZIMREAL="..."` its options; `tools/zimreal.inc.sh`);
+gemini's and ftp's `ONLY=` pick sessions.

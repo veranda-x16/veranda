@@ -61,6 +61,7 @@
 #define T_RECOVER 1800          /* the modem answering again after a timeout: 30 s */
 #define PULL_TRIES 4
 #define T_SPULL   10            /* (V211) sends in a row with nothing coming: a pull at least every 1/6 s */
+#define T_PKT     180           /* (V213) a pull whose packet has begun: 3 s (vrahead.c's too) */
 
 struct sock sk[NET_SOCKS];      /* (vrnetp.h's struct; not static since V210: vrahead.c reads them) */
 
@@ -89,7 +90,7 @@ static unsigned char setup_i;
 static unsigned char op, kind, osk, tries;
 unsigned char draining;
 unsigned int ot;                /* its start (ser_frames) */
-static unsigned int olen;       /*   its deadline */
+unsigned int olen;              /*   its deadline (V213: not static: vrahead.c sets it) */
 static unsigned char cur = 0xFF;        /* the modem's current channel */
 unsigned char orphan;                   /* a late CONNECT's channel, to hang up */
 static unsigned char sendn, sendp;      /* ATT's payload: its size, pushed so far */
@@ -198,7 +199,7 @@ static void start(unsigned char o, unsigned char k, unsigned int t)
     cmdp = 0;
     op = o;
     kind = k;
-    ot = ser_frames;
+    ot = ser_now();
     olen = t;
 }
 
@@ -238,7 +239,7 @@ static void answered(void)
     tries = 0;
     if (nxt) {
         nxt = 0;
-        ot = ser_frames;
+        ot = ser_now();
     } else
         done();
 }
@@ -412,7 +413,7 @@ static unsigned char header(void)
         ++net_stats.empties;
         if (op == OP_PULL) {
             lastempty = 1;
-            idle_t = ser_frames;
+            idle_t = ser_now();
             answered();
         }
         return 1;
@@ -422,6 +423,11 @@ static unsigned char header(void)
         return 1;
     }
     pst = 1;
+    if (op == OP_PULL)
+        olen = T_PKT;           /* (V213: the modem never leaves a packet half way, but
+                                   its loop can be held while one is in its serial buffer
+                                   (TLS, the Wi-Fi: tests/zimreal.py's --stall); the line
+                                   stops, and 0.5 s cut the packet short: NET_EIO) */
     if (net__ahead && op == OP_PULL && !nxt)
         net__ahead();           /* (V210: vrahead.c, the next XON at once) */
     return 1;
@@ -513,8 +519,12 @@ static void push(void)
     s = &sk[osk];
     t = TXBUF(osk);
     while (sendp < sendn && ser_txroom()) {
-        ser_byte(t[s->txt++]);  /* (V211: its place free at once, so that the */
+        ser_byte(t[s->txt]);    /* (V211: its place free at once, so that the */
         ++sendp;                /* next packet is in the ring when this one's OK comes) */
+        if (s->txt != s->txh)   /* (V213: unless the ring was emptied under it, by */
+            ++s->txt;           /* net_close or NO CARRIER: the rest of the n bytes still
+                                   go, the tail stays at the head; it ran past it, and
+                                   the ring's old bytes were the next ATT) */
     }
 }
 
@@ -560,7 +570,7 @@ static void schedule(void)
     }
     /* a send, or a pull (they take turns); (V211) while the pulls bring
        nothing, sends follow one another, a pull every T_SPULL frames */
-    if (snd >= 0 && (flip || !pull || !room || (lastempty && ser_frames - idle_t < T_SPULL))) {
+    if (snd >= 0 && (flip || !pull || !room || (lastempty && ser_now() - idle_t < T_SPULL))) {
         flip = 0;
         s = &sk[osk = snd];
         if (cur != s->id) {
@@ -575,13 +585,13 @@ static void schedule(void)
         start(OP_SEND, 0, T_CMD);
         return;
     }
-    if (pull && room && !hold && (!lastempty || ser_frames != idle_t)) {
+    if (pull && room && !hold && !pst && (!lastempty || ser_now() != idle_t)) {
         flip = 1;
         cmd[0] = XON;
         cmdl = 1;
         cmdp = 0;
         op = OP_PULL;
-        ot = ser_frames;
+        ot = ser_now();
         olen = T_PULL;
         ++net_stats.pulls;
     }
@@ -615,7 +625,7 @@ static void step(void)
        program (0.5 s and more: Gemini's picture) with an XON ahead, two
        packets wait, more than these 8 reads take: the second was cut
        short by its deadline (NET_EIO) before its rest was read */
-    if (op != OP_NONE && ser_frames - ot > olen && i < 8)
+    if (op != OP_NONE && ser_now() - ot > olen && i < 8)
         timeout();
     if (op == OP_NONE && !draining && gst == NET_SETUP)
         command(profile[setup_i], K_SETUP);
@@ -632,9 +642,9 @@ static void step(void)
    most 0.75 s; nothing new is started. */
 static void net_aside(void)
 {
-    unsigned int t = ser_frames;
+    unsigned int t = ser_now();
     draining = 1;
-    while ((op == OP_PULL || (op == OP_SEND && sendp < sendn) || cmdp < cmdl) && ser_frames - t < 45)
+    while ((op == OP_PULL || (op == OP_SEND && sendp < sendn) || cmdp < cmdl) && ser_now() - t < 45)
         step();
     draining = 0;
     ser_aside();
@@ -682,11 +692,11 @@ void net_stop(void)
     unsigned int t;
     if (gst == NET_OFF)
         return;
-    t = ser_frames;
+    t = ser_now();
     if (ser_on == 1 && gst != NET_SYNC) {
         /* the payload under way first (else ATH0 would be part of it) */
         if (gst == NET_READY) {
-            while ((cmdp < cmdl || (op == OP_SEND && sendp < sendn)) && ser_frames - t < 30) {
+            while ((cmdp < cmdl || (op == OP_SEND && sendp < sendn)) && ser_now() - t < 30) {
                 unsigned char b = RAMBANK;
                 RAMBANK = nbank;
                 push();
@@ -698,7 +708,7 @@ void net_stop(void)
         ser_byte('H');
         ser_byte('0');
         ser_byte(13);
-        while (!ser_sent() && ser_frames - t < 30)
+        while (!ser_sent() && ser_now() - t < 30)
             ;
     }
     ser_stop();
@@ -719,9 +729,9 @@ void net_poll(void)
         return;
     if (ser_wake()) {           /* (back from the switcher: V91) */
         hold = 1;
-        hold_t = ser_frames;
+        hold_t = ser_now();
     }
-    if (hold && ser_frames - hold_t > HOLD)
+    if (hold && ser_now() - hold_t > HOLD)
         hold = 0;
     step();
 }

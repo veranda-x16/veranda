@@ -19,6 +19,10 @@ static void sb_check(void)
 {
     if (top_line != sb_first || nlines != sb_total) {
         sb_first = top_line;
+        if (nlines == sb_total) {
+            XCALL(B_FMT, sb_move);      /* (V215) the thumb alone */
+            return;
+        }
         sb_total = nlines;
         XCALL(B_FMT, sb_draw);
     }
@@ -42,41 +46,16 @@ void view_off(void)
 /*---------------------------------------------------------------
   the bars (textkit's view.c calls them)
  ---------------------------------------------------------------*/
-static const char *const states[] = { "Ready", "Modified" };
-
-/* the status bar (Sunroom, V149: the chrome band's texts in the UI font,
-   vr_win_status): a message or the syntax of the keyword at the cursor at
-   the left; the state and the cursor's line:column at the right */
+/* (B_FMT's bars.c: B_VIEW's room, V215) */
 void tk_status(void)
 {
-    char *p = tk_put_s(tk_line, stop_line ? "Stopped" : err_line ? "Error" : states[modified]);
-    p = tk_put_s(p, "     ");
-    p = tk_put_ul(p, cur_line + 1);
-    *p++ = ':';
-    *tk_put_ul(p, (unsigned long)view_col() + 1) = 0;
-    vr_win_status(&tk_win, status_msg[0] ? status_msg : syn_line, tk_line);
+    XCALL(B_FMT, ide_status);
 }
 
-/* the title band: the program, modified, its folder */
 void tk_title(void)
 {
-    unsigned char l;
-    char *q = tk_line;
-    q = tk_put_s(q, "VeraBASIC: ");
-    q = tk_put_s(q, docname[0] ? docname : "Untitled");
-    if (modified)
-        q = tk_put_s(q, " *");
-    q = tk_put_s(q, "  -  ");
-    l = strlen((char *)curDirName);
-    if (l > 30) {
-        q = tk_put_s(q, "...");
-        q = tk_put_s(q, (char *)curDirName + l - 27);
-    } else
-        q = tk_put_s(q, (char *)curDirName);
-    *q = 0;
-    vr_win_title(&tk_win, tk_line);
+    XCALL(B_FMT, ide_title);
 }
-
 
 static void type(unsigned char c)
 {
@@ -295,14 +274,18 @@ void ide_press(void)
         return;
     }
     mouse_xy(&x, &y);
-    need_fix = 1;
     undo_run(0);
+    /* (need_fix only for a press that moves the cursor: view_fix would
+       take a view scrolled by the scroll bar back to the cursor, DECISIONS
+       V214) */
     if (pane && x >= PANE_X * 8 && x < SB_X * 8 && y >= TY && y < TY + ROWS * 8) {
+        need_fix = 1;
         press_y = y;                    /* (the debugger's pane) */
         XCALL(B_DBG, dbg_press);
         return;
     }
     if (view_hit(x, y, &p)) {
+        need_fix = 1;
         sh = GetKeyMods() & 1;
         if (!sh && p == cur && !HAS_SEL() && dblClickCount) {
             dblClickCount = 0;
@@ -351,6 +334,10 @@ static void drag(void)
 /*---------------------------------------------------------------
   the main loop's pass (LOW's appMain)
  ---------------------------------------------------------------*/
+/* (V215) the status bar, its syntax line and the title wait while keys
+   come (textkit's tk_hold): drawn once none came for QUIET jiffies */
+#define QUIET 8
+static unsigned char quiet, syn_due;
 static unsigned long last_ls = NOWHERE;
 static unsigned int last_col = 0xFFFF;
 static unsigned long last_n;
@@ -382,6 +369,14 @@ static void bp_follow(void)
 static void state_log(void)
 {
 #ifdef IDE_TEST
+    if (test_log & 0x80) {              /* (V215) the redraw check: the window */
+        view_cursor(0);                 /* as drawn, then drawn whole */
+        XCALL(B_FILE, test_redraw_a);
+        view_all();
+        view_cursor(0);
+        XCALL(B_FILE, test_redraw_b);
+        return;
+    }
     ide_logn("IDE STATE ", test_log);
     ide_logn(" ", cur_line + 1);
     ide_logn(" ", view_col() + 1);
@@ -417,8 +412,8 @@ void ide_tick(void)
     y = mouseYPosW;
     SetPointer(y >= TY && y < TY + ROWS * 8 && mouseXPos >= X0 * 8 && mouseXPos < (X0 + COLS) * 8
                ? PTR_IBEAM : PTR_ARROW);
-    if (pressFlag & SET_KEYPRESS)
-        return;                         /* draw once the keys waiting are in */
+    if ((pressFlag & SET_KEYPRESS) || tk_keys())
+        return;                         /* draw once the keys waiting are in (the ROM's too: V215) */
     if (nlines != last_n)
         bp_follow();
     if (pane_dirty) {
@@ -429,10 +424,10 @@ void ide_tick(void)
     if (need_fix) {
         need_fix = 0;
         if (cur_ls != last_ls || view_col() != last_col) {
-            last_ls = cur_ls;           /* the syntax of the word at the cursor */
-            XCALL(B_SYN, help_syntax);
-            bars_dirty |= B_STATUS;
+            last_ls = cur_ls;           /* the syntax of the word at the cursor: */
+            syn_due = 1;                /* with the status bar (V215) */
         }
+        tk_hold = 1;                    /* (V215) the text first, the bars when the keys pause */
         if (goal == 0xFFFF) {
             view_fix();
             goal = view_col();
@@ -440,14 +435,33 @@ void ide_tick(void)
             view_fix();
         last_col = view_col();
         sb_check();
+        quiet = tk_jiffy();             /* (from the drawing's end) */
         return;
     }
     sb_check();
     if (menuNumber == 0)
         view_blink();
+    if (tk_hold && (syn_due || (bars_dirty & (B_STATUS | B_TITLE)))) {
+        if ((unsigned char)(tk_jiffy() - quiet) >= QUIET) {
+            tk_hold = 0;
+            if (syn_due) {
+                syn_due = 0;
+                XCALL(B_SYN, help_syntax);
+                bars_dirty |= B_STATUS;
+            }
+            view_paint();
+            return;
+        }
+#ifdef IDE_TEST
+        play_slow(cursor_on);
+        XCALL(B_FILE, test_idle);       /* (a timed record: the text drawn) */
+#endif
+        return;                         /* (not idle: they wait) */
+    }
     edit_idle = 1;
 #ifdef IDE_TEST
     play_slow(cursor_on);               /* (the blink probe: tests/edit_play.s) */
+    XCALL(B_FILE, test_idle);           /* (V215: a timed record drawn) */
 #endif
     if (test_log)
         state_log();

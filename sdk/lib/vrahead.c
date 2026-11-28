@@ -19,7 +19,11 @@
    s for the modem's answer) counts from each header that comes, not from
    the XON, so that this side's own long pass (a card write, a redraw)
    with the packets waiting in the serial ring is never taken for a modem
-   that does not answer.
+   that does not answer. (V213) And it is 3 s, not 0.5: with the next XON
+   out, the modem reads the next packet from its connection while this
+   one is still in its serial buffer, and while its loop is held there (a
+   TLS record not all in, the Wi-Fi; tests/zimreal.py's --stall) this
+   packet stops half way on the line; 0.5 s cut it short (NET_EIO).
 
    MIT licence (see LICENSE). */
 #include <veranda.h>
@@ -27,10 +31,13 @@
 #include "vrnet.h"
 #include "vrnetp.h"
 
+#define T_PKT 180               /* (V213) 3 s, as vrnet.c's */
+
 static void ahead(void)
 {
     struct sock *s;
-    ot = ser_frames;
+    ot = ser_now();
+    olen = T_PKT;               /* (V213: this packet's rest, then the next one's answer) */
     if (orphan || hold || draining || !ser_txroom())
         return;
     for (s = sk; s != sk + NET_SOCKS; ++s) {

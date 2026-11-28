@@ -8,13 +8,22 @@
 #include <vr.h>
 
 #ifdef EDIT_TEST
+/* (V215) the test build's code in overlay 4 (tests/edit_test.c): misc.c's
+   call4 maps it, calls f, maps the caller's bank again; the arguments in
+   main RAM */
+void __fastcall__ call4(void (*f)(void));
+extern unsigned char bank4;
+extern unsigned char t_arg;
+extern const char *t_what;
+extern unsigned int t_col;
 void test_clock_reset(void);
-void test_clock_log(const char *what);
-#define T_RESET() test_clock_reset()
-#define T_LOG(s) test_clock_log(s)
+void test_clock_log(void);
+#define T_RESET() call4(test_clock_reset)
+#define T_LOG(s) (t_what = (s), call4(test_clock_log))
 #endif
 
 #define TK_UTF8                         /* (V143: UTF-8 files, textkit's u8.c) */
+#define TK_PUT_SEG "CODE"               /* (V215: tk_put_ul, tk_put_s in main RAM: overlay 1's room) */
 #include <textkit.h>
 
 extern unsigned char iobuf[TK_IOBUF];   /* file and scrap transfers */
@@ -43,12 +52,15 @@ extern unsigned int barx[4];
 
 #ifdef EDIT_TEST
 void test_start(void);
-void test_mark(const char *what);
 void test_log_state(void);
 void __fastcall__ play_slow(unsigned char cur);
 extern unsigned char test_log;
-void __fastcall__ test_key(unsigned char k);
+void test_key(void);
 void test_drawn(void);
+void test_redraw(void), test_redraw_a(void), test_redraw_b(void);
+void test_idle(void);                   /* (V215, tests/tk_hash.s: a timed record's end) */
+void __fastcall__ test_hash(unsigned char which);
+extern unsigned char test_hbad, test_hfirst;
 #endif
 
 #endif

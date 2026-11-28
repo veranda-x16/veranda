@@ -19,7 +19,7 @@
 
 .export _gb_bk, _gb_nb, _gb_gs, _gb_ge, _gb_cap, _gb_len
 .export _gb_a, _gb_b, _gb_n, _gb_r, _gb_lp, _gb_mode, _gb_crst
-.export _gb_hs, _gb_line, _gb_mk, _gb_mkc, _gb_eof, _gb_lcols
+.export _gb_hs, _gb_line, _gb_mk, _gb_mkc, _gb_eof, _gb_lcols, _gb_tab
 .export _gb_pat, _gb_plen, _gb_ftab, _ul_bk
 .export _gb_get, _gb_moveto, _gb_ins, _gb_del, _gb_grow, _gb_read
 .export _gb_append, _gb_flush, _gb_export, _gb_render, _gb_fwd_lines
@@ -113,6 +113,7 @@ _gb_line: .res COLS
 _gb_mk:	.res 12                 ; render: three positions ...
 _gb_mkc: .res 6                 ; ... and their columns ($FFFF: not here)
 _gb_eof: .res 1                 ; render: the line has no LF (the last)
+_gb_tab: .res 1                 ; render: not 0: the line has a tab (V215)
 _gb_lcols: .res 2               ; render: the line's width in columns
 _gb_pat: .res 64                ; find: the pattern (folded)
 _gb_plen: .res 1
@@ -974,6 +975,7 @@ _gb_render:
 	stz col
 	stz col+1
 	stz _gb_eof
+	stz _gb_tab
 	ldx #COLS - 1
 	lda #' '
 @sp:	sta _gb_line,x
@@ -994,6 +996,7 @@ _gb_render:
 	jsr PutCol
 	bra @l
 @tab:	lda #' '
+	sta _gb_tab
 	jsr PutCol
 	lda col
 	and #7
@@ -1029,13 +1032,30 @@ PutCol:	cmp #0                  ; a NUL shows as glyph $80 (PutCards
 	inc col+1
 @r:	rts
 
-; a mark at rl: its column (the first time)
-Marks:	ldx #0
+; a mark at rl: its column (the first time); the three marks' low bytes
+; first (V215: a character's usual case)
+Marks:	lda rl
+	cmp _gb_mk
+	bne @1
+	ldx #0
 	ldy #0
-@m:	lda rl
-	cmp _gb_mk,x
-	bne @n
-	lda rl+1
+	jsr Mark1
+	lda rl
+@1:	cmp _gb_mk+4
+	bne @2
+	ldx #4
+	ldy #2
+	jsr Mark1
+	lda rl
+@2:	cmp _gb_mk+8
+	bne @r
+	ldx #8
+	ldy #4
+	jmp Mark1
+@r:	rts
+
+; mark x / 4 (its column at gb_mkc + y) at rl? (its low byte is)
+Mark1:	lda rl+1
 	cmp _gb_mk+1,x
 	bne @n
 	lda rl+2
@@ -1049,15 +1069,7 @@ Marks:	ldx #0
 	sta _gb_mkc,y
 	lda col+1
 	sta _gb_mkc+1,y
-@n:	inx
-	inx
-	inx
-	inx
-	iny
-	iny
-	cpy #6
-	bne @m
-	rts
+@n:	rts
 
 ; from gb_a over up to gb_n (16 bits) LFs: gb_a after the last one (or
 ; the end); a/x = the LFs passed
@@ -1112,13 +1124,71 @@ _gb_line_start:
 	Copy24 _gb_a, rl
 	stz run
 	stz run+1
-@l:	jsr RdPrev
-	bcs @d
+@seg:	lda run                 ; (V215: a run at a time, as gb_fwd_lines)
+	ora run+1
+	bne @sc
+	jsr RbSeek
+	lda run
+	ora run+1
+	beq @d                  ; (the text's start)
+@sc:	jsr ScanLim             ; k = min(run, 255) bytes: bp, bp - 1 ..
+	sta chunk
+	dec a
+	sta tmp                 ; dp = bp - (k - 1), y = k - 1 (bp)
+	sec
+	lda bp
+	sbc tmp
+	sta dp
+	lda bp+1
+	sbc #0
+	sta dp+1
+	ldy tmp
+@s:	lda (dp),y
 	cmp #10
-	bne @l
-	Inc24 rl                ; after the LF
+	beq @f
+	dey
+	cpy #$FF
+	bne @s
+	ldy chunk               ; none: k bytes back
+	jsr Back
+	bra @seg
+@f:	tya                     ; the LF: back over the k - 1 - y bytes after it
+	eor #$FF
+	sec
+	adc tmp
+	tay
+	beq @d
+	jsr Back
 @d:	Copy24 rl, _gb_a
 	jmp Leave
+
+; the reader back by y bytes (1-255; y <= run): rl, run, bp
+Back:	sty tmp
+	sec
+	lda rl
+	sbc tmp
+	sta rl
+	lda rl+1
+	sbc #0
+	sta rl+1
+	lda rl+2
+	sbc #0
+	sta rl+2
+	sec
+	lda run
+	sbc tmp
+	sta run
+	lda run+1
+	sbc #0
+	sta run+1
+	sec
+	lda bp
+	sbc tmp
+	sta bp
+	lda bp+1
+	sbc #0
+	sta bp+1
+	rts
 
 ; gb_r = the LFs in [gb_a, gb_b)
 _gb_count:

@@ -23,9 +23,11 @@ struct sock {
 #define draining net__draining
 #define nxt      net__nxt
 #define ot       net__ot
+#define olen     net__olen
 extern struct sock sk[NET_SOCKS];
 extern unsigned char orphan, hold, draining, nxt;
 extern unsigned int ot;         /* the operation's start (ser_frames): its deadline counts from it */
+extern unsigned int olen;       /* (V213) its deadline, in frames */
 extern void (*net__ahead)(void);
 
 #endif

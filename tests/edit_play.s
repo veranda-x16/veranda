@@ -1,6 +1,6 @@
 ; gate edit: the player of Veranda Edit's scripted sessions (the test
 ; build: apps/edit with EDIT_TEST, tests/edit_test.c reads the script,
-; EDIT.PLY, into a RAM bank of its own).
+; EDIT.PLY, into a RAM bank: _play_bank, from _play_cur).
 ;
 ; Veranda calls mouseSource from its interrupt every frame: this gives
 ; it the script's pointer (absolute, carry set) and puts the script's
@@ -20,9 +20,15 @@
 ;   'W' n             n idle frames more
 ;   'H' n             the wheel: n notches (signed)
 ;   'L' n             test_log = n: the program logs its state
-;   'Z'               the clock: start (8 MHz cycles)
-;   'Y' c             "TIME c <cycles, hex>": from 'Z' to the last frame
-;                     the program was busy since
+;   'Z'               the next record timed (V215): the clock (8 MHz
+;                     cycles) when it is played, and again (play_mark) when
+;                     the program has drawn it: tests/tk_hash.s's test_idle
+;                     in the program's idle pass (the pass where only the
+;                     status bar waits too) with nothing waiting (no key in
+;                     either queue, no press, no wheel, no repeat)
+;   'Y' c             "TIME c <cycles, hex>": that time
+;   'R' k n           key k n times, every 2 frames (busy or not: held, as
+;                     the keyboard repeats it); records wait meanwhile
 ;   'B' m n           the blink probe (DECISIONS V160): n changes of
 ;                     textkit's cursor_on, each logged "BLINK m s frames"
 ;                     (s the new state, frames since the probe began, hex)
@@ -40,7 +46,7 @@
 .include "veranda.inc"
 .include "x16hw.inc"
 
-.export _play_bank, _play_go, _play_slow
+.export _play_bank, _play_go, _play_slow, _play_mark, _play_armed, _play_repn, _play_cur
 .import _edit_idle, _test_log
 
 GAP     = 6
@@ -51,7 +57,8 @@ KBDBUF_PEEK = $FEBD
 .segment "DATA"
 
 _play_bank: .byte 0
-cur:	.word $A000
+_play_cur:
+cur:	.word $A000                ; (the script's place: Veranda Edit's test build sets it)
 wait:	.byte 60
 px:	.word 320
 py:	.word 240
@@ -68,6 +75,11 @@ bcur:	.byte 0                 ; cursor_on as play_slow was given it
 bs:	.byte 0                 ; cursor_on as last seen
 bf:	.word 0                 ; frames since it began
 moved:	.byte 1
+tnext:	.byte 0                 ; 'Z': the next record timed
+_play_armed: .byte 0            ; its time taken; test_idle not yet
+_play_repn: .byte 0             ; 'R': the keys still to come,
+repk:	.byte 0                 ; the key, the frames to the next
+repc:	.byte 0
 
 .segment "CODE"
 
@@ -82,7 +94,13 @@ Player:	lda bn
 	beq @np
 	jsr probe
 	bra @to0
-@np:	jsr step
+@np:	lda _play_repn          ; a key held: the next repeat
+	beq @ns
+	dec repc
+	bne @to0
+	jsr opR1
+	bra @to0
+@ns:	jsr step
 @to0:
 	lda moved               ; a new place: there; else where the pointer is,
 	bne @to                 ; which Veranda may have moved itself (a menu
@@ -166,6 +184,7 @@ _play_slow:
 @r:	rts
 
 ; the clock now into tl
+_play_mark:
 mark:	lda EMU_CLOCK
 	sta tl
 	lda EMU_CLOCK+1
@@ -190,8 +209,7 @@ step:	lda ended
 	beq @q
 	dec wait
 @r:	rts
-@busy:	jsr mark
-	inc busy
+@busy:	inc busy
 	bne @r
 	inc busy+1
 	lda busy+1
@@ -232,7 +250,11 @@ step:	lda ended
 	sta $00
 	lda #GAP
 	sta wait
-	lda rec
+	lda tnext               ; 'Z' before: the clock now
+	beq @nt
+	stz tnext
+	jsr Arm
+@nt:	lda rec
 	ldx #0
 @d:	cmp ops,x
 	beq @go
@@ -279,6 +301,8 @@ ops:	.byte 'P', 5
 	.addr opY - 1
 	.byte 'B', 3
 	.addr opB - 1
+	.byte 'R', 3
+	.addr opR - 1
 	.byte 'S', 1
 	.addr stop - 1
 	.byte 'E', 1
@@ -338,13 +362,25 @@ opH:	lda rec+1
 opL:	lda rec+1
 	sta _test_log
 	rts
-opZ:	jsr mark
+opZ:	inc tnext
+	rts
+Arm:	jsr mark
 	ldx #3
 @z:	lda tl,x
 	sta t0,x
 	dex
 	bpl @z
+	inc _play_armed
 	rts
+opR:	lda rec+1
+	sta repk
+	lda rec+2
+	sta _play_repn
+opR1:	lda #2
+	sta repc
+	dec _play_repn
+	lda repk
+	jmp k_kbdbuf_put
 opY:	ldx #0
 @t:	lda time,x
 	beq @c

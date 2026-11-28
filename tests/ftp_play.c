@@ -334,13 +334,15 @@ static void __fastcall__ tt_report(const char *k)
 void ftp_test_tick(void)
 {
     unsigned char h;
+    unsigned int t;
     if (sess == 't')
         tt_watch();
     if (t_boxed)
         t_boxed = tlast = 0;            /* (no main loop while a box is open) */
-    if (tlast && ser_frames - tlast > tmax)
-        tmax = ser_frames - tlast;
-    tlast = ser_frames;
+    t = ser_now();                      /* (V213: read whole: a torn read was a gap of 256) */
+    if (tlast && t - tlast > tmax)
+        tmax = t - tlast;
+    tlast = t;
     if (!step) {
         strcpy(tl, VR_ROOTPATH "FTP.TST");
         h = FOpen(tl, 'r');

@@ -258,7 +258,8 @@ static void aside(void)
 void net_restart(void)
 {
     net_stop();
-    net_ahead_on();                     /* (V210: one XON ahead, the line kept full) */
+    /* (V213: no net_ahead_on() since: one XON ahead, V210/V211, broke FTP and
+       Gemini on the user's card; correctness first: DECISIONS V213) */
     net_on = net_start(0, 576) == NET_OK;
     net_aside = net_on ? asideVector : 0;
     asideVector = VR_FN(aside);

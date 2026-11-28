@@ -176,7 +176,6 @@ static void texts(const char *a, const char *b)
 
 #ifdef CHAT_TEST
 unsigned char t_box, t_aside, t_nbox, t_boxed, t_ding, t_done;
-char t_what[16];                        /* the last "GATE done <what>" the server sent */
 char tlog[128];                         /* (tests/irc_play.c's line too: main RAM, V138's room) */
 
 /* f in overlay 1 (from the test's overlay) */
@@ -201,11 +200,8 @@ void __fastcall__ gt_line(unsigned char w, unsigned char attr, const char *t)
     *p = 0;
     strncat(tlog, t, sizeof tlog - 1 - strlen(tlog));
     LogText(tlog);
-    p = strstr(t, "GATE done ");
-    if (p) {
-        strncpy(t_what, p + 10, sizeof t_what - 1);
-        ++t_done;
-    }
+    if (strstr(t, "GATE done "))
+        ++t_done;                       /* (V213: its <what> was kept, never read: 16 bytes and the copy, for vrnet's room) */
 }
 
 void __fastcall__ gt_log(const char *s)

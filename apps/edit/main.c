@@ -220,7 +220,8 @@ static void key(void)
         bars_dirty |= B_STATUS;
     }
 #ifdef EDIT_TEST
-    test_key(k);
+    t_arg = k;
+    call4(test_key);
 #endif
     if (m & KEYM_ARROW) {
         undo_run(0);
@@ -343,9 +344,9 @@ static void press(void)
         return;
     }
     mouse_xy(&x, &y);
-    need_fix = 1;
     undo_run(0);
     if (view_hit(x, y, &p)) {
+        need_fix = 1;                   /* (not for the scroll bar: view_fix would take the view back to the cursor, V214) */
         sh = GetKeyMods() & 1;
         if (!sh && p == cur && !HAS_SEL() && dblClickCount) {
             dblClickCount = 0;
@@ -393,6 +394,11 @@ static void drag(void)
 /*---------------------------------------------------------------
   the main loop
  ---------------------------------------------------------------*/
+/* (V215) the status bar and the title wait while keys come (tk_hold):
+   drawn once none came for QUIET jiffies */
+#define QUIET 8
+static unsigned char quiet;
+
 static void tick(void)
 {
     signed char w;
@@ -408,27 +414,48 @@ static void tick(void)
         view_scroll(3 * w);
     y = mouseYPosW;
     SetPointer(y >= TY && y < TY + ROWS * 8 && mouseXPos < COLS * 8 ? PTR_IBEAM : PTR_ARROW);
-    if (pressFlag & SET_KEYPRESS)
-        return;                         /* draw once the keys waiting are in */
+    if ((pressFlag & SET_KEYPRESS) || tk_keys())
+        return;                         /* draw once the keys waiting are in (the ROM's too: V215) */
     if (need_fix) {
         need_fix = 0;
+        tk_hold = 1;                    /* (V215) the text first, the bars when the keys pause */
         if (goal == 0xFFFF) {
             view_fix();
             goal = view_col();
         } else
             view_fix();
+        quiet = tk_jiffy();             /* (from the drawing's end) */
 #ifdef EDIT_TEST
-        test_drawn();
+        call4(test_drawn);
 #endif
         return;
     }
     if (menuNumber == 0)
         view_blink();
+    if (tk_hold && (bars_dirty & (B_STATUS | B_TITLE))) {
+        if ((unsigned char)(tk_jiffy() - quiet) >= QUIET) {
+            tk_hold = 0;
+            view_paint();
+            return;
+        }
+#ifdef EDIT_TEST
+        play_slow(cursor_on);
+        call4(test_idle);               /* (a timed record: the text drawn) */
+#endif
+        return;                         /* (not idle: they wait) */
+    }
     edit_idle = 1;                      /* (a drag waits for the pointer) */
 #ifdef EDIT_TEST
     play_slow(cursor_on);               /* (the blink probe: tests/edit_play.s) */
-    if (test_log)
-        test_log_state();
+    call4(test_idle);                   /* (V215: a timed record drawn) */
+    if (test_log) {                     /* (the player's interrupt sets it: looked at once set) */
+        if (test_log & 0x80)            /* (V215) the redraw check */
+            test_redraw();
+        else {
+            t_col = view_col();
+            call4(test_log_state);
+        }
+    }
 #endif
 }
 

@@ -166,6 +166,20 @@ static void idle(void)
     edit_idle = 1;
 }
 
+#ifdef EDIT_TEST
+/* (V215) the test build's code (tests/edit_test.c) in overlay 4; the
+   session's script in the same bank (test_start: no bank more) */
+unsigned char bank4;
+
+void __fastcall__ call4(void (*f)(void))
+{
+    unsigned char b = *(volatile unsigned char *)0;
+    MAPBANK(bank4);
+    f();
+    MAPBANK(b);
+}
+#endif
+
 int main(void)
 {
     unsigned char opts = r0L;
@@ -175,6 +189,10 @@ int main(void)
     bank2 = r1L;
     LoadOverlay(3, 0);
     bank3 = r1L;
+#ifdef EDIT_TEST
+    LoadOverlay(4, 0);
+    bank4 = r1L;
+#endif
     appBank = bank1;
     MAPBANK(bank1);
     vr_file_hook = idle;

@@ -225,7 +225,6 @@ void gt_tick(void);
 void __fastcall__ gt_log(const char *s);
 void __fastcall__ gt_line(unsigned char w, unsigned char attr, const char *t);
 extern unsigned char t_box, t_nbox, t_boxed, t_aside, t_ding, t_done;
-extern char t_what[16];
 extern char tlog[128];                  /* (main.c's log line, the test's too) */
 #endif
 

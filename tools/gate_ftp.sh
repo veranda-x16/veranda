@@ -46,7 +46,9 @@
 #    On an SD card image (tools/vcard.py: CMDR-DOS writes and reads the
 #    card as on the X16; a host folder costs no cycles). The emulated
 #    modem answers at once: what it measures is this side, the card and
-#    the line. ONLY=timing: this session only.
+#    the line. ONLY=timing: this session only; ONLY=main: that one only.
+#    (V213) MODEM=real: through tests/zimreal.py (Zimodem as its firmware
+#    behaves, a Wi-Fi's latency; tools/zimreal.inc.sh), in real time.
 # Screenshots: $OUT/sites.png, $OUT/connected.png, $OUT/transfer.png,
 # $OUT/end.png.
 set -e
@@ -58,6 +60,7 @@ ROM=${ROM:-$R49}
 EMU_NET=${EMU_NET:-$HOME/Projects/x16-emulator-modem/build/x16emu}
 export CC65_HOME=${CC65_HOME:-$HOME/.local/share/cc65}
 
+. tools/zimreal.inc.sh
 ok() { echo "ok    $*"; }
 fail() { echo "FAIL  $*"; exit 1; }
 
@@ -128,9 +131,11 @@ run() {
 	cp "$A/SHELL.cvt" build/VERANDA.PRG build/VERANDA.SYS "$dir/"
 	cp "$A/SHELL.cvt" "$dir/VERANDA/"
 	echo "$tst" > "$dir/FTP.TST"
-	(cd "$dir" && SDL_VIDEODRIVER=dummy timeout -s INT "$secs" "$EMU_NET" -rom "$ROM" -prg VERANDA.PRG -run \
-		-warp -sound none -echo -dump V -uartclock 14.7456 -uart 9FE0 "modem:baud=57600,log=$dir/modem.log" \
+	zim_uart "$dir" "modem:baud=57600,log=$dir/modem.log"
+	(cd "$dir" && SDL_VIDEODRIVER=dummy timeout -s INT "$((secs * ZMUL))" "$EMU_NET" -rom "$ROM" -prg VERANDA.PRG -run \
+		$WARP -sound none -echo -dump V -uartclock 14.7456 -uart 9FE0 "$UART" \
 		> console.txt 2>&1) || true
+	zim_end
 	tr '\r' '\n' < "$dir/console.txt" > "$dir/log.txt"
 }
 
@@ -171,6 +176,7 @@ $PY tests/check_l10_text.py --raw "$R/CONN.RAW" "$ROM" --cp437 "Zażółć gęś
 $PY tests/check_ftp.py "$R" || fail "main"
 fi
 
+if [ "$ONLY" != main ]; then
 echo "== (V211) timing: a download and an upload of 300 KB through the emulated modem at 57600"
 R=$OUT/timing
 S=$R/srv
@@ -190,9 +196,11 @@ echo "timing $(date +'%y %m %d %H %M')" > "$R/FTP.TST"
 mkdir -p "$R.sd"
 $PY tools/vcard.py make --mb 64 "$R.sd/sd.img" "$R" >/dev/null || fail "vcard make (timing)"
 cp build/VERANDA.PRG "$R.sd/"
-(cd "$R.sd" && SDL_VIDEODRIVER=dummy timeout -s INT 1500 "$EMU_NET" -rom "$ROM" -sdcard sd.img -prg VERANDA.PRG -run \
-	-warp -sound none -echo -dump V -uartclock 14.7456 -uart 9FE0 "modem:baud=57600,log=$R/modem.log" \
+zim_uart "$R" "modem:baud=57600,log=$R/modem.log"
+(cd "$R.sd" && SDL_VIDEODRIVER=dummy timeout -s INT "$((1500 * ZMUL))" "$EMU_NET" -rom "$ROM" -sdcard sd.img -prg VERANDA.PRG -run \
+	$WARP -sound none -echo -dump V -uartclock 14.7456 -uart 9FE0 "$UART" \
 	> console.txt 2>&1) || true
+zim_end
 tr '\r' '\n' < "$R.sd/console.txt" > "$R/log.txt"
 server_end
 $PY tools/vcard.py get "$R.sd/sd.img" DOCUMENTS/t300.bin "$R/got.bin" >/dev/null 2>&1 || true
@@ -227,5 +235,6 @@ if lost or oe or bad:
     sys.exit('FAIL  timing: bytes lost')
 EOF
 
+fi
 echo "screenshots: $OUT/sites.png $OUT/connected.png $OUT/transfer.png $OUT/end.png"
 echo "GATE ftp: PASS"

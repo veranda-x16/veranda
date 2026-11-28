@@ -1,4 +1,5 @@
-/* textkit (Veranda Edit, VeraBASIC): the window. Rows of 8 x 8 cells drawn with PutCards from
+/* textkit (Veranda Edit, VeraBASIC): the window. Rows of 8 x 8 cells drawn with tk_putrow
+   (putrow.s, DECISIONS V215: PutCards' cards, a style a card) from
    the lines buf.s renders (tabs, the selection's columns); the cursor a
    thin bar inverted over a cell's left edge; the title bar, the status
    line and the scroll bar in light grey paper (the colour map, a card at
@@ -9,8 +10,12 @@
    rs[r] is the start of row r's line (rs[0] = top); rs[r + 1] is known
    once row r is drawn. An edit marks rows dirty (ops.c) and shifts the
    starts after it; view_fix scrolls to the cursor and draws what is dirty.
+   A scroll moves the rows that stay through VERA's ports (vmove.s, V215:
+   only as far as each row's ink goes, tk_iw; the colour map's paper too
+   when the program's TK_COLMOVE says so) and draws only the rows it
+   uncovers.
    The status bar and the title are the program's (tk_status, tk_title);
-   a program with TK_ROW_HOOK colours a row after it is drawn. COLS and X0
+   a program with TK_ROW_HOOK styles and colours a row as it is drawn. COLS and X0
    may be variables (a gutter of X0 card columns at the left: the
    program's to draw). (Veranda Edit: overlay 1.)
 
@@ -25,26 +30,15 @@ unsigned int hs;
 unsigned long rs[ROWS + 1];
 unsigned char dirty[ROWS];
 unsigned char bars_dirty;
+unsigned char tk_hold;                 /* (V215) the status bar and the title wait (the program's) */
 unsigned char cursor_on;
 static unsigned char cur_row;
 static unsigned int cur_x;
-static unsigned int ccol;               /* the cursor's column */
-#ifdef TK_ROW_HOOK
-unsigned char tk_sela, tk_selb;
-#endif
+unsigned int tk_ccol;                   /* the cursor's column (view_col) */
 char tk_line[81];                       /* (the bars' texts) */
 #define line tk_line
 static unsigned char thumb_a;
 unsigned char thumb_n;                  /* the scroll bar as drawn (0: not yet) */
-
-void put_text(const char *s, unsigned char x, unsigned int y, unsigned char flags)
-{
-    unsigned char n = strlen(s);
-    if (n > 80 - x)
-        n = 80 - x;
-    if (n)
-        PutCards((void *)s, TK_FONT, x, n, y, flags);
-}
 
 static void all_dirty(void)
 {
@@ -64,6 +58,7 @@ void view_frame(void)
         theme_palette();                /* (Look 2's palette first: vrwin's colours need it) */
     vr_win(&win, "");
     ColorRect(SBX, 1, TROW, ROWS, C_BAR);
+    memset(tk_iw, 80, ROWS);            /* (what is there: unknown) */
     thumb_n = 0;
     cursor_on = 0;
 #ifdef TK_FRAME_HOOK
@@ -87,11 +82,11 @@ void view_cursor(unsigned char on)
     if (on == cursor_on)
         return;
     if (on) {
-        if (cur_line < top_line || cur_line >= top_line + ROWS || ccol < hs || ccol >= hs + COLS)
+        if (cur_line < top_line || cur_line >= top_line + ROWS || tk_ccol < hs || tk_ccol >= hs + COLS)
             return;
         r = cur_line - top_line;
         cur_row = (unsigned char)r;
-        cur_x = (ccol - hs + X0) << 3;
+        cur_x = (tk_ccol - hs + X0) << 3;
     }
     y = TY + (cur_row << 3);
     dispBufferOn = ST_WR_FORE;
@@ -107,21 +102,42 @@ void view_blink(void)
         view_cursor(!cursor_on);
 }
 
+/* how many of the text's cards row r draws: as far as its ink went (was)
+   or goes (tk_iw[r]); past both they are blank already (tk_pn) */
+static void row_width(unsigned char r, unsigned char was)
+{
+    unsigned char n = tk_iw[r];
+    if (was > n)
+        n = was;
+    n = n > X0 ? n - X0 : 0;
+    tk_pn = n < COLS ? n : COLS;
+}
+
+/* the row drawn (tk_putrow: one call, each card its style), and how far
+   its ink may go (tk_iw: vmove.s moves no further) */
 static void row_draw(unsigned char r)
 {
-    unsigned int y = TY + (r << 3);
     unsigned long lo, hi, end;
     long a, b;
+    unsigned int e;
+    unsigned char was = tk_iw[r];
     if (cursor_on && cur_row == r)
-        cursor_on = 0;                  /* (drawn over) */
+        view_cursor(0);                 /* (its card may not be drawn) */
+    tk_pc = gb_line;
+    tk_pfont = TK_FONT;
+    tk_px = X0;
+    tk_pf = 0;
+    tk_pa = tk_pb = 0;
+    tk_iw[r] = X0;
     if (top_line + r >= nlines) {
         memset(gb_line, ' ', COLS);
-        PutCards(gb_line, TK_FONT, X0, COLS, y, 0);
         rs[r + 1] = gb_len;
+        row_width(r, was);
 #ifdef TK_ROW_HOOK
         gb_lcols = 0xFFFF;              /* (no line here) */
         TK_ROW_HOOK(r);
 #endif
+        tk_putrow(r);
         return;
     }
     lo = sel_lo();
@@ -147,21 +163,21 @@ static void row_draw(unsigned char r)
                 b = COLS;
         }
     }
-#ifdef TK_ROW_HOOK
-    tk_sela = (unsigned char)a;         /* (the selection's cards: the hook's) */
-    tk_selb = (unsigned char)b;
-    TK_ROW_HOOK(r);
-#else
-    if (b <= a)
-        PutCards(gb_line, TK_FONT, X0, COLS, y, 0);
-    else {
-        if (a)
-            PutCards(gb_line, TK_FONT, X0, (unsigned char)a, y, 0);
-        PutCards(gb_line + a, TK_FONT, X0 + (unsigned char)a, (unsigned char)(b - a), y, 1);
-        if (b < COLS)
-            PutCards(gb_line + b, TK_FONT, X0 + (unsigned char)b, (unsigned char)(COLS - b), y, 0);
+    e = gb_lcols > hs ? gb_lcols - hs : 0;
+    if (e > COLS)
+        e = COLS;
+    if (b > a && b > (long)e)
+        e = (unsigned int)b;
+    tk_iw[r] = X0 + (unsigned char)e;
+    if (b > a) {
+        tk_pa = (unsigned char)a;       /* (the selection: reversed) */
+        tk_pb = (unsigned char)b;
     }
+    row_width(r, was);
+#ifdef TK_ROW_HOOK
+    TK_ROW_HOOK(r);
 #endif
+    tk_putrow(r);
 }
 
 #ifdef TK_PUT_SEG
@@ -223,23 +239,32 @@ void view_paint(void)
             dirty[r] = 0;
             row_draw(r);
         }
-    if (bars_dirty & B_STATUS)
-        tk_status();
-    if (bars_dirty & B_TITLE)
-        tk_title();
     if (bars_dirty & B_SCROLL)
         scrollbar();
-    bars_dirty = 0;
+    bars_dirty &= ~B_SCROLL;
+    if (!tk_hold) {                     /* (V215: the text first) */
+        if (bars_dirty & B_STATUS)
+            tk_status();
+        if (bars_dirty & B_TITLE)
+            tk_title();
+        bars_dirty = 0;
+    }
     view_cursor(1);
 }
 
 static void scroll_rows(signed char d)
 {
-    /* the text area moved by d rows (d > 0: down); rows uncovered dirty */
+    /* the text area moved by d rows (d > 0: down): vmove.s, as far as
+       each row's ink goes; the rows uncovered dirty */
     unsigned char r;
     view_cursor(0);
     dispBufferOn = ST_WR_FORE;
-    ScrollRect(X0, COLS, TY, TY + ROWS * 8 - 1, d * 8, 0);
+    tk_vlim = X0 + COLS;
+#ifdef TK_COLMOVE
+    tk_vcol = TK_COLMOVE;               /* (the program's: the colour map's paper too) */
+#endif
+    tk_vd = d;
+    TK_VMOVE();
     if (d < 0) {
         memmove(rs, rs - d, (ROWS + 1 + d) * sizeof rs[0]);
         memmove(dirty, dirty - d, ROWS + d);
@@ -342,14 +367,14 @@ void view_fix(void)
     gb_a = cur_ls;
     gb_b = cur;
     c = gb_col();
-    if (c != ccol)
+    if (c != tk_ccol)
         bars_dirty |= B_STATUS;
-    ccol = c;
-    if (ccol < hs) {
-        hs = ccol > 16 ? (ccol - 16) & ~7 : 0;
+    tk_ccol = c;
+    if (tk_ccol < hs) {
+        hs = tk_ccol > 16 ? (tk_ccol - 16) & ~7 : 0;
         all_dirty();
-    } else if (ccol >= hs + COLS) {
-        hs = (ccol - COLS + 24) & ~7;
+    } else if (tk_ccol >= hs + COLS) {
+        hs = (tk_ccol - COLS + 24) & ~7;
         all_dirty();
     }
     view_paint();
@@ -385,5 +410,5 @@ unsigned char view_hit(unsigned int x, unsigned int y, unsigned long *pos)
 
 unsigned int view_col(void)
 {
-    return ccol;
+    return tk_ccol;
 }

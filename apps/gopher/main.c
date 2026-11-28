@@ -477,7 +477,8 @@ void net_restart(void)
 {
     net_stop();
     net_on = net_start(0, 576) == NET_OK;
-    net_ahead_on();                     /* (V211: one XON ahead, the line kept full) */
+    /* (V213: no net_ahead_on() since: one XON ahead, V211, broke this
+       program on the user's card; DECISIONS V213) */
     net_aside = net_on ? asideVector : 0;
     asideVector = VR_FN(aside);
 }

@@ -79,7 +79,8 @@
 #    seconds before each file's first body byte, vrnet's XONs and
 #    packets (UP TIME ...). The emulated modem answers an XON at once
 #    and makes no TLS, so these are this side's and the line's times.
-#    ONLY=timing: these two sessions only.
+#    ONLY=timing: these two sessions only. (V213) MODEM=real: run()'s
+#    sessions through tests/zimreal.py (tools/zimreal.inc.sh), in real time.
 # Screenshots: $OUT/check.png, progress.png, done.png, lan.png.
 set -e
 cd "$(dirname "$0")/.."
@@ -91,6 +92,7 @@ EMU_NET=${EMU_NET:-$HOME/Projects/x16-emulator-modem/build/x16emu}
 export CC65_HOME=${CC65_HOME:-$HOME/.local/share/cc65}
 export PATH=$CC65_HOME/bin:$PATH
 
+. tools/zimreal.inc.sh
 ok() { echo "ok    $*"; }
 fail() { echo "FAIL  $*"; exit 1; }
 
@@ -195,9 +197,11 @@ run() {
 	echo "run $steps" > "$CARD/UPDATE.TST"
 	rm -f "$CARD"/*.RAW "$CARD/dump.bin"
 	local t0=$(date +%s.%N)
-	(cd "$CARD" && SDL_VIDEODRIVER=dummy timeout -s INT 900 "$EMU_NET" -rom "$ROM" -prg VERANDA.PRG -run \
-		-warp -sound none -echo -dump V -uartclock 14.7456 -uart 9FE0 "modem:baud=57600,log=$R/modem.log" \
+	zim_uart "$R" "modem:baud=57600,log=$R/modem.log"
+	(cd "$CARD" && SDL_VIDEODRIVER=dummy timeout -s INT "$((900 * ZMUL))" "$EMU_NET" -rom "$ROM" -prg VERANDA.PRG -run \
+		$WARP -sound none -echo -dump V -uartclock 14.7456 -uart 9FE0 "$UART" \
 		> "$R/console.txt" 2>&1) || true
+	zim_end
 	tr '\r' '\n' < "$R/console.txt" > "$R/log.txt"
 	echo "      ($s: $(python3 -c "import time; print('%.1f' % (time.time() - $t0))") s)"
 	for f in "$CARD"/*.RAW; do

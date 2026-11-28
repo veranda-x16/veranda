@@ -32,6 +32,9 @@ extern volatile unsigned int ser_rxhead, ser_rxtail;
 extern volatile unsigned int ser_lost;          /* bytes lost: the ring was full */
 extern volatile unsigned int ser_oe;            /* overruns the chip reported */
 extern volatile unsigned int ser_frames;        /* frames, while SerIrq is installed */
+/* (V213) ser_frames read whole (the interrupt can come between the two
+   bytes of a C read of it, as its low byte carries: 256 frames late) */
+unsigned int ser_now(void);
 extern volatile unsigned int ser_polls;
 extern volatile unsigned char ser_txbuf[256];
 extern volatile unsigned char ser_txhead, ser_txtail;

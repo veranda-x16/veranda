@@ -87,14 +87,15 @@ IDE_LOW  := low ops undo text
 IDE_B1   := view keys
 IDE_B2   := file scrap cmd scrapio scraptbeg trace
 IDE_B4   := help names
-IDE_B5   := fmt sbar
+IDE_B5   := fmt sbar bars
 IDE_B6   := syn
 IDE_B7   := cmd2 find
 IDE_B8   := colour tok
 IDE_B9   := dbg
 IDE_B10  := mk
 IDEO     = $(foreach f,$(IDE_LOW) $(IDE_B1) $(IDE_B2) $(IDE_B4) $(IDE_B5) $(IDE_B6) $(IDE_B7) $(IDE_B8) $(IDE_B9) $(IDE_B10),$(IDED)/i_$(f).o) \
-           $(IDED)/i_vrchoose.o $(IDED)/i_lows.o $(IDED)/i_buf.o
+           $(IDED)/i_vrchoose.o $(IDED)/i_lows.o $(IDED)/i_buf.o $(IDED)/i_putrow.o $(IDED)/i_vmove.o $(IDED)/i_lex.o \
+           $(if $(PLAYER),$(IDED)/i_ide_redraw.o $(IDED)/i_tk_hash.o)
 IDEH     := ide/ide.h ide/ideshare.h ide/dbgshare.h ide/tkapp.h $(TK)/textkit.h $(GEN)/idekw.h
 $(foreach f,$(IDE_B1),$(IDED)/i_$(f).o): ISEG := --code-name B1CODE
 $(foreach f,$(IDE_B2),$(IDED)/i_$(f).o): ISEG := --code-name B2CODE -DSCRAP_PATH=scrap_path
@@ -117,8 +118,22 @@ $(IDED)/i_vrchoose.o: $(SDK)/src/vrchoose.c
 	$(IDECC) --code-name B3CODE --rodata-name B3RO --bss-name B3BSS -c -o $@ $<
 $(IDED)/i_lows.o: ide/low.s
 	$(IDECC) -c -o $@ $<
+$(IDED)/i_lex.o: ide/lex.s
+	$(IDECC) -c -o $@ $<
+# (V215, idetest) the redraw check: B_FILE
+$(IDED)/i_ide_redraw.o: ../../tests/vbasic/ide_redraw.c $(IDEH)
+	$(IDECC) $(IDEF) $(ICFLAGS) --code-name B2CODE -c -o $@ $<
+$(IDED)/i_tk_hash.o: ../../tests/tk_hash.s
+	$(IDECC) --asm-define IDE=1 -c -o $@ $<
 $(IDED)/i_buf.o: $(TK)/buf.s
 	$(IDECC) -c -o $@ $<
+# (V215) a row's cards (B_VIEW, view.c's bank), the rows moved by a scroll
+# with the colour map's paper (B_FILE: view.c calls it through xcall);
+# their variables in LOW
+$(IDED)/i_putrow.o: $(TK)/putrow.s
+	$(IDECC) --asm-define TK_BANK=1 -c -o $@ $<
+$(IDED)/i_vmove.o: $(TK)/vmove.s
+	$(IDECC) --asm-define TK_BANK=2 --asm-define TK_PAPER=1 -c -o $@ $<
 
 # the main link with VB_IDE (and, for idetest, the player), its C overlays
 $(IDED)/vbide.bin: $(SRC) $(DEPS) app.hdr ide/ideshare.h $(PLAYER)

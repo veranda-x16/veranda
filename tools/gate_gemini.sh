@@ -54,7 +54,8 @@
 #    a JPEG of 192 KB shown, through the emulated modem at 57600: the
 #    emulated X16's seconds of each (GE TIME ...). The emulated modem
 #    answers at once and makes no TLS: this side and the line.
-#    ONLY=timing: this session only.
+#    ONLY=timing: this session only (V213: ONLY="<session> ...": those;
+#    MODEM=real: through tests/zimreal.py, tools/zimreal.inc.sh).
 # (V192, before 2: jpeg: the JPEG decoder on the X16's own runtime, its
 #    tiles against tests/jpeg_ref.py with VERA FX's multiplier and without,
 #    their times at 8 MHz)
@@ -75,6 +76,9 @@ ROM=${ROM:-$R49}
 EMU_NET=${EMU_NET:-$HOME/Projects/x16-emulator-modem/build/x16emu}
 export CC65_HOME=${CC65_HOME:-$HOME/.local/share/cc65}
 
+. tools/zimreal.inc.sh
+# ONLY="timing main ..." (V213): those sessions only (host: web_proxy, png, jpeg)
+want() { [ -z "$ONLY" ] || [ "${ONLY#*$1}" != "$ONLY" ]; }
 ok() { echo "ok    $*"; }
 fail() { echo "FAIL  $*"; exit 1; }
 
@@ -126,6 +130,7 @@ printf 'name = SHELL\nclass = TermDesk\nmode = 640x480\napi = 6\nicon = %s\n' "$
 $PY "$SDK/tools/vpack.py" --load 0x0801 -o "$A/SHELL.cvt" "$A/desk.hdr" "$A/desk.bin" >/dev/null || fail "vpack the test desktop"
 ok "Veranda Gemini builds against the installed SDK (and its test build)"
 
+if want host; then
 echo "== web_proxy: the PC's proxy (tools/web_proxy.py) on the host, sample pages only"
 mkdir -p "$OUT/wp"
 $PY tests/test_web_proxy.py "$OUT/wp" || fail "web_proxy"
@@ -144,6 +149,7 @@ cl65 -t cx16 -O --cpu 65C02 -DJPEG_BENCH --asm-define JPEG_BENCH=1 -I apps/gemin
 rm -f "$OUT/jpeg"/*.o
 $PY tests/check_jpeg.py "$OUT/jpeg/JB.PRG" "$EMU_NET" "$ROM" "$OUT/jpeg" || fail "jpeg on the X16"
 
+fi
 # the server: its folder; sets SPORT
 server() {
 	mkdir -p "$1"
@@ -167,9 +173,11 @@ run() {
 	cp "$A/SHELL.cvt" "$dir/VERANDA/"
 	echo "$tst" > "$dir/GEMINI.TST"
 	local t0=$(date +%s.%N)
-	(cd "$dir" && SDL_VIDEODRIVER=dummy timeout -s INT "$secs" "$EMU_NET" -rom "$ROM" -prg VERANDA.PRG -run \
-		-warp -sound none -echo -dump V -uartclock 14.7456 -uart 9FE0 "$uart" \
+	zim_uart "$dir" "$uart"
+	(cd "$dir" && SDL_VIDEODRIVER=dummy timeout -s INT "$((secs * ZMUL))" "$EMU_NET" -rom "$ROM" -prg VERANDA.PRG -run \
+		$WARP -sound none -echo -dump V -uartclock 14.7456 -uart 9FE0 "$UART" \
 		> console.txt 2>&1) || true
+	zim_end
 	tr '\r' '\n' < "$dir/console.txt" > "$dir/log.txt"
 	echo "      ($(basename "$dir"): $(python3 -c "import time; print('%.1f' % (time.time() - $t0))") s)"
 }
@@ -191,6 +199,7 @@ if [ -n "$PICS_ONLY" ]; then
 	grep "GE " "$R/log.txt" | grep -v "GE L \|GE IROW" | tail -40
 	exit 0
 fi
+if want timing; then
 echo "== (V211) timing: a page of 28 KB, a binary of 200 KB, a JPEG of 192 KB through the emulated modem at 57600, on an SD card image"
 R=$OUT/timing
 server "$R/srv"
@@ -203,9 +212,11 @@ echo "timing $SPORT" > "$R/GEMINI.TST"
 mkdir -p "$R.sd"
 $PY tools/vcard.py make --mb 64 "$R.sd/sd.img" "$R" >/dev/null || fail "vcard make (timing)"
 cp build/VERANDA.PRG "$R.sd/"
-(cd "$R.sd" && SDL_VIDEODRIVER=dummy timeout -s INT 1200 "$EMU_NET" -rom "$ROM" -sdcard sd.img -prg VERANDA.PRG -run \
-	-warp -sound none -echo -dump V -uartclock 14.7456 -uart 9FE0 "modem:baud=57600,log=$R/modem.log" \
+zim_uart "$R" "modem:baud=57600,log=$R/modem.log"
+(cd "$R.sd" && SDL_VIDEODRIVER=dummy timeout -s INT "$((1200 * ZMUL))" "$EMU_NET" -rom "$ROM" -sdcard sd.img -prg VERANDA.PRG -run \
+	$WARP -sound none -echo -dump V -uartclock 14.7456 -uart 9FE0 "$UART" \
 	> console.txt 2>&1) || true
+zim_end
 tr '\r' '\n' < "$R.sd/console.txt" > "$R/log.txt"
 server_end
 $PY tools/vcard.py get "$R.sd/sd.img" DOCUMENTS/big.bin "$R/got.bin" >/dev/null 2>&1 || true
@@ -232,8 +243,9 @@ print('      the page %d lines; the JPEG shown %.1f s after its request; the mai
 if v('LOST') or v('OE') or v('BADCRC'):
     sys.exit('FAIL  timing: bytes lost')
 EOF
-if [ "$ONLY" = timing ]; then echo "GATE gemini: the timing session only (ONLY=timing)"; exit 0; fi
 
+fi
+if want main; then
 echo "== main: the bookmarks, gemtext, links, Back and Forward, questions, redirects, errors, texts, a download with Alt+Tab, Stop, Find, bookmarks, web pages (NewsWaffle, the proxy)"
 R=$OUT/main
 server "$R/srv"
@@ -252,6 +264,8 @@ $PY tests/check_glyphs.py "$R/PAGE.RAW" "$ROM" "the root's Polish line (UTF-8, V
 shots BOOK PAGE PAGE2 INPUT WEB PLAIN XFER STALL MENU FIND MARKS END WIKI DARK GALLERY EXITPIC EXITWHEEL FAIL
 $PY tests/check_gemini.py main "$R" "$SPORT" || fail "main"
 
+fi
+if want launch; then
 echo "== launch: the Wikipedia launcher double-clicked in the shell (V128)"
 # the real shell (built here, as gate tile does) in the card's layout:
 # /VERANDA/SHELL.cvt, Veranda Gemini's test build in /VERANDA/APPS, the
@@ -281,8 +295,10 @@ launch_dir() {
 	$PY tests/gemini_launch.py "$1" "$2" || fail "tests/gemini_launch.py $2"
 }
 launch_run() {
-	(cd "$1" && SDL_VIDEODRIVER=dummy timeout -s INT "$2" "$EMU_NET" -rom "$ROM" -prg VERANDA.PRG -run \
-		-warp -sound none -echo -dump V -uartclock 14.7456 -uart 9FE0 "$3" > console.txt 2>&1) || true
+	zim_uart "$1" "$3"
+	(cd "$1" && SDL_VIDEODRIVER=dummy timeout -s INT "$(($2 * ZMUL))" "$EMU_NET" -rom "$ROM" -prg VERANDA.PRG -run \
+		$WARP -sound none -echo -dump V -uartclock 14.7456 -uart 9FE0 "$UART" > console.txt 2>&1) || true
+	zim_end
 	tr '\r' '\n' < "$1/console.txt" > "$1/log.txt"
 }
 R=$OUT/launchicon
@@ -302,6 +318,8 @@ grep -q "^GE END$" "$R/log.txt" || { grep -a "^GE\|SHELL" "$R/log.txt" | tail -3
 shots LAUNCH
 $PY tests/check_gemini.py launch "$R" "$SPORT" || fail "launch"
 
+fi
+if want quit; then
 echo "== quit (V196): a picture shown, then the close box, Ctrl+Q, Veranda Gemini > Quit: Gemini ends at once"
 for q in qclose ckey fmenu; do
 	R=$OUT/$q
@@ -317,13 +335,17 @@ for q in qclose ckey fmenu; do
 	$PY tests/check_gemini.py quit "$R" "$SPORT" || fail "$q"
 done
 
+fi
+if want nomodem; then
 echo "== nomodem: no modem on the port"
 R=$OUT/nomodem
 mkdir -p "$R"
 run "$R" "nomodem 1965" 300 "file:,$R/out.bin"
 grep -q "^GE END$" "$R/log.txt" || { grep "^GE" "$R/log.txt" | tail -30; fail "nomodem: the test failed"; }
 $PY tests/check_gemini.py nomodem "$R" 0 || fail "nomodem"
+fi
 rm -f "$OUT"/*/dump.bin
 
-echo "screenshots: $(ls "$OUT"/*.png | tr '\n' ' ')"
+echo "screenshots: $(ls "$OUT"/*.png 2>/dev/null | tr '\n' ' ')"
+[ -n "$ONLY" ] && { echo "GATE gemini: the sessions $ONLY only (ONLY=...)${MODEM:+, MODEM=$MODEM}"; exit 0; }
 echo "GATE gemini: PASS"

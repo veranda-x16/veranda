@@ -311,6 +311,7 @@ def dialog_session(s, files):
 
 
 SAVED_BIG = [None]
+SBX_PX = 79 * 8 + 4                     # the scroll bar (textkit's column SBX)
 
 # (V143) a UTF-8 file in Polish: decoded into Veranda's set (ISO-8859-16)
 POLISH = 'Zażółć gęślą jaźń\nZAŻÓŁĆ GĘŚLĄ JAŹŃ\n'
@@ -544,6 +545,17 @@ def main():
     s.K(KEY_DOWN)
     s.Y('l')
     s.stop('scrolled')
+    s.K(CTRL_HOME, CTRL)
+    m.move(0)
+    # (V214) the scroll bar's lower half: a page down, though the cursor
+    # is then above the window (the view stays there: it went back to the
+    # cursor before); a click on row 2: line 56
+    s.click(SBX_PX, 32 + 40 * 8 + 3)
+    s.W(20)
+    s.click(2, 32 + 2 * 8 + 3)
+    s.W(40)                             # (not a double click)
+    m.goto(56)
+    s.L(31, state(m, 'BIG.TXT'))
     s.K(CTRL_HOME, CTRL)
     m.move(0)
     s.K(ord('s'), CTRL)                 # (the x and its Backspace: saved again)
